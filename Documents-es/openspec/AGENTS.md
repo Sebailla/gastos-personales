@@ -39,6 +39,32 @@ El espejo en español de cada archivo de este árbol vive en `Documents-es/opens
 
 `<alcance>-<slice>` en kebab-case. Ejemplos: `auth-foundation`, `accounts-ledger`, `fx-cache`, `networth-snapshot`. No usar el número de ticket de implementación.
 
+## Atribución de autor (metadata de docs)
+
+**El autor de todo documento en este proyecto es `Sebastián Illa`. Sin excepciones, sin atribución de IA, sin nombres de agentes, sin formas "co-authored".**
+
+Aplica a los campos de header `**Author**:` (inglés) y `**Autor**:` (español) de cada artefacto Markdown creado en el repo:
+
+- `openspec/changes/<nombre>/{proposal,design,tasks,apply-progress,verify-report,sync-report}.md`
+- `openspec/specs/<capability>/spec.md`
+- `docs/architecture.md`, `docs/adr/*`, `README.md`, `CHANGELOG.md`, runbooks
+- Cada espejo en español bajo `Documents-es/...`
+
+**Formas prohibidas** (serán rechazadas por el reviewer y corregidas al detectarlas):
+
+- `Author: el Gentleman`
+- `Author: el Gentleman (orchestrator) + user`
+- `Author: AI`, `Author: Assistant`, `Author: Pi`
+- `Author: Claude / GPT / Gemini / <nombre de modelo>`
+- `Author: Sebastián Illa (con ayuda de IA)` o cualquier calificador de "con ayuda de IA"
+- `Co-authored-by: ...` en cualquier commit o PR (la regla ya está en `AGENTS.md` raíz §4.5 para commits)
+
+**Co-autores reales**: si en el futuro se suma un contribuidor, el campo pasa a ser `Author: Sebastián Illa, <Otro Nombre>` solo con aprobación explícita del usuario. Nunca inferido.
+
+**Distinción con autoría de commit**: esta regla cubre la *metadata* del documento. La autoría de git commit también es `Sebastián Illa` (configurada vía `git config user.name`). Son independientes: un documento puede ser de Sebastián aunque un commit particular que corrige un typo lo haga otro contribuidor en el futuro. Ambos deben seguir la regla de no-atribución-de-IA de `AGENTS.md` raíz §4.5.
+
+**Enforcement**: el subagente `reviewer` busca formas prohibidas en cada PR. El generador de templates `spec-driven` (cuando esté) hardcodea el campo `Author`. Drift entre espejos inglés y español lo atrapa §13.3.
+
 ## Dependencias
 
 - `proposal` bloquea `spec`, `design`, `tasks`.

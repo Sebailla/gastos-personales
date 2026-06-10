@@ -2,17 +2,17 @@
 # See: openspec/AGENTS.md (project-level) and ~/.pi/agent/gentle-ai/support/sdd-status-contract.md
 
 schema: spec-driven
-artifactStore: both  # OpenSpec (canonical) + Engram (cross-session index)
+artifactStore: both # OpenSpec (canonical) + Engram (cross-session index)
 
 # Capabilities tracked under specs/
 capabilities:
   - auth
   - accounts
   - transactions
-  - fx  # foreign exchange
-  - snapshots  # net worth snapshots
+  - fx # foreign exchange
+  - snapshots # net worth snapshots
   - reports
-  - ui  # PWA shell
+  - ui # PWA shell
 
 # Preflight-derived session choices (mirrored from interactive answers)
 preflight:
