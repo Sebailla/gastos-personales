@@ -1,0 +1,27 @@
+# OpenSpec configuration for gastos-personales
+# See: openspec/AGENTS.md (project-level) and ~/.pi/agent/gentle-ai/support/sdd-status-contract.md
+
+schema: spec-driven
+artifactStore: both  # OpenSpec (canonical) + Engram (cross-session index)
+
+# Capabilities tracked under specs/
+capabilities:
+  - auth
+  - accounts
+  - transactions
+  - fx  # foreign exchange
+  - snapshots  # net worth snapshots
+  - reports
+  - ui  # PWA shell
+
+# Preflight-derived session choices (mirrored from interactive answers)
+preflight:
+  executionMode: interactive
+  chainedPrStrategy: auto-forecast
+  reviewBudgetLines: 400
+
+# Strict TDD is opt-in per change. Activate in sdd-tasks when test runner is known.
+strictTdd:
+  enabled: false
+  runner: "bun test"
+  rulesRef: ~/.pi/agent/gentle-ai/support/strict-tdd.md
