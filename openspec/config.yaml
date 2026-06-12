@@ -20,8 +20,11 @@ preflight:
   chainedPrStrategy: auto-forecast
   reviewBudgetLines: 400
 
-# Strict TDD is opt-in per change. Activate in sdd-tasks when test runner is known.
+# Strict TDD is opt-in per change. Activated for `auth-foundation` (v2 stack
+# is Node + pnpm + Vitest, not Bun). See
+# openspec/changes/auth-foundation/tasks.md for the per-task RED → GREEN →
+# REFACTOR cycle.
 strictTdd:
-  enabled: false
-  runner: "bun test"
+  enabled: true
+  runner: "pnpm test"
   rulesRef: ~/.pi/agent/gentle-ai/support/strict-tdd.md
