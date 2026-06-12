@@ -24,9 +24,14 @@ export class UserRepository implements UserRepositoryPort {
   constructor(private readonly prisma: { user: PrismaUserDelegate }) {}
 
   async create(user: NewUser): Promise<User> {
+    // Defense in depth: normalize email at the repository layer
+    // even if the caller passed a non-normalized string. The
+    // application layer normalizes first; the repository is
+    // the last line of defense.
+    const normalizedEmail = normalizeEmail(user.email);
     const row = await this.prisma.user.create({
       data: {
-        email: user.email,
+        email: normalizedEmail,
         name: user.name,
         image: user.image,
         passwordHash: user.passwordHash,

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { UserRepository } from './user.repository';
-import type { User } from '../domain/entities/user';
+import type { User } from '../../domain/entities/user';
 
 const buildFakePrisma = () => {
   const user = {

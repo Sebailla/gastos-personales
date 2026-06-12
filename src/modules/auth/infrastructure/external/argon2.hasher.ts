@@ -17,8 +17,13 @@
  * domain layer.
  */
 
-import { hash, verify, Algorithm } from '@node-rs/argon2';
+import { hash, verify } from '@node-rs/argon2';
 import type { PasswordHasherPort } from '../../domain/interfaces/password-hasher.port';
+
+// `Algorithm` is exported as a const enum by `@node-rs/argon2`;
+// we use the literal value `2` to keep `isolatedModules` happy
+// and to avoid the `import { Algorithm }` ambient-const warning.
+const ARGON2ID = 2 as const;
 
 export const ARGON2ID_PARAMS = {
   memoryCost: 19456, // KiB
@@ -29,7 +34,7 @@ export const ARGON2ID_PARAMS = {
 export class Argon2idHasher implements PasswordHasherPort {
   async hash(plaintext: string): Promise<string> {
     return hash(plaintext, {
-      algorithm: Algorithm.Argon2id,
+      algorithm: ARGON2ID,
       memoryCost: ARGON2ID_PARAMS.memoryCost,
       timeCost: ARGON2ID_PARAMS.timeCost,
       parallelism: ARGON2ID_PARAMS.parallelism,

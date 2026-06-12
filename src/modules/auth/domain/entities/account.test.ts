@@ -7,6 +7,7 @@ describe('isAccount', () => {
       isAccount({
         id: 'a1',
         userId: 'u1',
+        type: 'oidc',
         provider: 'google',
         providerAccountId: 'sub-123',
       }),

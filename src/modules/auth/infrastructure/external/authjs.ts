@@ -29,10 +29,7 @@ import { z } from 'zod';
 
 import { env } from '@/shared/env/env.schema';
 import { prisma } from '@/shared/db/prisma';
-import {
-  hashArgon2id,
-  verifyArgon2id,
-} from '@/modules/auth/infrastructure/external/argon2.hasher';
+import { Argon2idHasher } from './argon2.hasher';
 import { logger } from '@/shared/logger/logger';
 
 const credentialsSchema = z.object({
@@ -47,8 +44,20 @@ const credentialsSchema = z.object({
  * which is a long random string set as a Fly secret and never
  * logged. The plaintext is irrelevant — the verify only
  * measures time, not content.
+ *
+ * We block the module's first import on the hash; the first
+ * Credentials request is slower by ~50-100 ms as a result
+ * (per the design's documented risk in §11). Subsequent
+ * imports are cached and instant.
  */
-export const DUMMY_HASH: string = hashArgon2id(env.ARGON2ID_DUMMY_PASSWORD);
+let _dummyHashPromise: Promise<string> | undefined;
+async function getDummyHash(): Promise<string> {
+  if (!_dummyHashPromise) {
+    _dummyHashPromise = new Argon2idHasher().hash(env.ARGON2ID_DUMMY_PASSWORD);
+  }
+  return _dummyHashPromise;
+}
+export const DUMMY_HASH: Promise<string> = getDummyHash();
 
 export const authConfig: NextAuthConfig = {
   adapter: PrismaAdapter(prisma()),
@@ -90,14 +99,17 @@ export const authConfig: NextAuthConfig = {
           select: { id: true, email: true, name: true, image: true, passwordHash: true },
         });
 
+        const hasher = new Argon2idHasher();
+        const dummyHash = await DUMMY_HASH;
+
         // BR-AUTH-4 + BR-AUTH-9: equalize timing by running a verify
         // against the dummy hash on every "not-found" path.
         if (!user || !user.passwordHash) {
-          await verifyArgon2id(DUMMY_HASH, password);
+          await hasher.verify(dummyHash, password);
           return null;
         }
 
-        const ok = await verifyArgon2id(user.passwordHash, password);
+        const ok = await hasher.verify(user.passwordHash, password);
         if (!ok) return null;
 
         return {

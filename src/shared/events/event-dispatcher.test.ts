@@ -1,10 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { EventDispatcher } from './event-dispatcher';
-import type { UserRegisteredEvent, UserSignedInEvent } from './user-events';
 
 describe('EventDispatcher', () => {
   it('invokes every registered subscriber exactly once', async () => {
-    const d = new EventDispatcher<UserRegisteredEvent | UserSignedInEvent>();
+    const d = new EventDispatcher();
     const a = vi.fn();
     const b = vi.fn();
     d.subscribe('UserRegistered', a);
@@ -25,7 +24,7 @@ describe('EventDispatcher', () => {
   });
 
   it('does not call subscribers of a different event type', async () => {
-    const d = new EventDispatcher<UserRegisteredEvent | UserSignedInEvent>();
+    const d = new EventDispatcher();
     const a = vi.fn();
     d.subscribe('UserRegistered', a);
 
@@ -38,7 +37,7 @@ describe('EventDispatcher', () => {
   });
 
   it('catches a throwing subscriber and continues with the next one', async () => {
-    const d = new EventDispatcher<UserRegisteredEvent | UserSignedInEvent>();
+    const d = new EventDispatcher();
     const a = vi.fn(() => {
       throw new Error('boom');
     });
@@ -61,7 +60,7 @@ describe('EventDispatcher', () => {
   });
 
   it('returns the count of subscribers invoked', async () => {
-    const d = new EventDispatcher<UserRegisteredEvent | UserSignedInEvent>();
+    const d = new EventDispatcher();
     d.subscribe('UserRegistered', () => undefined);
     d.subscribe('UserRegistered', () => undefined);
 

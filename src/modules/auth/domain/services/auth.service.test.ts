@@ -61,7 +61,7 @@ const buildDispatcherStub = (): {
   dispatcher: EventDispatcher;
   spy: ReturnType<typeof vi.fn>;
 } => {
-  const spy = vi.fn(async () => 0);
+  const spy = vi.fn(async () => undefined);
   const dispatcher = new EventDispatcher();
   dispatcher.subscribe('UserRegistered', spy);
   dispatcher.subscribe('UserSignedIn', spy);

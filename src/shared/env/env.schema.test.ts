@@ -70,7 +70,12 @@ describe('envSchema', () => {
   });
 
   it('rejects a NODE_ENV that is not part of the enum', () => {
-    process.env.NODE_ENV = 'staging';
+    Object.defineProperty(process.env, 'NODE_ENV', {
+      value: 'staging',
+      configurable: true,
+      writable: true,
+      enumerable: true,
+    });
     expect(() => envSchema.parse(process.env)).toThrow();
   });
 

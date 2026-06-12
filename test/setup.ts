@@ -5,15 +5,23 @@
 // Provide deterministic env vars so the Zod env schema can
 // parse in unit tests. Integration tests that need a real
 // database override these via testcontainers.
-process.env.NODE_ENV = process.env.NODE_ENV ?? 'test';
-process.env.LOG_LEVEL = process.env.LOG_LEVEL ?? 'error';
-process.env.DATABASE_URL =
-  process.env.DATABASE_URL ?? 'postgresql://test:test@localhost:5432/gastos_test';
-process.env.AUTH_SECRET =
-  process.env.AUTH_SECRET ?? 'ci-only-secret-32-bytes-min-padding';
-process.env.AUTH_URL = process.env.AUTH_URL ?? 'http://localhost:3000';
-process.env.APP_URL = process.env.APP_URL ?? 'http://localhost:3000';
-process.env.AUTH_GOOGLE_ID = process.env.AUTH_GOOGLE_ID ?? 'ci-google-id';
-process.env.AUTH_GOOGLE_SECRET = process.env.AUTH_GOOGLE_SECRET ?? 'ci-google-secret';
-process.env.ARGON2ID_DUMMY_PASSWORD =
-  process.env.ARGON2ID_DUMMY_PASSWORD ?? 'ci-dummy-password-32-bytes-min-padding';
+const setIfMissing = (key: string, value: string): void => {
+  if (process.env[key] === undefined) {
+    Object.defineProperty(process.env, key, {
+      value,
+      configurable: true,
+      writable: true,
+      enumerable: true,
+    });
+  }
+};
+
+setIfMissing('NODE_ENV', 'test');
+setIfMissing('LOG_LEVEL', 'error');
+setIfMissing('DATABASE_URL', 'postgresql://test:test@localhost:5432/gastos_test');
+setIfMissing('AUTH_SECRET', 'ci-only-secret-32-bytes-min-padding');
+setIfMissing('AUTH_URL', 'http://localhost:3000');
+setIfMissing('APP_URL', 'http://localhost:3000');
+setIfMissing('AUTH_GOOGLE_ID', 'ci-google-id');
+setIfMissing('AUTH_GOOGLE_SECRET', 'ci-google-secret');
+setIfMissing('ARGON2ID_DUMMY_PASSWORD', 'ci-dummy-password-32-bytes-min-padding');

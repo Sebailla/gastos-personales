@@ -37,7 +37,7 @@ describe('logger', () => {
     logger.info('test', { [key]: 'super-secret-value', userId: 'u1' });
 
     const line = JSON.parse((infoSpy.mock.calls[0]?.[0] as string) ?? '{}');
-    expect(line[key]).toBeUndefined();
+    expect(line[key]).toBe('[REDACTED]');
     expect(line.userId).toBe('u1');
   });
 
@@ -45,7 +45,7 @@ describe('logger', () => {
     logger.info('test', { request: { headers: { cookie: 'sid=abc' }, body: { id: 1 } } });
 
     const line = JSON.parse((infoSpy.mock.calls[0]?.[0] as string) ?? '{}');
-    expect(line.request.headers.cookie).toBeUndefined();
+    expect(line.request.headers.cookie).toBe('[REDACTED]');
     expect(line.request.body.id).toBe(1);
   });
 
