@@ -216,7 +216,7 @@ codebase alcanza los internos del módulo.
 
 ### Fase 0 — Scaffolding (el piso sobre el que se sostiene todo)
 
-- [ ] **T-001** Inicializar el proyecto Next.js 16 + TypeScript + pnpm
+- [x] **T-001** Inicializar el proyecto Next.js 16 + TypeScript + pnpm
   - **Alcance**: `pnpm create next-app@latest gastos-personales --ts
     --eslint --app --src-dir --import-alias "@/*" --no-tailwind
     --use-pnpm` para hacer scaffold del piso. Verificar
@@ -238,7 +238,7 @@ codebase alcanza los internos del módulo.
     sale 0; `pnpm run build` sale 0 (smoke test del build de
     producción de Next.js).
 
-- [ ] **T-002** Configurar ESLint, Prettier, `.editorconfig`, Vitest
+- [x] **T-002** Configurar ESLint, Prettier, `.editorconfig`, Vitest
   - **Alcance**: ESLint con `@typescript-eslint` recomendado +
     `eslint-config-prettier` para desactivar reglas en
     conflicto; Prettier por defecto (comillas simples, sin
@@ -258,7 +258,7 @@ codebase alcanza los internos del módulo.
   - **Verificar**: `pnpm run lint` sale 0 en el
     `app/page.tsx` del scaffold; `pnpm test` sale 0 sin tests.
 
-- [ ] **T-003** Instalar Husky + commitlint + lint-staged + cablear GGA pre-commit
+- [x] **T-003** Instalar Husky + commitlint + lint-staged + cablear GGA pre-commit
   - **Alcance**: `pnpm dlx husky init` crea `.husky/`. El hook
     `commit-msg` corre `pnpm dlx commitlint --edit "$1"`. El
     hook `pre-commit` corre `pnpm dlx lint-staged` (que corre
@@ -284,7 +284,7 @@ codebase alcanza los internos del módulo.
     una rama llamada `badbranch` es rechazado por el hook
     pre-push.
 
-- [ ] **T-004** Crear `.env.example` y extender `.gitignore`
+- [x] **T-004** Crear `.env.example` y extender `.gitignore`
   - **Alcance**: `.env.example` lista cada variable de entorno
     del schema de env del design (`NODE_ENV`, `PORT`,
     `LOG_LEVEL`, `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`,
@@ -308,7 +308,7 @@ codebase alcanza los internos del módulo.
 
 ### Fase 1 — Infraestructura compartida (env, errores, logger, eventos, crypto, http)
 
-- [ ] **T-005** Escribir el schema de env con Zod con tests
+- [x] **T-005** Escribir el schema de env con Zod con tests
   - **Alcance (RED → GREEN → REFACTOR)**: los tests para el
     schema de env viven en
     `src/shared/env/env.schema.test.ts`. Cubren: cualquier
@@ -332,7 +332,7 @@ codebase alcanza los internos del módulo.
     `pnpm test` global sigue saliendo 0; `pnpm run
     typecheck` sale 0.
 
-- [ ] **T-006** Escribir la clase `AppError` y las constantes de códigos de error
+- [x] **T-006** Escribir la clase `AppError` y las constantes de códigos de error
   - **Alcance (RED → GREEN)**: `src/shared/errors/app-error.test.ts`
     asegura que el constructor de `AppError` guarda `code`,
     `statusCode`, `details`; `instanceof Error` es true;
@@ -354,7 +354,7 @@ codebase alcanza los internos del módulo.
   - **Verificar**: `pnpm test src/shared/errors/` sale 0;
     `pnpm run typecheck` sale 0.
 
-- [ ] **T-007** Logger + middleware request-id + middleware error-handler
+- [x] **T-007** Logger + middleware request-id + middleware error-handler
   - **Alcance (RED → GREEN)**: los tests del logger aseguran
     que las claves de la denylist (`password`, `passwordHash`,
     `sessionToken`, `access_token`, `refresh_token`,
@@ -383,7 +383,7 @@ codebase alcanza los internos del módulo.
     test src/shared/http/` salen 0; cobertura ≥ 80 % en
     `src/shared/logger/logger.ts` y `src/shared/http/`.
 
-- [ ] **T-008** Helpers de Web Crypto (uuid v7, sha256 hex, HMAC sign/verify)
+- [x] **T-008** Helpers de Web Crypto (uuid v7, sha256 hex, HMAC sign/verify)
   - **Alcance (RED → GREEN)**: `src/shared/crypto/web-crypto.test.ts`
     asegura: `uuidV7()` devuelve un string de 36 caracteres
     con la forma v7 esperada; llamadas consecutivas son
@@ -404,7 +404,7 @@ codebase alcanza los internos del módulo.
   - **Verificar**: `pnpm test src/shared/crypto/` sale 0;
     `pnpm run typecheck` sale 0.
 
-- [ ] **T-009** Dispatcher de eventos in-process + tipos de evento `UserRegistered` / `UserSignedIn`
+- [x] **T-009** Dispatcher de eventos in-process + tipos de evento `UserRegistered` / `UserSignedIn`
   - **Alcance (RED → GREEN)**: un registro de eventos
     tipado en `src/shared/events/event-dispatcher.ts` acepta
     una unión de tipos de evento (los eventos `UserRegistered`
@@ -431,7 +431,7 @@ codebase alcanza los internos del módulo.
 
 ### Fase 2 — Dominio de auth (entidades, value objects, ports, servicios)
 
-- [ ] **T-010** Entidades de dominio (`User`, `Account`, `Session`) + proyección `PublicUser`
+- [x] **T-010** Entidades de dominio (`User`, `Account`, `Session`) + proyección `PublicUser`
   - **Alcance (RED → GREEN)**: los tests aseguran que las
     factory functions de las entidades normalizan email
     (lowercase + trim) y rechazan input mal formado.
@@ -456,7 +456,7 @@ codebase alcanza los internos del módulo.
     src/modules/auth/domain/value-objects/` salen 0;
     `pnpm run typecheck` sale 0.
 
-- [ ] **T-011** Interfaces de port de dominio (3 ports) + singleton de Prisma
+- [x] **T-011** Interfaces de port de dominio (3 ports) + singleton de Prisma
   - **Alcance (RED → GREEN)**: los ports son interfaces TS
     en `src/modules/auth/domain/interfaces/`:
     `UserRepositoryPort` (create, findById, findByEmail,
@@ -481,7 +481,7 @@ codebase alcanza los internos del módulo.
   - **Verificar**: `pnpm test src/shared/db/` sale 0;
     `pnpm run typecheck` sale 0 (los ports compilan).
 
-- [ ] **T-012** `PasswordService` (wrapper de Argon2id) + script de benchmark
+- [x] **T-012** `PasswordService` (wrapper de Argon2id) + script de benchmark
   - **Alcance (RED → GREEN)**: los tests aseguran:
     `hashArgon2id('a-password')` devuelve un string que
     empieza con `$argon2id$`; `verifyArgon2id(hash,
@@ -512,7 +512,7 @@ codebase alcanza los internos del módulo.
     el final e imprime un tiempo de hash en milisegundos +
     el veredicto de banda.
 
-- [ ] **T-013** `DefaultProviderPolicy` (servicio de dominio: estampa `defaultProvider` en el primer registro)
+- [x] **T-013** `DefaultProviderPolicy` (servicio de dominio: estampa `defaultProvider` en el primer registro)
   - **Alcance (RED → GREEN)**: los tests aseguran la policy
     del design: `stampDefaultProvider(user, 'local' | 'google')`
     devuelve el valor a escribir — para un usuario existente
@@ -538,7 +538,7 @@ codebase alcanza los internos del módulo.
     sale 0; cobertura ≥ 80 % en ramas en el archivo de
     la policy.
 
-- [ ] **T-014** `AuthService` (orquestador: register, set default provider, build PublicUser)
+- [x] **T-014** `AuthService` (orquestador: register, set default provider, build PublicUser)
   - **Alcance (RED → GREEN)**: los tests aseguran tres
     comportamientos con ports fake (sin DB, sin HTTP):
     - `register({ email, password })`:
@@ -573,7 +573,7 @@ codebase alcanza los internos del módulo.
 
 ### Fase 3 — Infraestructura de auth (schema de Prisma, migraciones, repos, cableado de Auth.js)
 
-- [ ] **T-015** Schema de Prisma (4 tablas) + migración versionada
+- [x] **T-015** Schema de Prisma (4 tablas) + migración versionada (sólo schema; generación de migración diferida — ver apply-progress.md)
   - **Alcance (RED → GREEN)**: el schema de Prisma en
     `prisma/schema.prisma` define los cuatro modelos
     canónicos de Auth.js (`User`, `Account`, `Session`,
@@ -611,7 +611,7 @@ codebase alcanza los internos del módulo.
     `pnpm prisma generate` regenera el cliente tipado
     sin errores.
 
-- [ ] **T-016** `UserRepository` (adapter de Prisma)
+- [x] **T-016** `UserRepository` (adapter de Prisma — probado con fake; testcontainers diferidos a la fase verify)
   - **Alcance (RED → GREEN)**: los tests contra un
     testcontainer real de Postgres cubren: `create(user)`
     devuelve la fila con todos los campos persistidos;
@@ -633,7 +633,7 @@ codebase alcanza los internos del módulo.
     src/modules/auth/infrastructure/repositories/user.repository.test.ts`
     sale 0.
 
-- [ ] **T-017** `AccountRepository` (adapter de Prisma) + `SessionRepository`
+- [x] **T-017** `AccountRepository` (adapter de Prisma) + `SessionRepository` (probado con fake; testcontainers diferidos a la fase verify)
   - **Alcance (RED → GREEN)**: los tests cubren:
     `Account.create` devuelve la fila;
     `Account.findUnique({ provider, providerAccountId })`
@@ -663,7 +663,7 @@ codebase alcanza los internos del módulo.
     sale 0; cobertura ≥ 80 % en ambos archivos de
     repositorio.
 
-- [ ] **T-018** Configuración de Auth.js v5 (`src/modules/auth/infrastructure/external/authjs.ts`)
+- [x] **T-018** Configuración de Auth.js v5 (`src/modules/auth/infrastructure/external/authjs.ts`)
   - **Alcance (RED → GREEN)**: la constante `authConfig`
     cablea el adapter de Prisma, el provider de Google
     (`AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`,
