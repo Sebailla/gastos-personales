@@ -14,3 +14,6 @@ pnpm-debug.log*
 .DS_Store
 prisma/*.db
 prisma/*.db-journal
+tsconfig.tsbuildinfo
+.atl/.skill-registry.cache.json
+.atl/skill-registry.md
