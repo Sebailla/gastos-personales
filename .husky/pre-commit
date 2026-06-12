@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run lint-staged (ESLint + Prettier on staged files), then gga
+# (the project's code-quality gate).
+pnpm dlx lint-staged && gga run

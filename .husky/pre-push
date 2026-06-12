@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Reject pushes to main/master and require the branch name to
+# match the conventional prefix. Pushing to develop happens via
+# squash-merge from a feature branch.
+protected_branches="^(main|master)$"
+current_branch=$(git symbolic-ref --short HEAD)
+
+if echo "$current_branch" | grep -qE "$protected_branches"; then
+  echo "Push rejected: '$current_branch' is a protected branch."
+  exit 1
+fi
+
+allowed_prefixes="^(feat|fix|chore|docs|refactor|test|build|ci|perf|revert)/[a-z0-9-]+$"
+if ! echo "$current_branch" | grep -qE "$allowed_prefixes"; then
+  echo "Push rejected: branch name '$current_branch' does not match the convention."
+  echo "Expected pattern: <type>/<kebab-case-name> (e.g. feat/auth-foundation)"
+  exit 1
+fi
