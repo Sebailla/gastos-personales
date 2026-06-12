@@ -1,5 +1,9 @@
 # Local Pi runtime state
 .atl/
+.pi/
+
+# Local output state (SDD report intermediates)
+file-only/
 
 # Node / Bun
 node_modules/
