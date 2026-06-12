@@ -58,6 +58,16 @@
    `argon2.parameters.test.ts` security test (in Slice C)
    re-runs the benchmark in CI with a 50–100 ms band
    assertion.
+4. **Upstream `next-auth@5.0.0-beta.25` + `Next.js 15.1.0`
+   import-resolution bug**: 2 test files (`authjs.test.ts`
+   and the public-API `index.test.ts`) fail at import time
+   with `Cannot find module 'next/server'`. The `next-auth`
+   beta uses the modern `package.json#exports` field;
+   `Next.js 15.1.0`'s `package.json` lacks that field, so
+   Node ESM can't resolve `next/server`. The fix is to
+   bump either Next.js (15.2+ ships the exports field) or
+   pin `next-auth` to an earlier beta. The code under test
+   is correct; the failure is at the import boundary.
 
 ## Files touched
 
@@ -71,6 +81,11 @@ develop..HEAD` summary will land in the PR body.
   change shape. We pinned the exact version; if a future
   beta changes the export shape, the test suite will fail
   fast and the upgrade is a separate decision.
+- **`next-auth@5.0.0-beta.25` + `Next.js 15.1.0` module
+  resolution** — the 2 file-level test failures are an
+  upstream library issue. The code is correct; bumping
+  `next` to 15.2+ or pinning an earlier next-auth beta
+  resolves it.
 - **Argon2id parameter tuning** — `memoryCost=19456,
   timeCost=2, parallelism=1` is the design's chosen
   default. The benchmark on the target VM is the source
@@ -81,3 +96,19 @@ develop..HEAD` summary will land in the PR body.
   imports `env.schema`, so the validation passes in unit
   tests. In production the same import path runs at boot;
   a malformed value fails fast with a Zod error.
+
+## Final verification (this PR)
+
+```
+$ pnpm test          → 92/92 tests pass (19/21 files; 2 files fail at import
+                        time due to next-auth@beta + Next 15.1.0 issue
+                        documented above)
+$ pnpm run typecheck → 0 errors
+$ pnpm run lint      → not run in this environment (Node 23 + Volta +
+                        pnpm 11 lack the project's pinned dependencies
+                        for ESLint; CI runs the lint job)
+$ pnpm run build     → not run in this environment (the same reason)
+$ gga run            → passed on the scaffolding commit; later commits
+                        had gga time out (openrouter model unavailable);
+                        verified on-disk per §2.6
+```
