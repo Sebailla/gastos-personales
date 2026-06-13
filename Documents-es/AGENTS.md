@@ -319,27 +319,17 @@ worktree branches: feat/*, fix/*, docs/*, chore/*, refactor/*,
 7. **Sync again** — `git checkout develop && git pull` before the
    next task.
 
-### 5.3 Pre-commit checklist
+### 5.3 Checklist de pre-commit
 
-- `gga run` (or equivalent pre-commit hook) passed.
-- One logical unit. Split unrelated edits.
-- English Markdown commits include the `./Documents-es/` mirror.
-- OpenSpec commits reference the change name and artifact.
-- Release-related commits include the version bump in `<manifest>`
-  and the `CHANGELOG.md` entry.
-- Conventional Commits format.
-- No AI attribution trailer.
-- No secrets, no `.env` content, no large binaries.
-- **`pnpm-lock.yaml` policy** (added 2026-06-13 after a gap in Slice A
-  of `auth-foundation`): the lockfile is a **deliverable**, not an
-  intermediate. It must be committed in any commit that touches
-  `package.json`. CI uses `pnpm install --frozen-lockfile`; a missing
-  or drifted lockfile breaks the build. Husky has a pre-commit check
-  (`.husky/pre-commit` → `scripts/check-lockfile.sh`) that fails the
-  commit if `git status --short pnpm-lock.yaml` shows a diff between
-  the working tree and the index after `package.json` is staged.
-  See: <https://github.com/Sebailla/gastos-personales/issues/7> for
-  the upstream tracking issue and the historical rationale.
+- `gga run` (o el hook de pre-commit equivalente) aprobado.
+- Una unidad lógica. Dividí ediciones no relacionadas.
+- Los commits de Markdown en inglés incluyen el espejo en `./Documents-es/`.
+- Los commits de OpenSpec referencian el nombre del cambio y el artefacto.
+- Los commits relacionados a un release incluyen el bump de versión en el `<manifest>` y la entrada en `CHANGELOG.md`.
+- Formato Conventional Commits.
+- Sin trailer de atribución a IA.
+- Sin secretos, sin contenido de `.env`, sin binarios grandes.
+- **Política de `pnpm-lock.yaml`** (agregado el 2026-06-13 tras un gap en la Slice A de `auth-foundation`): el lockfile es un **deliverable**, no un intermediate. Tiene que committearse en cualquier commit que toque `package.json`. El CI usa `pnpm install --frozen-lockfile`; un lockfile faltante o drifted rompe el build. Husky tiene un check de pre-commit (`.husky/pre-commit` → `scripts/check-lockfile.sh`) que falla el commit si `git status --short pnpm-lock.yaml` muestra un diff entre el working tree y el index después de stagear `package.json`. Mirá <https://github.com/Sebailla/gastos-personales/issues/7> para el issue de tracking upstream y la rationale histórica.
 
 ### 5.4 Docs and memory in the same change
 
