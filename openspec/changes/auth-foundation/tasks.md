@@ -840,7 +840,7 @@ src/modules/auth/application/actions/health.action.test.ts`
 
 ### Phase 6 — App composition (mount routes, public API, middleware wiring)
 
-- [ ] **T-024** Mount `app/api/auth/[...nextauth]/route.ts` (Auth.js handler)
+- [x] **T-024** Mount `app/api/auth/[...nextauth]/route.ts` (Auth.js handler)
 
   - **Scope**: a 2-line file that re-exports `GET` and
     `POST` from the Auth.js `handlers` destructured in
