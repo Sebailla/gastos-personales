@@ -786,7 +786,7 @@ src/modules/auth/application/actions/health.action.test.ts`
   - **Verify**: `pnpm test src/modules/api/` exits 0;
     `pnpm run typecheck` exits 0.
 
-- [ ] **T-022** Hono typed client export (`src/modules/api/client.ts`)
+- [x] **T-022** Hono typed client export (`src/modules/api/client.ts`)
 
   - **Scope**: the typed `hc<typeof honoApp>` client
     instance is exported at `src/modules/api/client.ts`

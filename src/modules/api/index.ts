@@ -4,3 +4,4 @@
  */
 
 export { honoApp, createHonoApp, type AppType, type HonoAppDeps } from './app';
+export { apiClient } from './client';
