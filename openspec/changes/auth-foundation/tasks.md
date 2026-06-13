@@ -718,7 +718,7 @@ src/modules/auth/infrastructure/external/authjs.test.ts`
 src/modules/auth/application/actions/register.action.test.ts`
     exits 0.
 
-- [ ] **T-020** `meAction` + `healthAction` + DTOs
+- [x] **T-020** `meAction` + `healthAction` + DTOs
   - **Scope (RED → GREEN)**: `meAction(c)` returns
     `{ data: PublicUser }` when `c.get('user')` is set
     (i.e. `auth()` resolved a valid session) and 401
@@ -1449,7 +1449,7 @@ Sebastián Illa` on every commit.
 - [ ] All 8 decision gaps encoded as defaults
       (not open questions) in the task list: 1. `@node-rs/argon2` (with `argon2`
       fallback) — T-012. 2. `memoryCost=19456, timeCost=2,
-   parallelism=1` — T-012, T-027. 3. `signIn` callback updates `lastLoginAt`
+parallelism=1` — T-012, T-027. 3. `signIn` callback updates `lastLoginAt`
       and emits `UserRegistered` on first
       registration only — T-018, T-014. 4. `lastLoginAt` updated in the `signIn`
       callback, not on session read — T-018. 5. Hono typed-client export shape
