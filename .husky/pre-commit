@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# ESLint 9 still supports the legacy .eslintrc.cjs config when this
+# env var is set. The project migrates to the flat config in a
+# follow-up; until then, every ESLint invocation (lint, lint-staged)
+# needs the flag. Set it once here so lint-staged can spawn ESLint
+# correctly on staged .ts/.tsx files.
+export ESLINT_USE_FLAT_CONFIG=false
+
+# Run lint-staged (ESLint + Prettier on staged files), then gga
+# (the project's code-quality gate).
+pnpm dlx lint-staged && gga run

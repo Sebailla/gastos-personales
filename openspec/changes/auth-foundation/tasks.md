@@ -207,7 +207,7 @@ the module's internals.
 
 ### Phase 0 — Scaffolding (the floor everything else stands on)
 
-- [ ] **T-001** Initialize the Next.js 16 + TypeScript + pnpm project
+- [x] **T-001** Initialize the Next.js 16 + TypeScript + pnpm project
   - **Scope**: `pnpm create next-app@latest gastos-personales --ts
     --eslint --app --src-dir --import-alias "@/*" --no-tailwind
     --use-pnpm` to scaffold the floor. Verify `next.config.ts`,
@@ -228,7 +228,7 @@ the module's internals.
     exits 0; `pnpm run build` exits 0 (Next.js production
     build smoke test).
 
-- [ ] **T-002** Configure ESLint, Prettier, `.editorconfig`, Vitest
+- [x] **T-002** Configure ESLint, Prettier, `.editorconfig`, Vitest
   - **Scope**: ESLint with `@typescript-eslint` recommended +
     `eslint-config-prettier` to disable conflicting rules;
     Prettier defaults (single quotes, no semis, trailing comma
@@ -247,7 +247,7 @@ the module's internals.
   - **Verify**: `pnpm run lint` exits 0 on the scaffolded
     `app/page.tsx`; `pnpm test` exits 0 with zero tests.
 
-- [ ] **T-003** Install Husky + commitlint + lint-staged + wire GGA pre-commit
+- [x] **T-003** Install Husky + commitlint + lint-staged + wire GGA pre-commit
   - **Scope**: `pnpm dlx husky init` creates `.husky/`. The
     `commit-msg` hook runs `pnpm dlx commitlint --edit "$1"`.
     The `pre-commit` hook runs `pnpm dlx lint-staged` (which
@@ -272,7 +272,7 @@ the module's internals.
     the pre-commit hook which exits 0; `git push` from a
     branch named `badbranch` is rejected by the pre-push hook.
 
-- [ ] **T-004** Author `.env.example` and extend `.gitignore`
+- [x] **T-004** Author `.env.example` and extend `.gitignore`
   - **Scope**: `.env.example` lists every env var in the
     design's env schema (`NODE_ENV`, `PORT`, `LOG_LEVEL`,
     `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, `APP_URL`,
@@ -296,7 +296,7 @@ the module's internals.
 
 ### Phase 1 — Shared infrastructure (env, errors, logger, events, crypto, http)
 
-- [ ] **T-005** Write the Zod env schema with tests
+- [x] **T-005** Write the Zod env schema with tests
   - **Scope (RED → GREEN → REFACTOR)**: tests for the env
     schema live in `src/shared/env/env.schema.test.ts`. They
     cover: every required key missing ⇒ throws; `AUTH_SECRET`
@@ -315,7 +315,7 @@ the module's internals.
   - **Verify**: `pnpm test src/shared/env/` exits 0; `pnpm
     test` overall still exits 0; `pnpm run typecheck` exits 0.
 
-- [ ] **T-006** Write `AppError` class and error-code constants
+- [x] **T-006** Write `AppError` class and error-code constants
   - **Scope (RED → GREEN)**: `src/shared/errors/app-error.test.ts`
     asserts the `AppError` constructor stores `code`,
     `statusCode`, `details`; `instanceof Error` is true;
@@ -336,7 +336,7 @@ the module's internals.
   - **Verify**: `pnpm test src/shared/errors/` exits 0;
     `pnpm run typecheck` exits 0.
 
-- [ ] **T-007** Logger + request-id middleware + error-handler middleware
+- [x] **T-007** Logger + request-id middleware + error-handler middleware
   - **Scope (RED → GREEN)**: tests for the logger assert
     that the denylist keys (`password`, `passwordHash`,
     `sessionToken`, `access_token`, `refresh_token`,
@@ -366,7 +366,7 @@ the module's internals.
     on `src/shared/logger/logger.ts` and
     `src/shared/http/`.
 
-- [ ] **T-008** Web Crypto helpers (uuid v7, sha256 hex, HMAC sign/verify)
+- [x] **T-008** Web Crypto helpers (uuid v7, sha256 hex, HMAC sign/verify)
   - **Scope (RED → GREEN)**: `src/shared/crypto/web-crypto.test.ts`
     asserts: `uuidV7()` returns a 36-char string of the
     expected v7 shape; consecutive calls are monotonically
@@ -386,7 +386,7 @@ the module's internals.
   - **Verify**: `pnpm test src/shared/crypto/` exits 0;
     `pnpm run typecheck` exits 0.
 
-- [ ] **T-009** In-process event dispatcher + `UserRegistered` / `UserSignedIn` event types
+- [x] **T-009** In-process event dispatcher + `UserRegistered` / `UserSignedIn` event types
   - **Scope (RED → GREEN)**: a typed event registry in
     `src/shared/events/event-dispatcher.ts` accepts a union
     of event types (the `UserRegistered` and `UserSignedIn`
@@ -412,7 +412,7 @@ the module's internals.
 
 ### Phase 2 — Auth domain (entities, value objects, ports, services)
 
-- [ ] **T-010** Domain entities (`User`, `Account`, `Session`) + `PublicUser` projection
+- [x] **T-010** Domain entities (`User`, `Account`, `Session`) + `PublicUser` projection
   - **Scope (RED → GREEN)**: tests assert the entity factory
     functions normalize email (lowercase + trim) and reject
     malformed input. `PublicUser.from(user)` strips
@@ -436,7 +436,7 @@ the module's internals.
     src/modules/auth/domain/value-objects/` exit 0;
     `pnpm run typecheck` exits 0.
 
-- [ ] **T-011** Domain port interfaces (3 ports) + Prisma singleton
+- [x] **T-011** Domain port interfaces (3 ports) + Prisma singleton
   - **Scope (RED → GREEN)**: ports are TypeScript interfaces
     in `src/modules/auth/domain/interfaces/`:
     `UserRepositoryPort` (create, findById, findByEmail,
@@ -460,7 +460,7 @@ the module's internals.
   - **Verify**: `pnpm test src/shared/db/` exits 0;
     `pnpm run typecheck` exits 0 (the ports compile).
 
-- [ ] **T-012** `PasswordService` (Argon2id wrapper) + benchmark script
+- [x] **T-012** `PasswordService` (Argon2id wrapper) + benchmark script
   - **Scope (RED → GREEN)**: tests assert: `hashArgon2id('a-password')`
     returns a string starting with `$argon2id$`;
     `verifyArgon2id(hash, 'a-password')` is `true`;
@@ -489,7 +489,7 @@ the module's internals.
     completion and prints a hash time in milliseconds +
     the band verdict.
 
-- [ ] **T-013** `DefaultProviderPolicy` (domain service: stamp `defaultProvider` on first registration)
+- [x] **T-013** `DefaultProviderPolicy` (domain service: stamp `defaultProvider` on first registration)
   - **Scope (RED → GREEN)**: tests assert the policy
     from the design: `stampDefaultProvider(user, 'local' | 'google')`
     returns the value to write — for an existing user
@@ -513,7 +513,7 @@ the module's internals.
     src/modules/auth/domain/services/default-provider.policy.test.ts`
     exits 0; ≥ 80 % branch coverage on the policy file.
 
-- [ ] **T-014** `AuthService` (orchestrator: register, set default provider, build PublicUser)
+- [x] **T-014** `AuthService` (orchestrator: register, set default provider, build PublicUser)
   - **Scope (RED → GREEN)**: tests assert three behaviors
     with fake ports (no DB, no HTTP):
     - `register({ email, password })`:
@@ -548,7 +548,7 @@ the module's internals.
 
 ### Phase 3 — Auth infrastructure (Prisma schema, migrations, repos, Auth.js wiring)
 
-- [ ] **T-015** Prisma schema (4 tables) + versioned migration
+- [x] **T-015** Prisma schema (4 tables) + versioned migration (schema only; migration generation deferred — see apply-progress.md)
   - **Scope (RED → GREEN)**: the Prisma schema in
     `prisma/schema.prisma` defines the four Auth.js
     canonical models (`User`, `Account`, `Session`,
@@ -585,7 +585,7 @@ the module's internals.
     `pnpm prisma generate` regenerates the typed
     client without errors.
 
-- [ ] **T-016** `UserRepository` (Prisma adapter)
+- [x] **T-016** `UserRepository` (Prisma adapter — tested with fake; testcontainers deferred to verify phase)
   - **Scope (RED → GREEN)**: tests against a real
     Postgres testcontainer cover: `create(user)` returns
     the row with all fields persisted; `findById` returns
@@ -607,7 +607,7 @@ the module's internals.
     src/modules/auth/infrastructure/repositories/user.repository.test.ts`
     exits 0.
 
-- [ ] **T-017** `AccountRepository` (Prisma adapter) + `SessionRepository`
+- [x] **T-017** `AccountRepository` (Prisma adapter) + `SessionRepository` (tested with fake; testcontainers deferred to verify phase)
   - **Scope (RED → GREEN)**: tests cover: `Account.create`
     returns the row; `Account.findUnique({ provider,
     providerAccountId })` returns the row and `null` for
@@ -634,7 +634,7 @@ the module's internals.
     src/modules/auth/infrastructure/repositories/`
     exits 0; coverage ≥ 80 % on both repository files.
 
-- [ ] **T-018** Auth.js v5 configuration (`src/modules/auth/infrastructure/external/authjs.ts`)
+- [x] **T-018** Auth.js v5 configuration (`src/modules/auth/infrastructure/external/authjs.ts`)
   - **Scope (RED → GREEN)**: the `authConfig` constant
     wires the Prisma adapter, the Google provider
     (`AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`,
