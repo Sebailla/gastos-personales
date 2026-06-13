@@ -8,6 +8,11 @@
 # correctly on staged .ts/.tsx files.
 export ESLINT_USE_FLAT_CONFIG=false
 
+# pnpm-lock.yaml policy check (AGENTS.md §5.3): if package.json is
+# staged, the lockfile must be staged too. Runs before lint-staged
+# so a fix is one `git add pnpm-lock.yaml` away.
+sh "$(dirname -- "$0")/../scripts/check-lockfile.sh"
+
 # Run lint-staged (ESLint + Prettier on staged files), then gga
 # (the project's code-quality gate).
 pnpm dlx lint-staged && gga run
