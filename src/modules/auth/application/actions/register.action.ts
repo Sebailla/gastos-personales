@@ -26,15 +26,15 @@ import type { AuthService } from '@/modules/auth/domain/services/auth.service';
 import type { PublicUserShape } from '@/modules/auth/domain/value-objects/public-user';
 import { registerInputSchema } from '../dto/register.dto';
 import { AppError } from '@/shared/errors/app-error';
-import { ErrorCode } from '@/shared/errors/error-codes';
+import { ErrorCode, type ErrorCode as ErrorCodeType } from '@/shared/errors/error-codes';
 import { logger } from '@/shared/logger/logger';
 
 export type RegisterActionResult =
   | { status: 201; data: PublicUserShape }
-  | { status: 400; error: { code: ErrorCode.VALIDATION_ERROR; message: string; details: unknown } }
-  | { status: 400; error: { code: ErrorCode.WEAK_PASSWORD; message: string } }
-  | { status: 409; error: { code: ErrorCode.EMAIL_TAKEN; message: string } }
-  | { status: 500; error: { code: ErrorCode.INTERNAL_ERROR; message: string } };
+  | { status: 400; error: { code: ErrorCodeType; message: string; details: unknown } }
+  | { status: 400; error: { code: ErrorCodeType; message: string } }
+  | { status: 409; error: { code: ErrorCodeType; message: string } }
+  | { status: 500; error: { code: ErrorCodeType; message: string } };
 
 export async function registerAction(
   authService: AuthService,

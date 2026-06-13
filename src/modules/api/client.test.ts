@@ -11,7 +11,11 @@ describe('apiClient (typed Hono client)', () => {
     // names match the Hono app's route paths. We assert
     // the surface exists at runtime; the inferred types
     // are checked at compile time.
-    const client = apiClient('http://localhost:3000');
+    const client = apiClient('http://localhost:3000') as unknown as {
+      me: { $get: unknown };
+      health: { $get: unknown };
+      auth: { register: { $post: unknown } };
+    };
     expect(client).toBeDefined();
     expect(client.me).toBeDefined();
     expect(client.health).toBeDefined();

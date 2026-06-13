@@ -97,7 +97,13 @@ export function createHonoApp(deps: HonoAppDeps): OpenAPIHono {
 }
 
 function buildDefaultDeps(): HonoAppDeps {
-  const userRepo = new UserRepository(prisma());
+  // The PrismaClient satisfies the narrow port structurally
+  // (it has a `user` delegate with the four methods the
+  // repository uses). The cast keeps `app.ts` from
+  // importing the full PrismaClientOptions type for what
+  // is, in practice, a structural compat check.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userRepo = new UserRepository(prisma() as any);
   const hasher = new Argon2idHasher();
   return {
     authService: new AuthService(userRepo, hasher, dispatcher),

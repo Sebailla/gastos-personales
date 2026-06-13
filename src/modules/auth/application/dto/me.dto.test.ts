@@ -34,7 +34,6 @@ describe('meSuccessSchema', () => {
       email: 'a@b.com',
       name: null,
       image: null,
-      // @ts-expect-error — the enum is closed.
       defaultProvider: 'facebook',
       lastLoginAt: null,
     };

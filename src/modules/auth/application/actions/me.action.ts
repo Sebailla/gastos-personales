@@ -18,12 +18,12 @@
 import type { Context } from 'hono';
 import type { AuthService } from '@/modules/auth/domain/services/auth.service';
 import type { PublicUserShape } from '@/modules/auth/domain/value-objects/public-user';
-import { ErrorCode } from '@/shared/errors/error-codes';
+import { ErrorCode, type ErrorCode as ErrorCodeType } from '@/shared/errors/error-codes';
 import { logger } from '@/shared/logger/logger';
 
 export type MeActionResult =
   | { status: 200; data: PublicUserShape }
-  | { status: 401; error: { code: ErrorCode.UNAUTHORIZED; message: string } };
+  | { status: 401; error: { code: ErrorCodeType; message: string } };
 
 export async function meAction(authService: AuthService, c: Context): Promise<MeActionResult> {
   // The auth middleware sets `user` to the session user or
