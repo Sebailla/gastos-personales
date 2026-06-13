@@ -2,20 +2,23 @@ import { defineConfig } from 'vitest/config';
 import path from 'node:path';
 
 export default defineConfig({
+  esbuild: {
+    jsx: 'automatic',
+  },
   test: {
     globals: true,
     environment: 'node',
     setupFiles: ['./test/setup.ts'],
-    include: ['src/**/*.{test,spec}.ts', 'test/**/*.{test,spec}.ts'],
+    include: ['src/**/*.{test,spec}.ts', 'test/**/*.{test,spec}.ts', 'app/**/*.{test,spec}.ts'],
     // TEMP: The 2 test files below transitively import next-auth,
     // which imports `next/server` (no extension) from its ESM build.
     // Vite's strict ESM resolver can't resolve that path against
     // older next-auth betas (<5.0.0-beta.30) that predate the
     // extension-aware import. The bug closes ONLY when BOTH
     // conditions are met: (a) a next-auth beta that uses the
-    // extension-aware import (>=5.0.0-beta.30), AND (b) a `next`
+    // extension-aware import (>=5.0.0-beta.31), AND (b) a `next`
     // version that ships the `exports` field (>=15.2 or 16+).
-    // (a) is delivered by chore/nextauth-beta30; (b) was delivered
+    // (a) was delivered by chore/nextauth-beta30; (b) was delivered
     // by chore/next-16-cve. Once BOTH land on develop, revert the
     // entries below.
     exclude: [

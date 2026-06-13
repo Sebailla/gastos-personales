@@ -806,7 +806,7 @@ src/modules/auth/application/actions/health.action.test.ts`
   - **Verify**: `pnpm test src/modules/api/client.test.ts`
     exits 0; `pnpm run typecheck` exits 0.
 
-- [ ] **T-023** Auth.js signIn page at `app/auth/signin/page.tsx` (server component + form action)
+- [x] **T-023** Auth.js signIn page at `app/auth/signin/page.tsx` (server component + form action)
   - **Scope**: the page is a Next.js server component
     that renders a form with email + password inputs
     (using TanStack React Form for the controlled
