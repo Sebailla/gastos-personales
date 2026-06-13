@@ -7,15 +7,17 @@ export default defineConfig({
     environment: 'node',
     setupFiles: ['./test/setup.ts'],
     include: ['src/**/*.{test,spec}.ts', 'test/**/*.{test,spec}.ts'],
-    // TEMP: next-auth@5.0.0-beta.25 imports `next/server` (ESM-style)
-    // but Next publishes that path as a CJS file with no `exports`
-    // field. The 2 test files that transitively import next-auth
-    // fail to load under Vite's strict ESM resolver. Re-enable these
-    // in Slice B (T-019..T-026) when the real Auth.js integration
-    // lands and we can replace the upstream `next-auth` beta with
-    // a version that exports `next/server` correctly. The tests
-    // themselves stay in the repo (not deleted) for Slice B to
-    // re-include.
+    // TEMP: The 2 test files below transitively import next-auth,
+    // which imports `next/server` (no extension) from its ESM build.
+    // Vite's strict ESM resolver can't resolve that path against
+    // older next-auth betas (<5.0.0-beta.30) that predate the
+    // extension-aware import. The bug closes ONLY when BOTH
+    // conditions are met: (a) a next-auth beta that uses the
+    // extension-aware import (>=5.0.0-beta.30), AND (b) a `next`
+    // version that ships the `exports` field (>=15.2 or 16+).
+    // (a) is delivered by chore/nextauth-beta30; (b) was delivered
+    // by chore/next-16-cve. Once BOTH land on develop, revert the
+    // entries below.
     exclude: [
       'node_modules',
       'dist',
