@@ -750,7 +750,7 @@ src/modules/auth/application/actions/health.action.test.ts`
 
 ### Phase 5 — Auth UI (Hono catch-all, Auth.js signIn page, signOut page)
 
-- [ ] **T-021** Hono `OpenAPIHono` app composition (`src/modules/api/app.ts`)
+- [x] **T-021** Hono `OpenAPIHono` app composition (`src/modules/api/app.ts`)
 
   - **Scope (RED → GREEN)**: the Hono app is an
     `OpenAPIHono` instance. A `*` middleware resolves
