@@ -52,7 +52,7 @@ export const envSchema = z
           message: `APP_URL origin (${appOrigin}) must match AUTH_URL origin (${authOrigin})`,
         });
       }
-    } catch (err) {
+    } catch {
       // Per-field .url() already catches malformed URLs; this branch
       // is a defense-in-depth no-op.
     }

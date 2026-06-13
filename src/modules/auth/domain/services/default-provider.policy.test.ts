@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { stampDefaultProvider, inferProviderFromOAuthProfile } from './default-provider.policy';
 import { AppError } from '@/shared/errors/app-error';
-import { ErrorCode } from '@/shared/errors/error-codes';
 
 describe('DefaultProviderPolicy.stampDefaultProvider', () => {
   it('returns the new provider for a new user (first registration)', () => {
@@ -17,9 +16,9 @@ describe('DefaultProviderPolicy.stampDefaultProvider', () => {
 
 describe('DefaultProviderPolicy.inferProviderFromOAuthProfile', () => {
   it('returns "google" for a Google profile with email_verified: true', () => {
-    expect(
-      inferProviderFromOAuthProfile({ provider: 'google', email_verified: true }),
-    ).toBe('google');
+    expect(inferProviderFromOAuthProfile({ provider: 'google', email_verified: true })).toBe(
+      'google',
+    );
   });
 
   it('throws an AppError(INTERNAL_ERROR) for a non-Google provider', () => {
