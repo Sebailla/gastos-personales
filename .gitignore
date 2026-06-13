@@ -17,3 +17,14 @@ prisma/*.db-journal
 tsconfig.tsbuildinfo
 .atl/.skill-registry.cache.json
 .atl/skill-registry.md
+
+# Local agent / skill runtime state (not part of the project)
+.atl/
+.pi/
+.arl/
+.tmp/
+.worktrees/
+
+# Local intermediate output (SDD report artifacts, mirror-pdf-drive work, etc.)
+file-only/
+dist/mirror-pdf-drive/
