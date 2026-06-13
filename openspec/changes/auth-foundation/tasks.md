@@ -13,15 +13,16 @@
 
 > **v2 note**: this is the second write of this task list. The
 > first version targeted Bun + Hono (server) + Drizzle + SQLite
-> + a hand-rolled auth subsystem (commit `b2a69ec`) and was
-> deleted in `eca35c9` after the stack changed. v1 is kept in
-> git history for structural reference; its content is
-> **obsolete** (custom JWT, refresh rotation, Drizzle, SQLite,
-> `arctic`, `jose`, `bun-argon2`). v2 keeps the v1 *shape* (11
-> phases, TDD-first ordering, 3-chained-PR forecast) and
-> replaces the *substance* with Auth.js v5 database sessions,
-> the Prisma adapter, and the Hono catch-all that hosts the
-> non-auth application API.
+>
+> - a hand-rolled auth subsystem (commit `b2a69ec`) and was
+>   deleted in `eca35c9` after the stack changed. v1 is kept in
+>   git history for structural reference; its content is
+>   **obsolete** (custom JWT, refresh rotation, Drizzle, SQLite,
+>   `arctic`, `jose`, `bun-argon2`). v2 keeps the v1 _shape_ (11
+>   phases, TDD-first ordering, 3-chained-PR forecast) and
+>   replaces the _substance_ with Auth.js v5 database sessions,
+>   the Prisma adapter, and the Hono catch-all that hosts the
+>   non-auth application API.
 
 ## Goal
 
@@ -40,15 +41,16 @@ that is the only identity-resolution path, structured logging
 that strips `password` / `passwordHash` / `sessionToken` /
 `access_token` / `refresh_token` / `id_token` / `csrfToken` /
 `"set-cookie"` from every line (BR-AUTH-11), and ≥ 80 % line
-+ branch coverage on `src/modules/auth/**` and
-`src/shared/db/**` — all gated by `pnpm test` (Vitest),
-`pnpm run lint`, `pnpm run typecheck`, `pnpm run build`, and
-`gga run`.
+
+- branch coverage on `src/modules/auth/**` and
+  `src/shared/db/**` — all gated by `pnpm test` (Vitest),
+  `pnpm run lint`, `pnpm run typecheck`, `pnpm run build`, and
+  `gga run`.
 
 ## Scope summary
 
 - 4 Prisma models (User, Account, Session, VerificationToken)
-  + 1 versioned migration (Prisma-generated SQL).
+  - 1 versioned migration (Prisma-generated SQL).
 - 3 domain entity types (User, Account, Session projections) +
   PublicUser value object.
 - 3 domain service classes (PasswordService, AuthService,
@@ -70,7 +72,7 @@ that strips `password` / `passwordHash` / `sessionToken` /
 - 5 ADRs (Auth.js v5, Prisma 6, Argon2id parameters, Hono
   catch-all shape, auto-link security model).
 - CI workflow (`.github/workflows/ci.yml`) with lint + typecheck
-  + test (coverage) + build jobs.
+  - test (coverage) + build jobs.
 - Husky pre-commit (`gga run` + lint-staged) + commit-msg
   (commitlint) + pre-push.
 - ESLint + Prettier + TypeScript strict + Vitest coverage ≥ 80 %
@@ -208,9 +210,10 @@ the module's internals.
 ### Phase 0 — Scaffolding (the floor everything else stands on)
 
 - [x] **T-001** Initialize the Next.js 16 + TypeScript + pnpm project
+
   - **Scope**: `pnpm create next-app@latest gastos-personales --ts
-    --eslint --app --src-dir --import-alias "@/*" --no-tailwind
-    --use-pnpm` to scaffold the floor. Verify `next.config.ts`,
+--eslint --app --src-dir --import-alias "@/*" --no-tailwind
+--use-pnpm` to scaffold the floor. Verify `next.config.ts`,
     `tsconfig.json` (strict: true), and the default `app/`
     tree. Add the `dev`, `build`, `start`, `lint`, `typecheck`,
     `test`, `test:coverage`, `test:ui`, and `prisma` scripts to
@@ -229,6 +232,7 @@ the module's internals.
     build smoke test).
 
 - [x] **T-002** Configure ESLint, Prettier, `.editorconfig`, Vitest
+
   - **Scope**: ESLint with `@typescript-eslint` recommended +
     `eslint-config-prettier` to disable conflicting rules;
     Prettier defaults (single quotes, no semis, trailing comma
@@ -248,6 +252,7 @@ the module's internals.
     `app/page.tsx`; `pnpm test` exits 0 with zero tests.
 
 - [x] **T-003** Install Husky + commitlint + lint-staged + wire GGA pre-commit
+
   - **Scope**: `pnpm dlx husky init` creates `.husky/`. The
     `commit-msg` hook runs `pnpm dlx commitlint --edit "$1"`.
     The `pre-commit` hook runs `pnpm dlx lint-staged` (which
@@ -292,11 +297,12 @@ the module's internals.
     `git check-ignore -v .env.example` returns 1 (NOT
     ignored); `cat .env.example | grep -c AUTH_SECRET`
     returns 1; `cat .env.example | grep -c
-    ARGON2ID_DUMMY_PASSWORD` returns 1.
+ARGON2ID_DUMMY_PASSWORD` returns 1.
 
 ### Phase 1 — Shared infrastructure (env, errors, logger, events, crypto, http)
 
 - [x] **T-005** Write the Zod env schema with tests
+
   - **Scope (RED → GREEN → REFACTOR)**: tests for the env
     schema live in `src/shared/env/env.schema.test.ts`. They
     cover: every required key missing ⇒ throws; `AUTH_SECRET`
@@ -313,9 +319,10 @@ the module's internals.
   - **Tests**: 7 cases. AAA pattern. Parametrized via
     table-driven `it.each`. No `if/else/for` in test bodies.
   - **Verify**: `pnpm test src/shared/env/` exits 0; `pnpm
-    test` overall still exits 0; `pnpm run typecheck` exits 0.
+test` overall still exits 0; `pnpm run typecheck` exits 0.
 
 - [x] **T-006** Write `AppError` class and error-code constants
+
   - **Scope (RED → GREEN)**: `src/shared/errors/app-error.test.ts`
     asserts the `AppError` constructor stores `code`,
     `statusCode`, `details`; `instanceof Error` is true;
@@ -337,6 +344,7 @@ the module's internals.
     `pnpm run typecheck` exits 0.
 
 - [x] **T-007** Logger + request-id middleware + error-handler middleware
+
   - **Scope (RED → GREEN)**: tests for the logger assert
     that the denylist keys (`password`, `passwordHash`,
     `sessionToken`, `access_token`, `refresh_token`,
@@ -367,6 +375,7 @@ the module's internals.
     `src/shared/http/`.
 
 - [x] **T-008** Web Crypto helpers (uuid v7, sha256 hex, HMAC sign/verify)
+
   - **Scope (RED → GREEN)**: `src/shared/crypto/web-crypto.test.ts`
     asserts: `uuidV7()` returns a 36-char string of the
     expected v7 shape; consecutive calls are monotonically
@@ -413,13 +422,14 @@ the module's internals.
 ### Phase 2 — Auth domain (entities, value objects, ports, services)
 
 - [x] **T-010** Domain entities (`User`, `Account`, `Session`) + `PublicUser` projection
+
   - **Scope (RED → GREEN)**: tests assert the entity factory
     functions normalize email (lowercase + trim) and reject
     malformed input. `PublicUser.from(user)` strips
     `passwordHash` and `emailVerified` from the projection
     and shapes the JSON the spec requires
     (`{ id, email, name, image, defaultProvider,
-    lastLoginAt }`). `Session.isActive(now)` returns false
+lastLoginAt }`). `Session.isActive(now)` returns false
     on expired sessions. The entities are plain TS types +
     factory functions; no Prisma imports.
   - **Files**:
@@ -433,10 +443,11 @@ the module's internals.
   - **Tests**: 8 cases. AAA pattern. Parametrized for email
     normalization cases.
   - **Verify**: `pnpm test src/modules/auth/domain/entities/
-    src/modules/auth/domain/value-objects/` exit 0;
+src/modules/auth/domain/value-objects/` exit 0;
     `pnpm run typecheck` exits 0.
 
 - [x] **T-011** Domain port interfaces (3 ports) + Prisma singleton
+
   - **Scope (RED → GREEN)**: ports are TypeScript interfaces
     in `src/modules/auth/domain/interfaces/`:
     `UserRepositoryPort` (create, findById, findByEmail,
@@ -461,6 +472,7 @@ the module's internals.
     `pnpm run typecheck` exits 0 (the ports compile).
 
 - [x] **T-012** `PasswordService` (Argon2id wrapper) + benchmark script
+
   - **Scope (RED → GREEN)**: tests assert: `hashArgon2id('a-password')`
     returns a string starting with `$argon2id$`;
     `verifyArgon2id(hash, 'a-password')` is `true`;
@@ -490,6 +502,7 @@ the module's internals.
     the band verdict.
 
 - [x] **T-013** `DefaultProviderPolicy` (domain service: stamp `defaultProvider` on first registration)
+
   - **Scope (RED → GREEN)**: tests assert the policy
     from the design: `stampDefaultProvider(user, 'local' | 'google')`
     returns the value to write — for an existing user
@@ -510,7 +523,7 @@ the module's internals.
   - **Tests**: 5 cases. AAA pattern. Parametrized for
     "first registration" vs. "subsequent sign-in".
   - **Verify**: `pnpm test
-    src/modules/auth/domain/services/default-provider.policy.test.ts`
+src/modules/auth/domain/services/default-provider.policy.test.ts`
     exits 0; ≥ 80 % branch coverage on the policy file.
 
 - [x] **T-014** `AuthService` (orchestrator: register, set default provider, build PublicUser)
@@ -542,13 +555,14 @@ the module's internals.
     interactions are recorded by a fake spy; no logic
     in test bodies.
   - **Verify**: `pnpm test
-    src/modules/auth/domain/services/auth.service.test.ts`
+src/modules/auth/domain/services/auth.service.test.ts`
     exits 0; ≥ 80 % line + branch coverage on the
     service file.
 
 ### Phase 3 — Auth infrastructure (Prisma schema, migrations, repos, Auth.js wiring)
 
 - [x] **T-015** Prisma schema (4 tables) + versioned migration (schema only; migration generation deferred — see apply-progress.md)
+
   - **Scope (RED → GREEN)**: the Prisma schema in
     `prisma/schema.prisma` defines the four Auth.js
     canonical models (`User`, `Account`, `Session`,
@@ -580,12 +594,13 @@ the module's internals.
     AAA pattern. Each test uses a fresh Postgres
     testcontainer.
   - **Verify**: `pnpm prisma migrate dev --name
-    auth_foundation` produces the migration SQL;
+auth_foundation` produces the migration SQL;
     `pnpm test prisma/schema.test.ts` exits 0;
     `pnpm prisma generate` regenerates the typed
     client without errors.
 
 - [x] **T-016** `UserRepository` (Prisma adapter — tested with fake; testcontainers deferred to verify phase)
+
   - **Scope (RED → GREEN)**: tests against a real
     Postgres testcontainer cover: `create(user)` returns
     the row with all fields persisted; `findById` returns
@@ -604,13 +619,14 @@ the module's internals.
   - **Tests**: 4 cases. AAA pattern. Each test uses a
     fresh Postgres testcontainer.
   - **Verify**: `pnpm test
-    src/modules/auth/infrastructure/repositories/user.repository.test.ts`
+src/modules/auth/infrastructure/repositories/user.repository.test.ts`
     exits 0.
 
 - [x] **T-017** `AccountRepository` (Prisma adapter) + `SessionRepository` (tested with fake; testcontainers deferred to verify phase)
+
   - **Scope (RED → GREEN)**: tests cover: `Account.create`
     returns the row; `Account.findUnique({ provider,
-    providerAccountId })` returns the row and `null` for
+providerAccountId })` returns the row and `null` for
     unknown subjects; the composite unique constraint
     on `(provider, providerAccountId)` is enforced at the
     DB level (the test asserts that a second `create`
@@ -629,9 +645,9 @@ the module's internals.
   - **Depends on**: T-015
   - **Tests**: 6 cases. AAA pattern. The unique-violation
     test is parametrized over the `(provider,
-    providerAccountId)` shape.
+providerAccountId)` shape.
   - **Verify**: `pnpm test
-    src/modules/auth/infrastructure/repositories/`
+src/modules/auth/infrastructure/repositories/`
     exits 0; coverage ≥ 80 % on both repository files.
 
 - [x] **T-018** Auth.js v5 configuration (`src/modules/auth/infrastructure/external/authjs.ts`)
@@ -666,12 +682,13 @@ the module's internals.
     twice in the same test and comparing
     `DUMMY_HASH` references.
   - **Verify**: `pnpm test
-    src/modules/auth/infrastructure/external/authjs.test.ts`
+src/modules/auth/infrastructure/external/authjs.test.ts`
     exits 0; `pnpm run typecheck` exits 0.
 
 ### Phase 4 — Auth application (actions + DTOs)
 
-- [ ] **T-019** `registerAction` + DTO
+- [x] **T-019** `registerAction` + DTO
+
   - **Scope (RED → GREEN)**: the DTO uses Zod to validate
     `{ email, password }` (email format, password length
     ≥ 10 per BR-AUTH-2). The action delegates to
@@ -698,10 +715,10 @@ the module's internals.
   - **Depends on**: T-009, T-014, T-016
   - **Tests**: 5 cases. AAA pattern.
   - **Verify**: `pnpm test
-    src/modules/auth/application/actions/register.action.test.ts`
+src/modules/auth/application/actions/register.action.test.ts`
     exits 0.
 
-- [ ] **T-020** `meAction` + `healthAction` + DTOs
+- [x] **T-020** `meAction` + `healthAction` + DTOs
   - **Scope (RED → GREEN)**: `meAction(c)` returns
     `{ data: PublicUser }` when `c.get('user')` is set
     (i.e. `auth()` resolved a valid session) and 401
@@ -709,7 +726,7 @@ the module's internals.
     across all four failure modes (no session, missing
     cookie, expired session, unknown user). `healthAction(c)`
     returns 200 with `{ data: { status: 'ok', version,
-    uptime } }` (the `version` is read from
+uptime } }` (the `version` is read from
     `package.json` at module init; `uptime` is
     `process.uptime()`). Tests use Hono's `app.request`
     to invoke the actions with a faked context.
@@ -727,13 +744,14 @@ the module's internals.
   - **Tests**: 6 cases across the two actions. AAA
     pattern. Parametrized for the 4 `me` failure modes.
   - **Verify**: `pnpm test
-    src/modules/auth/application/actions/me.action.test.ts
-    src/modules/auth/application/actions/health.action.test.ts`
+src/modules/auth/application/actions/me.action.test.ts
+src/modules/auth/application/actions/health.action.test.ts`
     exits 0.
 
 ### Phase 5 — Auth UI (Hono catch-all, Auth.js signIn page, signOut page)
 
-- [ ] **T-021** Hono `OpenAPIHono` app composition (`src/modules/api/app.ts`)
+- [x] **T-021** Hono `OpenAPIHono` app composition (`src/modules/api/app.ts`)
+
   - **Scope (RED → GREEN)**: the Hono app is an
     `OpenAPIHono` instance. A `*` middleware resolves
     `auth()` (Auth.js) once per request and sets
@@ -768,7 +786,8 @@ the module's internals.
   - **Verify**: `pnpm test src/modules/api/` exits 0;
     `pnpm run typecheck` exits 0.
 
-- [ ] **T-022** Hono typed client export (`src/modules/api/client.ts`)
+- [x] **T-022** Hono typed client export (`src/modules/api/client.ts`)
+
   - **Scope**: the typed `hc<typeof honoApp>` client
     instance is exported at `src/modules/api/client.ts`
     and re-exported from `src/modules/api/index.ts`.
@@ -783,11 +802,11 @@ the module's internals.
   - **Lines estimate**: 30
   - **Depends on**: T-021
   - **Tests**: 2 cases. Compile-time type assertions
-    + runtime function shape.
+    - runtime function shape.
   - **Verify**: `pnpm test src/modules/api/client.test.ts`
     exits 0; `pnpm run typecheck` exits 0.
 
-- [ ] **T-023** Auth.js signIn page at `app/auth/signin/page.tsx` (server component + form action)
+- [x] **T-023** Auth.js signIn page at `app/auth/signin/page.tsx` (server component + form action)
   - **Scope**: the page is a Next.js server component
     that renders a form with email + password inputs
     (using TanStack React Form for the controlled
@@ -821,7 +840,8 @@ the module's internals.
 
 ### Phase 6 — App composition (mount routes, public API, middleware wiring)
 
-- [ ] **T-024** Mount `app/api/auth/[...nextauth]/route.ts` (Auth.js handler)
+- [x] **T-024** Mount `app/api/auth/[...nextauth]/route.ts` (Auth.js handler)
+
   - **Scope**: a 2-line file that re-exports `GET` and
     `POST` from the Auth.js `handlers` destructured in
     `authjs.ts` (T-018). A test boots the Next.js dev
@@ -840,6 +860,7 @@ the module's internals.
     `pnpm run build` exits 0.
 
 - [ ] **T-025** Mount `app/api/[...path]/route.ts` (Hono catch-all)
+
   - **Scope**: a small file that delegates
     `GET`/`POST`/`PATCH`/`DELETE` to
     `honoApp.fetch(request)`. The Hono catch-all does
@@ -956,30 +977,27 @@ the module's internals.
     the 30 samples; the secrets-in-logs test is
     parametrized over the six sensitive key types.
   - **Verify**: `pnpm test
-    src/modules/auth/__tests__/security/` exits 0;
+src/modules/auth/__tests__/security/` exits 0;
     CI runs this suite as a required job.
 
 ### Phase 8 — CI / quality gates
 
 - [ ] **T-028** Author `.github/workflows/ci.yml`
-  - **Scope**: a CI workflow with four parallel jobs:
-    1. `lint`: `pnpm install --frozen-lockfile`,
-       `pnpm run lint`, `pnpm run typecheck`.
-    2. `test`: `pnpm install --frozen-lockfile`,
-       `pnpm prisma migrate deploy`, `pnpm test --
-       --coverage`, upload the `coverage/` artifact,
-       post a sticky PR comment with the coverage
-       percentages.
-    3. `build`: `pnpm install --frozen-lockfile`,
-       `pnpm run build` (Next.js production build —
-       catches type errors that only surface at
-       build time, e.g. RSC vs. client component
-       boundaries).
-    4. `security`: `pnpm test
-       src/modules/auth/__tests__/security/` (the
-       slowest job; run separately so a flake in the
-       timing test does not block the lint and build
-       jobs from reporting).
+
+  - **Scope**: a CI workflow with four parallel jobs: 1. `lint`: `pnpm install --frozen-lockfile`,
+    `pnpm run lint`, `pnpm run typecheck`. 2. `test`: `pnpm install --frozen-lockfile`,
+    `pnpm prisma migrate deploy`, `pnpm test --
+--coverage`, upload the `coverage/` artifact,
+    post a sticky PR comment with the coverage
+    percentages. 3. `build`: `pnpm install --frozen-lockfile`,
+    `pnpm run build` (Next.js production build —
+    catches type errors that only surface at
+    build time, e.g. RSC vs. client component
+    boundaries). 4. `security`: `pnpm test
+   src/modules/auth/__tests__/security/` (the
+    slowest job; run separately so a flake in the
+    timing test does not block the lint and build
+    jobs from reporting).
     All jobs run on `pull_request` to `develop` or
     `main`, and on `push` to `develop` or `main`.
     The workflow uses `actions/setup-node@v4` with
@@ -1021,26 +1039,22 @@ the module's internals.
 ### Phase 9 — Documentation
 
 - [ ] **T-030** Five ADRs (Auth.js v5, Prisma 6, Argon2id, Hono catch-all, auto-link)
+
   - **Scope**: five ADRs in `docs/adr/` covering the
     decisions that the design left open. Each ADR
     follows the MADR template (Context, Decision,
-    Consequences, Alternatives considered).
-    - `0001-authjs-v5.md` — why Auth.js v5 over
-      Lucia, Clerk, Supabase Auth, hand-rolled.
-    - `0002-prisma-6.md` — why Prisma 6 over
-      Kysely, raw SQL.
-    - `0003-argon2id-parameters.md` — the final
-      parameters (`memoryCost=19456, timeCost=2,
-      parallelism=1`), the benchmark result, the
-      fallback path.
-    - `0004-hono-catch-all.md` — why Hono over
-      pure Next.js route handlers, tRPC, Fastify;
-      the `OpenAPIHono` + `hc<typeof honoApp>`
-      typed-client export shape.
-    - `0005-auto-link-security-model.md` —
-      industry-standard auto-link on email match
-      (Notion, Linear, Vercel); BR-AUTH-5 / BR-AUTH-10;
-      the deferral of a hardening pass.
+    Consequences, Alternatives considered). - `0001-authjs-v5.md` — why Auth.js v5 over
+    Lucia, Clerk, Supabase Auth, hand-rolled. - `0002-prisma-6.md` — why Prisma 6 over
+    Kysely, raw SQL. - `0003-argon2id-parameters.md` — the final
+    parameters (`memoryCost=19456, timeCost=2,
+parallelism=1`), the benchmark result, the
+    fallback path. - `0004-hono-catch-all.md` — why Hono over
+    pure Next.js route handlers, tRPC, Fastify;
+    the `OpenAPIHono` + `hc<typeof honoApp>`
+    typed-client export shape. - `0005-auto-link-security-model.md` —
+    industry-standard auto-link on email match
+    (Notion, Linear, Vercel); BR-AUTH-5 / BR-AUTH-10;
+    the deferral of a hardening pass.
   - **Files**:
     `docs/adr/0001-authjs-v5.md`,
     `docs/adr/0002-prisma-6.md`,
@@ -1054,6 +1068,7 @@ the module's internals.
     `grep -c "^## Decision" docs/adr/*.md` returns 5.
 
 - [ ] **T-031** Update `docs/architecture.md` (Auth section) + Spanish mirror
+
   - **Scope**: `docs/architecture.md` gains an
     "Auth" section with: a high-level Mermaid
     diagram (the same one from the design's §1), the
@@ -1122,26 +1137,26 @@ the module's internals.
   - **Depends on**: T-001 through T-032
   - **Tests**: N/A.
   - **Verify**: `gh pr view <pr-number> --json
-    state,mergeable,statusCheckRollup` shows
+state,mergeable,statusCheckRollup` shows
     `state: OPEN`, `mergeable: MERGEABLE`, all
     status checks `SUCCESS`.
 
 ## Review workload forecast (mandatory)
 
-| Phase | Tasks | Lines estimate |
-|---|---:|---:|
-| Phase 0 — Scaffolding | 4 (T-001…T-004) | 260 |
-| Phase 1 — Shared infra | 5 (T-005…T-009) | 380 |
-| Phase 2 — Auth domain | 5 (T-010…T-014) | 440 |
-| Phase 3 — Auth infrastructure | 4 (T-015…T-018) | 370 |
-| Phase 4 — Auth application | 2 (T-019…T-020) | 160 |
-| Phase 5 — Auth UI | 3 (T-021…T-023) | 240 |
-| Phase 6 — App composition | 3 (T-024…T-026) | 100 |
-| Phase 7 — Security tests | 1 (T-027) | 170 |
-| Phase 8 — CI / quality | 2 (T-028…T-029) | 120 |
-| Phase 9 — Documentation | 3 (T-030…T-032) | 380 |
-| Phase 10 — Handoff | 1 (T-033) | 30 |
-| **Total** | **33** | **~2,650** |
+| Phase                         |           Tasks | Lines estimate |
+| ----------------------------- | --------------: | -------------: |
+| Phase 0 — Scaffolding         | 4 (T-001…T-004) |            260 |
+| Phase 1 — Shared infra        | 5 (T-005…T-009) |            380 |
+| Phase 2 — Auth domain         | 5 (T-010…T-014) |            440 |
+| Phase 3 — Auth infrastructure | 4 (T-015…T-018) |            370 |
+| Phase 4 — Auth application    | 2 (T-019…T-020) |            160 |
+| Phase 5 — Auth UI             | 3 (T-021…T-023) |            240 |
+| Phase 6 — App composition     | 3 (T-024…T-026) |            100 |
+| Phase 7 — Security tests      |       1 (T-027) |            170 |
+| Phase 8 — CI / quality        | 2 (T-028…T-029) |            120 |
+| Phase 9 — Documentation       | 3 (T-030…T-032) |            380 |
+| Phase 10 — Handoff            |       1 (T-033) |             30 |
+| **Total**                     |          **33** |     **~2,650** |
 
 **Total > 800 lines**: 3 chained PRs are **required**
 (per the user's preflight choice `auto-forecast` with
@@ -1282,21 +1297,21 @@ overage on that one PR.
 Each risk has a mitigation that lives inside an
 existing task, not a new task.
 
-| Risk | Lives in | Mitigation |
-|---|---|---|
-| `@node-rs/argon2` fails to install or load on the Fly.io 1-CPU VM. | T-012 | The benchmark script in T-012 is the smoke test. If it crashes, the fallback to `argon2` (npm) is a one-line import change in `argon2.hasher.ts`. The benchmark is re-run, and the result is recorded in `apply-progress.md`. |
-| Argon2id hash time outside the 50–100 ms target. | T-012, T-027 | The benchmark in T-012 is run locally; the `argon2.parameters.test.ts` security test in T-027 re-runs it in CI. If p50 hash time is outside the band, the `timeCost` parameter is re-tuned (1, 2, or 3) before the PR is marked ready. |
-| Auth.js v5 beta API surface changes between the pinned version and a later beta. | T-018 | The apply task pins the exact `next-auth@5.0.0-beta.X` version in `package.json` and uses `pnpm install --frozen-lockfile` in CI. Upgrading requires an explicit decision in a later change. |
-| Prisma migration drift on the Neon free tier during the apply phase. | T-015 | The apply task for the migration runs `pnpm prisma migrate dev` locally first, commits the generated `migration.sql`, and runs `pnpm prisma migrate deploy` in the CI test job. The deploy is idempotent. |
-| Google OAuth credentials misconfigured at first sign-in attempt. | T-023 | The apply task for the Auth.js signIn page has a manual smoke-test step: sign in with the test OAuth client in dev before marking the task done. The `oauth.state-csrf.test.ts` security test in T-027 verifies the state-CSRF path. |
-| Hono catch-all accidentally matches `/api/auth/*` and double-handles requests. | T-025 | The apply task for the catch-all includes a routing test that proves `/api/auth/signin` goes to Auth.js and `/api/me` goes to Hono. The test asserts both routes return their expected shapes from the same Next.js server. |
-| Origin-check middleware blocks legitimate cross-origin POSTs in dev. | T-021 | The `APP_URL` default is `http://localhost:3000`. The `origin-check.test.ts` test in T-027 covers both same-origin (allowed) and cross-origin (blocked) cases. The signIn form mounts on the same origin, so legitimate requests are never blocked. |
-| `UserRegistered` event dispatched on auto-link path. | T-014, T-027 | The event is dispatched in `AuthService.register` (T-014) for local signups. The auto-link path (BR-AUTH-5) does NOT dispatch `UserRegistered`. The apply task includes a parametrized test in `auth.service.test.ts` that asserts the event is fired exactly once per user, never on auto-link. |
-| Argon2id `DUMMY_HASH` initialization cost on first request. | T-018 | `DUMMY_HASH` is generated at module init (top-level `const DUMMY_HASH = hashArgon2id(env.ARGON2ID_DUMMY_PASSWORD)`). The first request to the Credentials callback is slower by ~50–100 ms; subsequent requests are fast. We accept this in MVP. |
-| Session `expires` index added but no GC job exists in this change. | T-015 | Documented. The GC job is a separate change; until then, expired sessions accumulate. The `auth()` lookup is by `sessionToken`, so the missing GC does not affect correctness, only DB size. |
-| `pnpm install --frozen-lockfile` fails in CI when `pnpm-lock.yaml` is missing or out of sync. | T-028 | The `lint` job in T-028 runs `pnpm install --frozen-lockfile` and fails fast. The `package.json` has `"packageManager": "pnpm@<version>"` so `corepack` provisions the right version. |
-| Strict TDD drift — worker writes implementation before test. | T-001 through T-033 | Each task lists the test file as the first sub-deliverable; the `Tests` and `Verify` lines call out the RED → GREEN → REFACTOR cycle. `openspec/config.yaml`'s `strictTdd.enabled: true` (updated in this change's commit) surfaces the discipline to the reviewer. |
-| Vitest 80 % coverage gate silently passes with low-quality tests. | T-027 | The security suite (T-027) is the adversarial input: each security test has a documented statistical threshold or a hard-coded DB assertion. Coverage is necessary, not sufficient. |
+| Risk                                                                                          | Lives in            | Mitigation                                                                                                                                                                                                                                                                                       |
+| --------------------------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@node-rs/argon2` fails to install or load on the Fly.io 1-CPU VM.                            | T-012               | The benchmark script in T-012 is the smoke test. If it crashes, the fallback to `argon2` (npm) is a one-line import change in `argon2.hasher.ts`. The benchmark is re-run, and the result is recorded in `apply-progress.md`.                                                                    |
+| Argon2id hash time outside the 50–100 ms target.                                              | T-012, T-027        | The benchmark in T-012 is run locally; the `argon2.parameters.test.ts` security test in T-027 re-runs it in CI. If p50 hash time is outside the band, the `timeCost` parameter is re-tuned (1, 2, or 3) before the PR is marked ready.                                                           |
+| Auth.js v5 beta API surface changes between the pinned version and a later beta.              | T-018               | The apply task pins the exact `next-auth@5.0.0-beta.X` version in `package.json` and uses `pnpm install --frozen-lockfile` in CI. Upgrading requires an explicit decision in a later change.                                                                                                     |
+| Prisma migration drift on the Neon free tier during the apply phase.                          | T-015               | The apply task for the migration runs `pnpm prisma migrate dev` locally first, commits the generated `migration.sql`, and runs `pnpm prisma migrate deploy` in the CI test job. The deploy is idempotent.                                                                                        |
+| Google OAuth credentials misconfigured at first sign-in attempt.                              | T-023               | The apply task for the Auth.js signIn page has a manual smoke-test step: sign in with the test OAuth client in dev before marking the task done. The `oauth.state-csrf.test.ts` security test in T-027 verifies the state-CSRF path.                                                             |
+| Hono catch-all accidentally matches `/api/auth/*` and double-handles requests.                | T-025               | The apply task for the catch-all includes a routing test that proves `/api/auth/signin` goes to Auth.js and `/api/me` goes to Hono. The test asserts both routes return their expected shapes from the same Next.js server.                                                                      |
+| Origin-check middleware blocks legitimate cross-origin POSTs in dev.                          | T-021               | The `APP_URL` default is `http://localhost:3000`. The `origin-check.test.ts` test in T-027 covers both same-origin (allowed) and cross-origin (blocked) cases. The signIn form mounts on the same origin, so legitimate requests are never blocked.                                              |
+| `UserRegistered` event dispatched on auto-link path.                                          | T-014, T-027        | The event is dispatched in `AuthService.register` (T-014) for local signups. The auto-link path (BR-AUTH-5) does NOT dispatch `UserRegistered`. The apply task includes a parametrized test in `auth.service.test.ts` that asserts the event is fired exactly once per user, never on auto-link. |
+| Argon2id `DUMMY_HASH` initialization cost on first request.                                   | T-018               | `DUMMY_HASH` is generated at module init (top-level `const DUMMY_HASH = hashArgon2id(env.ARGON2ID_DUMMY_PASSWORD)`). The first request to the Credentials callback is slower by ~50–100 ms; subsequent requests are fast. We accept this in MVP.                                                 |
+| Session `expires` index added but no GC job exists in this change.                            | T-015               | Documented. The GC job is a separate change; until then, expired sessions accumulate. The `auth()` lookup is by `sessionToken`, so the missing GC does not affect correctness, only DB size.                                                                                                     |
+| `pnpm install --frozen-lockfile` fails in CI when `pnpm-lock.yaml` is missing or out of sync. | T-028               | The `lint` job in T-028 runs `pnpm install --frozen-lockfile` and fails fast. The `package.json` has `"packageManager": "pnpm@<version>"` so `corepack` provisions the right version.                                                                                                            |
+| Strict TDD drift — worker writes implementation before test.                                  | T-001 through T-033 | Each task lists the test file as the first sub-deliverable; the `Tests` and `Verify` lines call out the RED → GREEN → REFACTOR cycle. `openspec/config.yaml`'s `strictTdd.enabled: true` (updated in this change's commit) surfaces the discipline to the reviewer.                              |
+| Vitest 80 % coverage gate silently passes with low-quality tests.                             | T-027               | The security suite (T-027) is the adversarial input: each security test has a documented statistical threshold or a hard-coded DB assertion. Coverage is necessary, not sufficient.                                                                                                              |
 
 ## Out-of-scope for this change
 
@@ -1417,7 +1432,7 @@ time. Every box must be checked.
       present with a placeholder and a comment).
 - [ ] No AI attribution anywhere (commits, files,
       PR body). `git log` shows `Author:
-      Sebastián Illa` on every commit.
+Sebastián Illa` on every commit.
 - [ ] Conventional Commits format throughout.
 - [ ] `git log --oneline feat/auth-foundation`
       shows a linear history; no merge commits
@@ -1432,25 +1447,17 @@ time. Every box must be checked.
       `strictTdd.enabled: true` and
       `strictTdd.runner: "pnpm test"`.
 - [ ] All 8 decision gaps encoded as defaults
-      (not open questions) in the task list:
-      1. `@node-rs/argon2` (with `argon2`
-         fallback) — T-012.
-      2. `memoryCost=19456, timeCost=2,
-         parallelism=1` — T-012, T-027.
-      3. `signIn` callback updates `lastLoginAt`
-         and emits `UserRegistered` on first
-         registration only — T-018, T-014.
-      4. `lastLoginAt` updated in the `signIn`
-         callback, not on session read — T-018.
-      5. Hono typed-client export shape
-         (`OpenAPIHono` + `hc<typeof honoApp>` at
-         `src/modules/api/client.ts`) — T-021,
-         T-022.
-      6. `OAuthAccountNotLinked` UX in custom
-         signIn page — T-023.
-      7. `User.email` not updated on Google
-         email change — T-018 (the `signIn`
-         callback never mutates `email`).
-      8. Sliding-window length 24 h, session
-         expires 30 days — T-018 (Auth.js
-         `session.maxAge` and `session.updateAge`).
+      (not open questions) in the task list: 1. `@node-rs/argon2` (with `argon2`
+      fallback) — T-012. 2. `memoryCost=19456, timeCost=2,
+parallelism=1` — T-012, T-027. 3. `signIn` callback updates `lastLoginAt`
+      and emits `UserRegistered` on first
+      registration only — T-018, T-014. 4. `lastLoginAt` updated in the `signIn`
+      callback, not on session read — T-018. 5. Hono typed-client export shape
+      (`OpenAPIHono` + `hc<typeof honoApp>` at
+      `src/modules/api/client.ts`) — T-021,
+      T-022. 6. `OAuthAccountNotLinked` UX in custom
+      signIn page — T-023. 7. `User.email` not updated on Google
+      email change — T-018 (the `signIn`
+      callback never mutates `email`). 8. Sliding-window length 24 h, session
+      expires 30 days — T-018 (Auth.js
+      `session.maxAge` and `session.updateAge`).
