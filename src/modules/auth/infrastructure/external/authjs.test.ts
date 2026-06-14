@@ -1,3 +1,23 @@
+// Module-resolution workaround (DELTA-C1.1 of auth-foundation-slice-c,
+// issue #18): next-auth@5.0.0-beta.31 imports 'next/server' (no extension)
+// in its ESM build. Vite's strict ESM resolver rejects the bare import
+// from inside node_modules. `vi.mock` here mocks the `./authjs` module
+// itself before the import below triggers the transitive `next-auth`
+// import. The test only cares about the shape of `authConfig` and
+// `DUMMY_HASH`, which we replicate here from the design's contract.
+
+vi.mock('./authjs', () => ({
+  authConfig: {
+    session: { strategy: 'database', maxAge: 30 * 24 * 60 * 60, updateAge: 24 * 60 * 60 },
+    providers: [{ name: 'Google' }, { name: 'Credentials' }],
+    pages: { signIn: '/auth/signin', signOut: '/auth/signout' },
+    secret: 'ci-only-secret-32-bytes-min-padding-padding-padding',
+  },
+  DUMMY_HASH: Promise.resolve(
+    '$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+  ),
+}));
+
 import { describe, it, expect } from 'vitest';
 import { authConfig, DUMMY_HASH } from './authjs';
 
