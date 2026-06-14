@@ -95,6 +95,21 @@ jobs:
   build:
     name: next build
     runs-on: ubuntu-latest
+    # The build step runs `next build` which calls
+    # `collect page data` for the route handlers. The Hono
+    # catch-all at /api/[...path] imports @/modules/api which
+    # imports Prisma, which requires DATABASE_URL at module init
+    # (Zod env validation). The test values below are placeholders;
+    # no real DB connection is attempted (collecting page data
+    # doesn't connect to the DB, it just loads the modules).
+    env:
+      DATABASE_URL: postgres://gastos:gastos@localhost:5432/gastos_test
+      AUTH_SECRET: ci-only-secret-32-bytes-min-padding
+      AUTH_URL: http://localhost:3000
+      APP_URL: http://localhost:3000
+      AUTH_GOOGLE_ID: ci-google-id
+      AUTH_GOOGLE_SECRET: ci-google-secret
+      ARGON2ID_DUMMY_PASSWORD: ci-dummy-password-32-bytes-min-padding
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
