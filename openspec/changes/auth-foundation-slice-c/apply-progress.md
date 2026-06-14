@@ -69,12 +69,12 @@ flipped to `[x]` in both tasks files.
 
 ### Commits (4 on this branch)
 
-| SHA       | Type               | Description                                                            |
-| --------- | ------------------ | ---------------------------------------------------------------------- |
-| `8a656a0` | docs(adr)          | add 5 ADRs for auth-foundation decisions (T-030)                       |
-| `4e87794` | docs(architecture) | add Auth section + Spanish mirror (T-031, FLAG-2)                      |
-| `01e22e5` | docs(readme)       | add local-dev section + Spanish mirror (T-032)                         |
-| `805acdf` | docs(openspec)     | close slice C-3 — flip T-025..T-033 + apply-progress + HANDOFF (T-033) |
+| SHA                                                                | Type               | Description                                                                               |
+| ------------------------------------------------------------------ | ------------------ | ----------------------------------------------------------------------------------------- |
+| `8a656a0`                                                          | docs(adr)          | add 5 ADRs for auth-foundation decisions (T-030)                                          |
+| `4e87794`                                                          | docs(architecture) | add Auth section + Spanish mirror (T-031, FLAG-2)                                         |
+| `48984e7` (T-032 absorbed T-033 in rebase)                         | docs(readme)       | add local-dev section + Spanish mirror + close slice C-3 (T-032 + T-033 merged in rebase) |
+| `de136dc` (rebase rewrote; 4 commits, planning-artifact extracted) | docs(openspec)     | import auth-foundation-slice-c planning artifacts (closes C-1/C-2 SDD lifecycle gap)      |
 
 > The exact SHAs are filled in by the apply worker at
 > commit time and recorded in the HANDOFF.md.

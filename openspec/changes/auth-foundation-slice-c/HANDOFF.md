@@ -38,34 +38,44 @@ merges:
   branch, closing the SDD lifecycle gap left by the C-1
   and C-2 PRs.
 
-## Commits (4 on this branch, in order)
+## Commits (4 on this branch, in order, after planning-artifact rebase)
 
-| #   | SHA       | Type               | Description                                                            |
-| --- | --------- | ------------------ | ---------------------------------------------------------------------- |
-| 1   | `8a656a0` | docs(adr)          | add 5 ADRs for auth-foundation decisions (T-030)                       |
-| 2   | `4e87794` | docs(architecture) | add Auth section + Spanish mirror (T-031, FLAG-2)                      |
-| 3   | `01e22e5` | docs(readme)       | add local-dev section + Spanish mirror (T-032)                         |
-| 4   | `805acdf` | docs(openspec)     | close slice C-3 — flip T-025..T-033 + apply-progress + HANDOFF (T-033) |
+| #   | SHA       | Type               | Description                                                                                                 |
+| --- | --------- | ------------------ | ----------------------------------------------------------------------------------------------------------- |
+| 1   | `8a656a0` | docs(adr)          | add 5 ADRs for auth-foundation decisions (T-030)                                                            |
+| 2   | `4e87794` | docs(architecture) | add Auth section + Spanish mirror (T-031, FLAG-2 partial)                                                   |
+| 3   | `48984e7` | docs(readme)       | add local-dev section + Spanish mirror + close slice C-3 (HANDOFF + apply-progress + flips) (T-032 + T-033) |
+| 4   | `de136dc` | chore(openspec)    | import auth-foundation-slice-c planning artifacts (closes the C-1/C-2 SDD lifecycle gap)                    |
 
-> The exact SHAs are filled in by the apply worker at
-> commit time and recorded in this file via
-> `git commit --amend --no-edit` (no message change) just
-> after the last commit. The Spanish mirror of this HANDOFF
-> has the same SHA list. See the parent session's
-> verification pass for the final SHAs.
+> **Note on the planning-artifact rebase (2026-06-14)**: The apply worker landed
+> commit 4 originally with the planning files (proposal/spec/design/tasks × EN/ES)
+> inside it, plus the C-3 closure (HANDOFF, apply-progress, flips). The parent
+> session extracted the planning files into a separate `chore(openspec)` commit
+> at the **end** of the branch history (`de136dc`) so the docs + closure work
+> stays the visible deliverable. The rebase was imperfect: the README commit
+> (originally `01e22e5`, subject `docs(readme): add local-dev section + Spanish
+mirror`) absorbed the C-3 closure files (HANDOFF, apply-progress, parent
+> tasks flip) into itself (now `48984e7`). T-032 and T-033 ended up in the same
+> commit. The content is identical; only the commit granularity is one merge
+> coarser than the ideal (5 commits → 4 commits). The reviewer sees 4 clean
+> commits, 28 files, 12/12 acceptance greps pass. The pre-rebase state is
+> preserved at backup branch `backup/feat-auth-foundation-slice-c-c3-pre-rebase`
+> (pointer to the original `2a06211` SHA from before the extraction).
 >
-> **Note on SHA accuracy (resolved)**: An earlier pass of the
-> apply worker left the 4th SHA recorded here lagging the
-> actual final 4th commit by one amend. The parent session
-> resolved this on 2026-06-14 by: stashing the 4 unstaged
-> files, replacing `1aab068` with the actual `805acdf` in
-> both `HANDOFF.md` and `apply-progress.md` (EN and ES),
-> and `--amend`ing the 4th commit to include the corrected
-> SHA. The 4 SHAs in the table above are now authoritative.
-> The post-resolution amend created a 5th SHA in the reflog
-> (visible in `git reflog`) — that is the one the reviewer
-> will see as the current 4th commit in `git log`. The
-> 3 earlier commits (1, 2, 3) are stable.
+> **Note on SHA accuracy (resolved, three iterations)**: The first apply pass
+> recorded the 4th SHA as `1aab068` because of a chicken-and-egg between the
+> SHA and the file that records it. The parent fixed this with a stash +
+> `sed` + amend cycle (recorded SHA: `805acdf`, real post-amend: `2a06211`).
+> The planning-artifact rebase rewrote the history again, producing SHAs
+> `8a656a0` / `4e87794` / `48984e7` / `8d0f304`. A final in-place amend
+> updated the table in this HANDOFF and the `apply-progress.md` files to
+> the latest values; the final planning-artifact commit in this branch is the
+> one the reviewer sees as the most recent commit on `git log origin/develop..HEAD`
+> (use that SHA; the table above is one amend behind if the parent session
+> ran the final SHA-sync amend). The
+> Spanish mirror at `Documents-es/openspec/changes/auth-foundation-slice-c/HANDOFF.md`
+> has the same SHA list, in the same order. The reflog preserves the full
+> SHA chain (`git reflog` in the worktree).
 
 ## Evidence
 
