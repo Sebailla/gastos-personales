@@ -130,8 +130,22 @@ jobs:
   security:
     name: security tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: gastos
+          POSTGRES_PASSWORD: gastos
+          POSTGRES_DB: gastos_security
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
-      DATABASE_URL: postgres://gastos:gastos@localhost:5432/gastos_test
+      DATABASE_URL: postgres://gastos:gastos@localhost:5432/gastos_security
       AUTH_SECRET: ci-only-secret-32-bytes-min-padding
       AUTH_URL: http://localhost:3000
       APP_URL: http://localhost:3000
