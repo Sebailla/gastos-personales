@@ -29,12 +29,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
-          version: 11.6.0
+          version: 10.34.3
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --ignore-scripts --frozen-lockfile
       - run: pnpm run lint
       - run: pnpm run typecheck
 
@@ -71,12 +71,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
-          version: 11.6.0
+          version: 10.34.3
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --ignore-scripts --frozen-lockfile
       - run: pnpm prisma migrate deploy
       - name: Run unit + integration tests (excludes the slow timing test on CI for stability)
         run: SKIP_TIMING=true npx vitest run --coverage
@@ -97,12 +97,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
-          version: 11.6.0
+          version: 10.34.3
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --ignore-scripts --frozen-lockfile
       - run: pnpm run build
 
   # ---------------------------------------------------------------------------
@@ -125,11 +125,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
-          version: 11.6.0
+          version: 10.34.3
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --ignore-scripts --frozen-lockfile
       - run: pnpm prisma migrate deploy
       - run: npx vitest run src/modules/auth/__tests__/security/
