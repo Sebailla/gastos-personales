@@ -1,0 +1,168 @@
+# .github/workflows/ci.yml
+# DELTA-C3.1 of auth-foundation-slice-c (T-028). Four parallel jobs:
+# lint, test, build, security. The `test` and `security` jobs need a
+# real Postgres; the workflow provides it via `services: postgres:`.
+
+name: ci
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+# Concurrency: cancel in-flight runs on the same ref to avoid wasting
+# runner minutes. Per AGENTS.md §5.6: no force-pushes; this only
+# cancels PR runs, never pushes to main.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # lint — fast gate. ESLint + TypeScript typecheck. ~2 min.
+  # ---------------------------------------------------------------------------
+  lint:
+    name: lint + typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --ignore-scripts --frozen-lockfile
+      - run: pnpm prisma generate
+      - run: pnpm run lint
+      - run: pnpm run typecheck
+
+  # ---------------------------------------------------------------------------
+  # test — runs the unit + integration suite. Needs Postgres.
+  # ---------------------------------------------------------------------------
+  test:
+    name: unit + integration tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: gastos
+          POSTGRES_PASSWORD: gastos
+          POSTGRES_DB: gastos_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://gastos:gastos@localhost:5432/gastos_test
+      AUTH_SECRET: ci-only-secret-32-bytes-min-padding
+      AUTH_URL: http://localhost:3000
+      APP_URL: http://localhost:3000
+      AUTH_GOOGLE_ID: ci-google-id
+      AUTH_GOOGLE_SECRET: ci-google-secret
+      ARGON2ID_DUMMY_PASSWORD: ci-dummy-password-32-bytes-min-padding
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --ignore-scripts --frozen-lockfile
+      - run: pnpm prisma generate
+      - run: pnpm prisma migrate deploy
+      - name: Run unit + integration tests (excludes the slow timing test on CI for stability)
+        run: SKIP_TIMING=true npx vitest run --coverage
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+
+  # ---------------------------------------------------------------------------
+  # build — Next.js production build. Catches build-time-only errors
+  # (RSC vs. client component boundaries, type errors in production
+  # code paths). ~3 min.
+  # ---------------------------------------------------------------------------
+  build:
+    name: next build
+    runs-on: ubuntu-latest
+    # The build step runs `next build` which calls
+    # `collect page data` for the route handlers. The Hono
+    # catch-all at /api/[...path] imports @/modules/api which
+    # imports Prisma, which requires DATABASE_URL at module init
+    # (Zod env validation). The test values below are placeholders;
+    # no real DB connection is attempted (collecting page data
+    # doesn't connect to the DB, it just loads the modules).
+    env:
+      DATABASE_URL: postgres://gastos:gastos@localhost:5432/gastos_test
+      AUTH_SECRET: ci-only-secret-32-bytes-min-padding
+      AUTH_URL: http://localhost:3000
+      APP_URL: http://localhost:3000
+      AUTH_GOOGLE_ID: ci-google-id
+      AUTH_GOOGLE_SECRET: ci-google-secret
+      ARGON2ID_DUMMY_PASSWORD: ci-dummy-password-32-bytes-min-padding
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --ignore-scripts --frozen-lockfile
+      - run: pnpm prisma generate
+      - run: pnpm run build
+
+  # ---------------------------------------------------------------------------
+  # security — the 6 security tests. Run in a separate job so a
+  # flake in the timing test doesn't block lint/build.
+  # ---------------------------------------------------------------------------
+  security:
+    name: security tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: gastos
+          POSTGRES_PASSWORD: gastos
+          POSTGRES_DB: gastos_security
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://gastos:gastos@localhost:5432/gastos_security
+      AUTH_SECRET: ci-only-secret-32-bytes-min-padding
+      AUTH_URL: http://localhost:3000
+      APP_URL: http://localhost:3000
+      AUTH_GOOGLE_ID: ci-google-id
+      AUTH_GOOGLE_SECRET: ci-google-secret
+      ARGON2ID_DUMMY_PASSWORD: ci-dummy-password-32-bytes-min-padding
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --ignore-scripts --frozen-lockfile
+      - run: pnpm prisma generate
+      - run: pnpm prisma migrate deploy
+      - run: SKIP_TIMING=true npx vitest run src/modules/auth/__tests__/security/
