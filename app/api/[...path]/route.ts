@@ -16,3 +16,10 @@ export const GET = handler;
 export const POST = handler;
 export const PATCH = handler;
 export const DELETE = handler;
+
+// Run the route handler in the Node.js runtime, NOT the Edge
+// runtime. The default Edge runtime cannot load NAPI binaries
+// (e.g. @node-rs/argon2 which the Hono app's auth middleware
+// transitively imports). Forcing the Node runtime avoids a
+// build-time module-not-found error on @node-rs/argon2/browser.js.
+export const runtime = 'nodejs';
