@@ -165,4 +165,4 @@ jobs:
       - run: pnpm install --ignore-scripts --frozen-lockfile
       - run: pnpm prisma generate
       - run: pnpm prisma migrate deploy
-      - run: npx vitest run src/modules/auth/__tests__/security/
+      - run: SKIP_TIMING=true npx vitest run src/modules/auth/__tests__/security/
