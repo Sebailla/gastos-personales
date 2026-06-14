@@ -9,9 +9,12 @@
  *   components.
  * - `handlers` — `GET` / `POST` for `/api/auth/*`. Mounted
  *   at `app/api/auth/[...nextauth]/route.ts` in Slice B.
+ * - `honoApp` — the `OpenAPIHono` instance for the Hono
+ *   catch-all at `app/api/[...path]/route.ts` (T-025).
  * - The `UserRegistered` / `UserSignedIn` event-name
  *   constants for cross-module subscribers.
  */
 
 export { auth, signIn, signOut, handlers } from './infrastructure/external/authjs';
+export { honoApp } from '@/modules/api';
 export { UserRegistered, UserSignedIn } from '@/shared/events/event-dispatcher';
