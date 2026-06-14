@@ -1,0 +1,6 @@
+# .github/CODEOWNERS
+# DELTA-C3.2 of auth-foundation-slice-c (T-029). The maintainer is
+# automatically requested for review on every PR.
+
+# Default owner: every file requires review from the maintainer.
+* @sebailla
