@@ -77,6 +77,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --ignore-scripts --frozen-lockfile
+      - run: pnpm prisma generate
       - run: pnpm prisma migrate deploy
       - name: Run unit + integration tests (excludes the slow timing test on CI for stability)
         run: SKIP_TIMING=true npx vitest run --coverage
@@ -131,5 +132,6 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --ignore-scripts --frozen-lockfile
+      - run: pnpm prisma generate
       - run: pnpm prisma migrate deploy
       - run: npx vitest run src/modules/auth/__tests__/security/
