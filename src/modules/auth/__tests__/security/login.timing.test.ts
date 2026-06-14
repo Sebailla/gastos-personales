@@ -41,8 +41,7 @@ function welchTTest(a: readonly number[], b: readonly number[]): number {
     const sign = x < 0 ? -1 : 1;
     const absX = Math.abs(x);
     const t2 = 1 / (1 + p * absX);
-    const y =
-      1 - ((((a5 * t2 + a4) * t2 + a3) * t2 + a2) * t2 + a1) * t2 * Math.exp(-absX * absX);
+    const y = 1 - ((((a5 * t2 + a4) * t2 + a3) * t2 + a2) * t2 + a1) * t2 * Math.exp(-absX * absX);
     return sign * y;
   };
   const cdf = 0.5 * (1 + erf(z / Math.sqrt(2)));
@@ -59,10 +58,11 @@ describe('BR-AUTH-4: login timing equalization', () => {
     'Argon2id hash cost for real vs dummy is statistically indistinguishable',
     async () => {
       const SAMPLES = 30;
-      // Real password path
-      const realHash = await hash('user-real-password-12345');
-      // Dummy path
-      const dummyHash = await hash('ci-dummy-password-32-bytes-min-padding');
+      // Pre-compute the two hashes so V8 can warm up the JIT before
+      // we start the timing window. The hashes themselves are not
+      // measured — only the cost of subsequent `hash()` calls.
+      await hash('user-real-password-12345');
+      await hash('ci-dummy-password-32-bytes-min-padding');
 
       const realTimings: number[] = [];
       const dummyTimings: number[] = [];

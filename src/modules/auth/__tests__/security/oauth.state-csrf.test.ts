@@ -21,6 +21,11 @@ vi.mock('@/modules/auth/infrastructure/external/authjs', () => ({
   },
 }));
 
+// ESLint sees the `vi.mock` as hoisted and flags the import as
+// unused. Add an explicit type-only re-export so the import is
+// considered used at the static analysis level.
+export type _KeepVi = typeof vi;
+
 describe('BR-AUTH-6: OAuth state CSRF protection', () => {
   it('the Google provider is configured', async () => {
     const { authConfig } = await import('@/modules/auth/infrastructure/external/authjs');
@@ -38,9 +43,7 @@ describe('BR-AUTH-6: OAuth state CSRF protection', () => {
   it('authConfig does not allow trustHost in production', async () => {
     if (process.env.NODE_ENV !== 'production') return;
     const { authConfig } = await import('@/modules/auth/infrastructure/external/authjs');
-    expect(
-      (authConfig as unknown as { trustHost?: boolean }).trustHost,
-    ).not.toBe(true);
+    expect((authConfig as unknown as { trustHost?: boolean }).trustHost).not.toBe(true);
   });
 
   it('Account table has a @@unique([provider, providerAccountId]) constraint', () => {

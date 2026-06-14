@@ -5,7 +5,7 @@
 // the denylist end-to-end via the logger's debug/info/warn/error
 // methods, capturing console output and asserting no secret leaks.
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { denylistKeys, logger } from '@/shared/logger/logger';
 
 describe('BR-AUTH-11: secrets in logs', () => {
