@@ -1,0 +1,22 @@
+# pnpm-workspace.yaml
+# Per the design of auth-foundation-slice-c (T-028) and the policy
+# introduced in chore/lockfile-policy (PR #9, commit 91f9b0f),
+# the build scripts that pnpm 11.6.0 would otherwise refuse to
+# run are explicitly approved at the project level. This is
+# test-only / dev-only; production builds run `prisma generate`
+# at deploy time and don't need these scripts.
+#
+# Without this file, the HOME-level pnpm-workspace.yaml
+# (env-specific) leaks into the project and pnpm aborts with
+# `Ignored build scripts`.
+#
+# The `onlyBuiltDependencies` field is the v11.6.0+ way of
+# declaring this. The list is the same one that appears in
+# the HOME-level allowBuilds prompt.
+
+onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - esbuild
+  - prisma
+  - sharp
