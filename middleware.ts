@@ -28,4 +28,10 @@ export default auth((request) => {
 
 export const config = {
   matcher: ['/((?!_next|api/auth|favicon.ico).*)'],
+  // Run the middleware in the Node.js runtime, NOT the Edge
+  // runtime. The default Edge runtime cannot load NAPI binaries
+  // (e.g. @node-rs/argon2 which authjs.ts transitively imports).
+  // Forcing the Node runtime avoids a build-time module-not-found
+  // error on @node-rs/argon2/browser.js.
+  runtime: 'nodejs',
 };
