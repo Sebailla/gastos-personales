@@ -18,7 +18,7 @@ vi.mock('./authjs', () => ({
   ),
 }));
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { authConfig, DUMMY_HASH } from './authjs';
 
 describe('authConfig (Auth.js v5 wiring)', () => {

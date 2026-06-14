@@ -22,6 +22,8 @@ export default auth((request) => {
     url.pathname = '/auth/signin';
     return NextResponse.redirect(url);
   }
+  // Pass-through for public paths and authenticated requests.
+  return undefined;
 });
 
 export const config = {
