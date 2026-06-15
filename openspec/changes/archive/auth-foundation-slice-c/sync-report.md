@@ -104,13 +104,13 @@ The `Status` field moves from `draft` to `active` because all 16 deltas are now 
 
 The sync is the **second of 3 atomic commits** in this lifecycle closure:
 
-| #   | SHA         | Type            | Description                                                                                    |
-| --- | ----------- | --------------- | ---------------------------------------------------------------------------------------------- |
-| 1   | `0c5b339`   | docs(openspec)  | add auth-foundation-slice-c verify report (this verify commit)                                 |
-| 2   | _see below_ | docs(openspec)  | sync auth-foundation-slice-c deltas to canonical auth spec (this sync commit)                  |
-| 3   | _see below_ | chore(openspec) | archive auth-foundation and auth-foundation-slice-c (the archive commit, lands after this one) |
+| #   | SHA       | Type            | Description                                                                   |
+| --- | --------- | --------------- | ----------------------------------------------------------------------------- |
+| 1   | `0c5b339` | docs(openspec)  | add auth-foundation-slice-c verify report (this verify commit)                |
+| 2   | `974390b` | docs(openspec)  | sync auth-foundation-slice-c deltas to canonical auth spec (this sync commit) |
+| 3   | `d64b61a` | chore(openspec) | archive auth-foundation and auth-foundation-slice-c (the archive commit)      |
 
-The SHA for commit 2 will be visible in `git log -1 --format='%H' origin/develop` after this report is committed alongside the spec changes. The SHA is filled in below at the end of this report (the report file is updated in a follow-up commit; the sync commit itself is the one that touched the spec).
+The 3 SHAs are the real ones, confirmed by `git log origin/develop -3 --format='%H %s'`. The report was committed with commit 2; the SHAs 1, 2, 3 are confirmed by `git log` post-commit.
 
 ---
 
