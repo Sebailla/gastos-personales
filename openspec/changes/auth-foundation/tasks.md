@@ -859,7 +859,7 @@ src/modules/auth/application/actions/health.action.test.ts`
   - **Verify**: `pnpm test app/api/auth/` exits 0;
     `pnpm run build` exits 0.
 
-- [ ] **T-025** Mount `app/api/[...path]/route.ts` (Hono catch-all)
+- [x] **T-025** Mount `app/api/[...path]/route.ts` (Hono catch-all)
 
   - **Scope**: a small file that delegates
     `GET`/`POST`/`PATCH`/`DELETE` to
@@ -882,7 +882,7 @@ src/modules/auth/application/actions/health.action.test.ts`
   - **Verify**: `pnpm test app/api/` exits 0;
     `pnpm run build` exits 0.
 
-- [ ] **T-026** Public API export (`src/modules/auth/index.ts`) + Next.js middleware for `/api/me` protection
+- [x] **T-026** Public API export (`src/modules/auth/index.ts`) + Next.js middleware for `/api/me` protection
   - **Scope**: the public surface of the `auth` module
     is the only thing other modules (future:
     `accounts-ledger`, `transactions`) may import. The
@@ -921,7 +921,7 @@ src/modules/auth/application/actions/health.action.test.ts`
 
 ### Phase 7 — Security tests (dedicated suite, adversarial review input)
 
-- [ ] **T-027** Security test suite (timing, OAuth state, secrets in logs, origin-check, Argon2id parameters, cookie attributes)
+- [x] **T-027** Security test suite (timing, OAuth state, secrets in logs, origin-check, Argon2id parameters, cookie attributes)
   - **Scope**: six focused integration tests in
     `src/modules/auth/__tests__/security/`:
     1. **`login.timing.test.ts`**: with a real
@@ -982,7 +982,7 @@ src/modules/auth/__tests__/security/` exits 0;
 
 ### Phase 8 — CI / quality gates
 
-- [ ] **T-028** Author `.github/workflows/ci.yml`
+- [x] **T-028** Author `.github/workflows/ci.yml`
 
   - **Scope**: a CI workflow with four parallel jobs: 1. `lint`: `pnpm install --frozen-lockfile`,
     `pnpm run lint`, `pnpm run typecheck`. 2. `test`: `pnpm install --frozen-lockfile`,
@@ -1013,7 +1013,7 @@ src/modules/auth/__tests__/security/` exits 0;
   - **Verify**: Pushing the branch triggers the
     workflow; the `PR docs` link to the green check.
 
-- [ ] **T-029** Branch protection + `CODEOWNERS`
+- [x] **T-029** Branch protection + `CODEOWNERS`
   - **Scope**: a `.github/CODEOWNERS` file at the
     repo root pointing to the maintainer
     (`@sebailla`). A short document at
@@ -1038,7 +1038,7 @@ src/modules/auth/__tests__/security/` exits 0;
 
 ### Phase 9 — Documentation
 
-- [ ] **T-030** Five ADRs (Auth.js v5, Prisma 6, Argon2id, Hono catch-all, auto-link)
+- [x] **T-030** Five ADRs (Auth.js v5, Prisma 6, Argon2id, Hono catch-all, auto-link)
 
   - **Scope**: five ADRs in `docs/adr/` covering the
     decisions that the design left open. Each ADR
@@ -1067,7 +1067,7 @@ parallelism=1`), the benchmark result, the
   - **Verify**: `ls docs/adr/` lists the five ADRs;
     `grep -c "^## Decision" docs/adr/*.md` returns 5.
 
-- [ ] **T-031** Update `docs/architecture.md` (Auth section) + Spanish mirror
+- [x] **T-031** Update `docs/architecture.md` (Auth section) + Spanish mirror
 
   - **Scope**: `docs/architecture.md` gains an
     "Auth" section with: a high-level Mermaid
@@ -1094,7 +1094,7 @@ parallelism=1`), the benchmark result, the
     returns only translation differences;
     `pnpm run lint` on the Markdown is clean.
 
-- [ ] **T-032** Update `README.md` (local dev) + Spanish mirror
+- [x] **T-032** Update `README.md` (local dev) + Spanish mirror
   - **Scope**: the root `README.md` gains a "Local
     development" section explaining: `pnpm install`,
     `cp .env.example .env` and filling in the values,
@@ -1116,7 +1116,7 @@ parallelism=1`), the benchmark result, the
 
 ### Phase 10 — Handoff
 
-- [ ] **T-033** Final commit, push, open PR, request reviewer
+- [x] **T-033** Final commit, push, open PR, request reviewer
   - **Scope**: the worker pushes the branch with
     `git push -u origin feat/auth-foundation` and
     opens the first of the three chained PRs with

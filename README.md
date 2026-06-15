@@ -28,18 +28,30 @@ pnpm install --frozen-lockfile
 # 2. Copy the env template and fill in the values
 cp .env.example .env
 
-# 3. Apply migrations to the dev database
+# 3. Start a local Postgres (Docker) OR point to a Neon free-tier branch
+docker compose up -d postgres       # local Postgres on localhost:5432
+# OR set DATABASE_URL=postgres://...neon.tech/... in .env
+
+# 4. Apply migrations to the dev database
 pnpm prisma migrate deploy
 
-# 4. Run the test suite (Vitest)
+# 5. Run the test suite (Vitest)
 pnpm test
 
-# 5. Lint + typecheck + build
+# 6. Run the security test suite only (timing, OAuth state,
+#    secrets in logs, origin-check, Argon2id parameters, cookies)
+pnpm test -- src/modules/auth/__tests__/security/
+
+# 7. Skip the timing test on noisy local dev machines
+#    (CI still runs the full suite)
+SKIP_TIMING=true pnpm test
+
+# 8. Lint + typecheck + build
 pnpm run lint
 pnpm run typecheck
 pnpm run build
 
-# 6. Start the dev server
+# 9. Start the dev server
 pnpm run dev
 ```
 
@@ -61,7 +73,7 @@ pnpm run dev
 - Secrets never appear in logs. The structured logger
   (`src/shared/logger/`) maintains a denylist of
   `{ password, passwordHash, sessionToken, access_token,
-  refresh_token, id_token, csrfToken, 'set-cookie' }`.
+refresh_token, id_token, csrfToken, 'set-cookie' }`.
 - Author of every document: `Sebastián Illa`. No AI attribution.
 
 ## Pre-commit
