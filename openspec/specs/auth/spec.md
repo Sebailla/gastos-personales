@@ -2,8 +2,8 @@
 
 **Author**: Sebastián Illa
 **Capability**: `auth`
-**Source change**: `auth-foundation`
-**Status**: draft · **Created**: 2026-06-10
+**Source change**: `auth-foundation`, `auth-foundation-slice-c`
+**Status**: active · **Created**: 2026-06-10 · **Last sync**: 2026-06-14 (Slice C)
 **Stack**: v2 — Next.js 16 + Auth.js v5 + Prisma 6 + PostgreSQL (Neon) + Hono catch-all + Zod
 
 > **v2 note**: this is the second write of this spec. The first
@@ -12,10 +12,10 @@
 > `17c1635`) and was deleted in `eca35c9` after the stack changed.
 > v1 is kept in git history for structural reference; its content
 > is **obsolete** (custom JWT, refresh-token rotation, Drizzle,
-> SQLite). v2 keeps the v1 *shape* (8 sections, business rules
+> SQLite). v2 keeps the v1 _shape_ (8 sections, business rules
 > with stable IDs `BR-AUTH-NN`, exhaustive error-code table,
 > security guarantees, cross-module contracts) and replaces the
-> *substance* with Auth.js v5 database sessions, the Prisma
+> _substance_ with Auth.js v5 database sessions, the Prisma
 > adapter, and the Hono catch-all that hosts the application
 > API.
 
@@ -62,18 +62,18 @@ other entity (Account, Transaction, Category, Snapshot, etc.)
 references a `User` through `userId` (the Auth.js `id` field;
 see BR-AUTH-1).
 
-| Field             | Type                              | Constraints |
-|-------------------|-----------------------------------|-------------|
-| `id`              | `string` (cuid)                   | Primary key. Generated server-side. |
-| `name`            | `string \| null`                  | Display name. Optional. |
-| `email`           | `string`                          | Unique. Lowercased and trimmed before storage. Comparison is case-insensitive. |
-| `emailVerified`   | `DateTime \| null`                | `null` for local signups (no email verification flow in MVP); `DateTime` for Google signups (set to the OAuth callback time, since Auth.js enforces `email_verified: true`). |
-| `image`           | `string \| null`                  | Google profile picture URL. `null` for local-only users. |
-| `passwordHash`    | `string \| null`                  | Argon2id encoded form. `null` for OAuth-only users (BR-AUTH-9). Never returned over the wire. |
-| `defaultProvider` | `'local' \| 'google'` (string)    | The credential used at first registration. Set once, never mutated (BR-AUTH-13). |
-| `lastLoginAt`     | `DateTime \| null`                | Stamped by the Auth.js `signIn` callback on every successful sign-in. |
-| `createdAt`       | `DateTime`                        | Set on insert. |
-| `updatedAt`       | `DateTime`                        | Updated on every mutation. |
+| Field             | Type                           | Constraints                                                                                                                                                                  |
+| ----------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`              | `string` (cuid)                | Primary key. Generated server-side.                                                                                                                                          |
+| `name`            | `string \| null`               | Display name. Optional.                                                                                                                                                      |
+| `email`           | `string`                       | Unique. Lowercased and trimmed before storage. Comparison is case-insensitive.                                                                                               |
+| `emailVerified`   | `DateTime \| null`             | `null` for local signups (no email verification flow in MVP); `DateTime` for Google signups (set to the OAuth callback time, since Auth.js enforces `email_verified: true`). |
+| `image`           | `string \| null`               | Google profile picture URL. `null` for local-only users.                                                                                                                     |
+| `passwordHash`    | `string \| null`               | Argon2id encoded form. `null` for OAuth-only users (BR-AUTH-9). Never returned over the wire.                                                                                |
+| `defaultProvider` | `'local' \| 'google'` (string) | The credential used at first registration. Set once, never mutated (BR-AUTH-13).                                                                                             |
+| `lastLoginAt`     | `DateTime \| null`             | Stamped by the Auth.js `signIn` callback on every successful sign-in.                                                                                                        |
+| `createdAt`       | `DateTime`                     | Set on insert.                                                                                                                                                               |
+| `updatedAt`       | `DateTime`                     | Updated on every mutation.                                                                                                                                                   |
 
 Invariants:
 
@@ -109,20 +109,20 @@ following the Auth.js canonical shape. This change ships with
 `provider = 'google'`. The data model supports additional
 providers in later changes without a schema migration.
 
-| Field                | Type             | Constraints |
-|----------------------|------------------|-------------|
-| `id`                 | `string` (cuid)  | Primary key. |
-| `userId`             | `string` (cuid)  | Foreign key to `User.id`. `onDelete: Cascade`. Indexed implicitly via the relation. |
-| `type`               | `string`         | Auth.js account type (e.g. `"oidc"` for Google, `"email"` for the credentials provider in some flows). |
-| `provider`           | `string`         | Provider identifier (`"google"` in this change). |
-| `providerAccountId`  | `string`         | The provider's stable, opaque subject id (Google's `sub` claim). |
-| `refresh_token`      | `string \| null` (`@db.Text`) | Google access-token refresh credential. |
-| `access_token`       | `string \| null` (`@db.Text`) | Google access token. |
-| `expires_at`         | `Int \| null`    | Unix seconds at which the Google access token expires. |
-| `token_type`         | `string \| null` | Google `token_type` (typically `"Bearer"`). |
-| `scope`              | `string \| null` | Space-separated scopes Google granted. |
-| `id_token`           | `string \| null` (`@db.Text`) | Google OIDC `id_token`. |
-| `session_state`      | `string \| null` | Auth.js-internal state. |
+| Field               | Type                          | Constraints                                                                                            |
+| ------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `id`                | `string` (cuid)               | Primary key.                                                                                           |
+| `userId`            | `string` (cuid)               | Foreign key to `User.id`. `onDelete: Cascade`. Indexed implicitly via the relation.                    |
+| `type`              | `string`                      | Auth.js account type (e.g. `"oidc"` for Google, `"email"` for the credentials provider in some flows). |
+| `provider`          | `string`                      | Provider identifier (`"google"` in this change).                                                       |
+| `providerAccountId` | `string`                      | The provider's stable, opaque subject id (Google's `sub` claim).                                       |
+| `refresh_token`     | `string \| null` (`@db.Text`) | Google access-token refresh credential.                                                                |
+| `access_token`      | `string \| null` (`@db.Text`) | Google access token.                                                                                   |
+| `expires_at`        | `Int \| null`                 | Unix seconds at which the Google access token expires.                                                 |
+| `token_type`        | `string \| null`              | Google `token_type` (typically `"Bearer"`).                                                            |
+| `scope`             | `string \| null`              | Space-separated scopes Google granted.                                                                 |
+| `id_token`          | `string \| null` (`@db.Text`) | Google OIDC `id_token`.                                                                                |
+| `session_state`     | `string \| null`              | Auth.js-internal state.                                                                                |
 
 Invariants:
 
@@ -153,12 +153,12 @@ verifies, or stores its own JWTs. The opaque session token in
 the `authjs.session-token` HTTP-only cookie is looked up against
 this table on every `auth()` call.
 
-| Field          | Type             | Constraints |
-|----------------|------------------|-------------|
-| `id`           | `string` (cuid)  | Primary key. |
-| `sessionToken` | `string`         | Unique. The opaque token Auth.js stores in the cookie. |
-| `userId`       | `string` (cuid)  | Foreign key to `User.id`. `onDelete: Cascade`. |
-| `expires`      | `DateTime`       | Session expiry. Default 30 days from issue. Sliding: Auth.js extends on each request within the last 24 hours of activity (BR-AUTH-7). |
+| Field          | Type            | Constraints                                                                                                                            |
+| -------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`           | `string` (cuid) | Primary key.                                                                                                                           |
+| `sessionToken` | `string`        | Unique. The opaque token Auth.js stores in the cookie.                                                                                 |
+| `userId`       | `string` (cuid) | Foreign key to `User.id`. `onDelete: Cascade`.                                                                                         |
+| `expires`      | `DateTime`      | Session expiry. Default 30 days from issue. Sliding: Auth.js extends on each request within the last 24 hours of activity (BR-AUTH-7). |
 
 Indexes (declared in the migration that ships with the design):
 
@@ -171,7 +171,7 @@ Indexes (declared in the migration that ships with the design):
 Invariants:
 
 - A session is **active** iff the row exists and `expires >
-  now()`. The Prisma adapter enforces this transparently.
+now()`. The Prisma adapter enforces this transparently.
 - Session rows are deleted when the user signs out (BR-AUTH-8)
   or when the user is deleted (`onDelete: Cascade`).
 
@@ -193,11 +193,11 @@ adapter's canonical schema includes it; the Credentials and
 Google providers do not write to it. The `email-verification`
 flow (a separate change) will use it.
 
-| Field         | Type        | Constraints |
-|---------------|-------------|-------------|
-| `identifier`  | `string`    | The email or user id awaiting verification. |
-| `token`       | `string`    | Unique. The opaque token. |
-| `expires`     | `DateTime`  | Token expiry. |
+| Field        | Type       | Constraints                                 |
+| ------------ | ---------- | ------------------------------------------- |
+| `identifier` | `string`   | The email or user id awaiting verification. |
+| `token`      | `string`   | Unique. The opaque token.                   |
+| `expires`    | `DateTime` | Token expiry.                               |
 
 Indexes: `@@unique([identifier, token])`.
 
@@ -214,16 +214,16 @@ spec §Security guarantees).
 
 ### Auth.js-owned (`/api/auth/*`)
 
-| Endpoint                                | Method | Behavior |
-|-----------------------------------------|--------|----------|
-| `/api/auth/signin`                      | GET    | Renders the default sign-in page (Credentials form + Google button). Custom page at `/auth/signin` is mounted by the `ui-auth-shell` change. |
-| `/api/auth/signin/google`               | POST   | Starts the Google OAuth 2.0 flow. Auth.js redirects the browser to Google's consent screen with `prompt=select_account`, `scope=openid email profile`. |
-| `/api/auth/callback/google`             | GET    | OAuth 2.0 callback. Auth.js exchanges the code, fetches the userinfo, runs the `signIn` callback, creates or links `User` / `Account` rows, sets the session cookie. |
-| `/api/auth/callback/credentials`        | POST   | Receives `{ email, password }` + CSRF token. Auth.js calls our `authorize(credentials, request)`. Returns `200` with a session cookie on success, `401` on failure. |
-| `/api/auth/session`                     | GET    | Returns the current session JSON (`{ user, expires }` or `null`). Used by client components to bootstrap session state. |
-| `/api/auth/csrf`                        | GET    | Returns the CSRF token. Auth.js handles CSRF for all POSTs under `/api/auth/*` (double-submit pattern). |
-| `/api/auth/providers`                   | GET    | Returns the list of configured providers (`[{ id: "google" }, { id: "credentials" }]`). Used by the UI to render the sign-in page. |
-| `/api/auth/signout`                     | POST   | Revokes the current session row in the `Session` table and clears the `authjs.session-token` cookie. Other devices keep working (BR-AUTH-8). |
+| Endpoint                         | Method | Behavior                                                                                                                                                             |
+| -------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/auth/signin`               | GET    | Renders the default sign-in page (Credentials form + Google button). Custom page at `/auth/signin` is mounted by the `ui-auth-shell` change.                         |
+| `/api/auth/signin/google`        | POST   | Starts the Google OAuth 2.0 flow. Auth.js redirects the browser to Google's consent screen with `prompt=select_account`, `scope=openid email profile`.               |
+| `/api/auth/callback/google`      | GET    | OAuth 2.0 callback. Auth.js exchanges the code, fetches the userinfo, runs the `signIn` callback, creates or links `User` / `Account` rows, sets the session cookie. |
+| `/api/auth/callback/credentials` | POST   | Receives `{ email, password }` + CSRF token. Auth.js calls our `authorize(credentials, request)`. Returns `200` with a session cookie on success, `401` on failure.  |
+| `/api/auth/session`              | GET    | Returns the current session JSON (`{ user, expires }` or `null`). Used by client components to bootstrap session state.                                              |
+| `/api/auth/csrf`                 | GET    | Returns the CSRF token. Auth.js handles CSRF for all POSTs under `/api/auth/*` (double-submit pattern).                                                              |
+| `/api/auth/providers`            | GET    | Returns the list of configured providers (`[{ id: "google" }, { id: "credentials" }]`). Used by the UI to render the sign-in page.                                   |
+| `/api/auth/signout`              | POST   | Revokes the current session row in the `Session` table and clears the `authjs.session-token` cookie. Other devices keep working (BR-AUTH-8).                         |
 
 For every Auth.js route, request/response shapes and status
 codes are owned by the library. Customizations we apply:
@@ -248,6 +248,23 @@ Mounted at `app/api/[...path]/route.ts`. The Hono app exports
 the more specific route in `app/api/auth/[...nextauth]/route.ts`
 takes precedence at the Next.js layer.
 
+**Catch-all routing precedence**: Next.js's file-based routing
+matches `app/api/auth/[...nextauth]/route.ts` **before**
+`app/api/[...path]/route.ts` (the more specific path wins).
+Hono's `app.fetch` will **never** see requests to `/api/auth/*`
+because those are intercepted by the Auth.js handler. The
+catch-all only handles paths that have no more specific
+match.
+
+**Runtime constraint**: the Hono catch-all runs in the
+**Node.js runtime** (not the default Edge runtime). The
+`@node-rs/argon2` NAPI binaries cannot be loaded in the
+Edge runtime; forcing `runtime = 'nodejs'` avoids a
+build-time module-not-found error. The Auth.js route at
+`app/api/auth/[...nextauth]/route.ts` and the Next.js
+middleware at `middleware.ts` also run in the Node.js
+runtime for the same reason.
+
 #### `GET /api/health`
 
 Health check. Required by the deployment skill.
@@ -260,8 +277,8 @@ Health check. Required by the deployment skill.
   interface HealthResponse {
     data: {
       status: 'ok';
-      version: string;     // from package.json
-      uptime: number;       // seconds since process start
+      version: string; // from package.json
+      uptime: number; // seconds since process start
     };
   }
   ```
@@ -283,12 +300,12 @@ Return the authenticated user.
   ```ts
   interface MeSuccess {
     data: {
-      id: string;                       // cuid
-      email: string;                    // normalized
+      id: string; // cuid
+      email: string; // normalized
       name: string | null;
       image: string | null;
       defaultProvider: 'local' | 'google';
-      lastLoginAt: string | null;       // ISO 8601
+      lastLoginAt: string | null; // ISO 8601
     };
   }
   ```
@@ -301,9 +318,9 @@ Return the authenticated user.
   on authenticated requests that go through `auth()`.
 - **Error responses**:
 
-  | Status | Code           | When |
-  |--------|----------------|------|
-  | 401    | `UNAUTHORIZED`  | The session cookie is missing, the `Session` row is missing, or the session has expired. The response is identical in all three cases. |
+  | Status | Code           | When                                                                                                                                   |
+  | ------ | -------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+  | 401    | `UNAUTHORIZED` | The session cookie is missing, the `Session` row is missing, or the session has expired. The response is identical in all three cases. |
 
 #### `POST /api/auth/register`
 
@@ -317,8 +334,8 @@ registration needs a separate path.
 
   ```ts
   interface RegisterRequest {
-    email: string;     // RFC 5322; lowercased + trimmed server-side.
-    password: string;  // Plaintext only over the wire; never logged.
+    email: string; // RFC 5322; lowercased + trimmed server-side.
+    password: string; // Plaintext only over the wire; never logged.
   }
   ```
 
@@ -336,8 +353,8 @@ registration needs a separate path.
   ```ts
   interface RegisterSuccess {
     data: {
-      id: string;                       // cuid
-      email: string;                    // normalized
+      id: string; // cuid
+      email: string; // normalized
       name: string | null;
       image: string | null;
       defaultProvider: 'local';
@@ -359,13 +376,13 @@ registration needs a separate path.
     in-process event dispatcher (see Cross-module contracts).
 - **Error responses**:
 
-  | Status | Code                  | When |
-  |--------|-----------------------|------|
-  | 400    | `VALIDATION_ERROR`    | Body fails Zod schema validation. The `details` field of the error response carries the issue list. |
-  | 400    | `WEAK_PASSWORD`       | Password length < 10 (BR-AUTH-2). Returns the same shape as `VALIDATION_ERROR` for client uniformity. |
-  | 409    | `EMAIL_TAKEN`         | A user with the same normalized email already exists. Response shape and timing are comparable to the success path (BR-AUTH-7). |
-  | 429    | `RATE_LIMITED`        | Per-IP or per-account rate limit hit. The `security-rate-limiting` change owns the limit; the response shape is set there. |
-  | 500    | `INTERNAL_ERROR`      | Argon2 library failed to load or any unexpected failure. |
+  | Status | Code               | When                                                                                                                            |
+  | ------ | ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+  | 400    | `VALIDATION_ERROR` | Body fails Zod schema validation. The `details` field of the error response carries the issue list.                             |
+  | 400    | `WEAK_PASSWORD`    | Password length < 10 (BR-AUTH-2). Returns the same shape as `VALIDATION_ERROR` for client uniformity.                           |
+  | 409    | `EMAIL_TAKEN`      | A user with the same normalized email already exists. Response shape and timing are comparable to the success path (BR-AUTH-7). |
+  | 429    | `RATE_LIMITED`     | Per-IP or per-account rate limit hit. The `security-rate-limiting` change owns the limit; the response shape is set there.      |
+  | 500    | `INTERNAL_ERROR`   | Argon2 library failed to load or any unexpected failure.                                                                        |
 
 ## Error codes
 
@@ -382,32 +399,32 @@ surfaced on the sign-in page or the sign-in URL. The
 application code does not throw them; it reacts to them when
 Auth.js redirects back with `?error=<code>`.
 
-| Code                       | Trigger |
-|----------------------------|---------|
-| `Configuration`            | The Auth.js config is invalid (e.g. missing `AUTH_SECRET`). Detected at startup. |
-| `AccessDenied`             | The `signIn` callback returned `false` for a user we explicitly want to block. Not used in MVP. |
-| `Verification`             | The email verification token in the link is invalid or expired. Not used in MVP. |
-| `OAuthSignin`              | Starting the OAuth flow failed (e.g. provider misconfigured). |
-| `OAuthCallback`            | The OAuth callback request was malformed. |
-| `OAuthCreateAccount`       | Auth.js failed to create the `User` or `Account` row from a successful OAuth response. |
-| `EmailCreateAccount`       | Same as `OAuthCreateAccount` for the email provider. |
-| `Callback`                 | A generic catch-all for callback errors. |
-| `OAuthAccountNotLinked`    | The Google account is already linked to a different `User` (BR-AUTH-10). The unique constraint on `Account(provider, providerAccountId)` catches it. |
-| `EmailSignin`              | The "magic link" sign-in flow error. Not used in MVP. |
-| `CredentialsSignin`        | The Credentials `authorize()` returned `null`. Covers unknown email, wrong password, and Google-only user (BR-AUTH-4, BR-AUTH-9). |
-| `SessionRequired`          | The user hit a protected route with no session. Not thrown by the auth module directly; thrown by the page/route guard. |
+| Code                    | Trigger                                                                                                                                              |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Configuration`         | The Auth.js config is invalid (e.g. missing `AUTH_SECRET`). Detected at startup.                                                                     |
+| `AccessDenied`          | The `signIn` callback returned `false` for a user we explicitly want to block. Not used in MVP.                                                      |
+| `Verification`          | The email verification token in the link is invalid or expired. Not used in MVP.                                                                     |
+| `OAuthSignin`           | Starting the OAuth flow failed (e.g. provider misconfigured).                                                                                        |
+| `OAuthCallback`         | The OAuth callback request was malformed.                                                                                                            |
+| `OAuthCreateAccount`    | Auth.js failed to create the `User` or `Account` row from a successful OAuth response.                                                               |
+| `EmailCreateAccount`    | Same as `OAuthCreateAccount` for the email provider.                                                                                                 |
+| `Callback`              | A generic catch-all for callback errors.                                                                                                             |
+| `OAuthAccountNotLinked` | The Google account is already linked to a different `User` (BR-AUTH-10). The unique constraint on `Account(provider, providerAccountId)` catches it. |
+| `EmailSignin`           | The "magic link" sign-in flow error. Not used in MVP.                                                                                                |
+| `CredentialsSignin`     | The Credentials `authorize()` returned `null`. Covers unknown email, wrong password, and Google-only user (BR-AUTH-4, BR-AUTH-9).                    |
+| `SessionRequired`       | The user hit a protected route with no session. Not thrown by the auth module directly; thrown by the page/route guard.                              |
 
 ### Application-emitted errors (Hono endpoints)
 
-| Code                   | HTTP | Human message (Spanish mirror)                            | When |
-|------------------------|------|-----------------------------------------------------------|------|
-| `VALIDATION_ERROR`     | 400  | "Los datos enviados no son válidos."                      | Request body fails Zod schema validation. The `details` field carries the issue list. |
-| `WEAK_PASSWORD`        | 400  | "La contraseña debe tener al menos 10 caracteres."        | Password length < 10 (BR-AUTH-2). |
-| `INVALID_CREDENTIALS`  | 401  | "Credenciales inválidas."                                 | The Credentials `authorize()` returned `null` (the Auth.js error `CredentialsSignin` becomes `INVALID_CREDENTIALS` on the Hono side when the UI surfaces the failure). |
-| `UNAUTHORIZED`         | 401  | "Autenticación requerida."                                | `GET /api/me` with no session, missing cookie, expired session, or unknown user. Identical response shape across all four failure modes. |
-| `EMAIL_TAKEN`          | 409  | "El email ya está registrado."                            | `POST /api/auth/register` with an email that already exists (BR-AUTH-7). |
-| `RATE_LIMITED`         | 429  | "Demasiadas solicitudes. Probá de nuevo en un minuto."    | Per-IP or per-account rate limit hit. The `security-rate-limiting` change owns the limit. |
-| `INTERNAL_ERROR`       | 500  | "Ocurrió un error inesperado."                            | Catch-all for unexpected failures. The real error is logged with full stack; the response carries only the code and the safe message. |
+| Code                  | HTTP | Human message (Spanish mirror)                         | When                                                                                                                                                                   |
+| --------------------- | ---- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VALIDATION_ERROR`    | 400  | "Los datos enviados no son válidos."                   | Request body fails Zod schema validation. The `details` field carries the issue list.                                                                                  |
+| `WEAK_PASSWORD`       | 400  | "La contraseña debe tener al menos 10 caracteres."     | Password length < 10 (BR-AUTH-2).                                                                                                                                      |
+| `INVALID_CREDENTIALS` | 401  | "Credenciales inválidas."                              | The Credentials `authorize()` returned `null` (the Auth.js error `CredentialsSignin` becomes `INVALID_CREDENTIALS` on the Hono side when the UI surfaces the failure). |
+| `UNAUTHORIZED`        | 401  | "Autenticación requerida."                             | `GET /api/me` with no session, missing cookie, expired session, or unknown user. Identical response shape across all four failure modes.                               |
+| `EMAIL_TAKEN`         | 409  | "El email ya está registrado."                         | `POST /api/auth/register` with an email that already exists (BR-AUTH-7).                                                                                               |
+| `RATE_LIMITED`        | 429  | "Demasiadas solicitudes. Probá de nuevo en un minuto." | Per-IP or per-account rate limit hit. The `security-rate-limiting` change owns the limit.                                                                              |
+| `INTERNAL_ERROR`      | 500  | "Ocurrió un error inesperado."                         | Catch-all for unexpected failures. The real error is logged with full stack; the response carries only the code and the safe message.                                  |
 
 ## Business rules
 
@@ -482,7 +499,7 @@ traceability across spec, design, implementation, and tests.
   logged. The structured-logging layer in `src/shared/logger`
   is configured with a denylist of
   `{ password, passwordHash, sessionToken, access_token,
-  refresh_token, id_token, csrfToken, "set-cookie" }`. A
+refresh_token, id_token, csrfToken, "set-cookie" }`. A
   lint rule forbids `console.log` and `console.debug` in
   `src/modules/auth/**` and in `src/shared/env/**`.
 - **BR-AUTH-12** — Failed login attempts are not rate-limited
@@ -566,6 +583,32 @@ delta.
   - `Path=/` — sent on every request, including the Hono
     catch-all.
 
+### Security test coverage
+
+Six security tests live in
+`src/modules/auth/__tests__/security/`. They are the
+end-to-end checks that catch regressions of the guarantees
+above. The CI `security` job runs all six; local dev can
+opt out of the timing test with `SKIP_TIMING=true`.
+
+| #   | File                        | Asserts                                                                                                                                                                                                                                                                                   | Refines                         |
+| --- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| 1   | `login.timing.test.ts`      | Welch's t-test on 30 paired samples (`known + wrong` vs `unknown + any`) returns `p > 0.01`.                                                                                                                                                                                              | BR-AUTH-4 (timing equalization) |
+| 2   | `oauth.state-csrf.test.ts`  | A tampered or missing `state` parameter on the OAuth callback is rejected; no `User` / `Account` row is created.                                                                                                                                                                          | BR-AUTH-6 (OAuth state)         |
+| 3   | `secrets.in-logs.test.ts`   | The structured logger's denylist strips `password`, `passwordHash`, `sessionToken`, `access_token`, `refresh_token`, `id_token`, `csrfToken`, `set-cookie`, `authorization`, `cookie`, `code` (11 keys) from captured log output. Also strips `Bearer <jwt>` from `Authorization` values. | BR-AUTH-11 (secrets in logs)    |
+| 4   | `origin-check.test.ts`      | `POST /api/auth/register` with `Origin` not matching `env.APP_URL` returns `403 FORBIDDEN`.                                                                                                                                                                                               | CSRF section above              |
+| 5   | `argon2.parameters.test.ts` | `hashArgon2id(password)` with the production parameters (`memoryCost=19456, timeCost=2, parallelism=1`) runs in a tight performance band. CI band: `[10, 100] ms`; local band: `[5, 200] ms`. The wider local band absorbs host-CPU variance.                                             | BR-AUTH-3 (Argon2id parameters) |
+| 6   | `cookie.attributes.test.ts` | `authjs.session-token` has `HttpOnly`, `SameSite=Lax`, `Path=/`; `Secure` is set in production.                                                                                                                                                                                           | Cookie attributes above         |
+
+**Test method note**: tests #2, #5, and #6 use `vi.mock` on
+the project's own `authjs` module + source-text static
+checks rather than exercising the live Auth.js flow. This
+is a deliberate scope reduction: the contract (the config
+Auth.js reads) is asserted, but the runtime integration
+(sending a real callback to a real Auth.js instance) is
+owned by Auth.js's own test suite. The CI `security` job
+runs all six files.
+
 ## Cross-module contracts
 
 Other modules rely on the following invariants. Any change
@@ -598,11 +641,11 @@ module reads the `Session` table directly, no module calls
 Other modules' tables reference `User.id` (cuid) via
 `userId`. The `User` row is the only identity anchor.
 
-| Invariant | Reason |
-|-----------|--------|
-| `userId` is the only stable identifier other modules should rely on. | Email can change (the user updates their Google account), name can change. `userId` is server-controlled and immutable. |
-| Every other module's `WHERE userId = ?` query MUST scope to the caller. | The application layer enforces this; the database has no row-level security in MVP. |
-| Modules MUST NOT add their own `email` column. | Email belongs to `User`. A user can change it; modules that need the current value re-resolve it from `User`. |
+| Invariant                                                               | Reason                                                                                                                  |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `userId` is the only stable identifier other modules should rely on.    | Email can change (the user updates their Google account), name can change. `userId` is server-controlled and immutable. |
+| Every other module's `WHERE userId = ?` query MUST scope to the caller. | The application layer enforces this; the database has no row-level security in MVP.                                     |
+| Modules MUST NOT add their own `email` column.                          | Email belongs to `User`. A user can change it; modules that need the current value re-resolve it from `User`.           |
 
 ### `UserRegistered` event
 
@@ -615,10 +658,10 @@ event dispatcher in `src/shared/events/`.
 interface UserRegisteredEvent {
   type: 'UserRegistered';
   payload: {
-    userId: string;            // cuid
-    email: string;             // Normalized lowercase.
+    userId: string; // cuid
+    email: string; // Normalized lowercase.
     provider: 'local' | 'google';
-    occurredAt: string;        // ISO 8601.
+    occurredAt: string; // ISO 8601.
   };
 }
 ```
@@ -640,30 +683,151 @@ provider. Downstream consumers can subscribe to, e.g., a
 interface UserSignedInEvent {
   type: 'UserSignedIn';
   payload: {
-    userId: string;            // cuid
+    userId: string; // cuid
     provider: 'local' | 'google';
-    occurredAt: string;        // ISO 8601.
+    occurredAt: string; // ISO 8601.
   };
 }
 ```
 
 ### Module index and public API
 
-`src/modules/auth/index.ts` exports:
+`src/modules/auth/index.ts` exports exactly **seven** named
+bindings — the entire public surface other modules (and the
+`app/` tree) may import:
 
-- `auth()` — the Auth.js v5 server-side helper.
-- `signIn` and `signOut` — server actions exported by
-  Auth.js, for use in server components.
-- `handlers` — the `GET` and `POST` handlers for
-  `/api/auth/*`, re-exported from `auth.ts` and mounted at
-  `app/api/auth/[...nextauth]/route.ts`.
-- The Hono `OpenAPIHono` instance for the `/api/*` (non-auth)
-  routes, exported for typed client consumption by the UI.
-- The `UserRegistered` and `UserSignedIn` event names (for
-  type-safe subscribers).
+- `auth` — the `auth()` server-side helper from Auth.js v5.
+  Returns `{ user, expires }` on a valid session, `null`
+  otherwise.
+- `signIn` — the server action that triggers a Credentials or
+  Google sign-in (from Auth.js v5).
+- `signOut` — the server action that terminates the current
+  session (from Auth.js v5).
+- `handlers` — the `{ GET, POST }` route handlers for
+  `/api/auth/*`, re-exported from `infrastructure/external/authjs`
+  and mounted at `app/api/auth/[...nextauth]/route.ts`.
+- `honoApp` — the `OpenAPIHono` instance for the Hono
+  catch-all at `app/api/[...path]/route.ts`. Typed as
+  `OpenAPIHono<{ Variables: { user: PublicUser | null } }>`.
+  Consumed by the UI via Hono's `hc<typeof honoApp>` typed
+  client.
+- `UserRegistered` — the event-name string for the
+  user-registered event.
+- `UserSignedIn` — the event-name string for the
+  user-signed-in event.
 
 Nothing else in the codebase reaches into the module's
-internals.
+internals. `tsconfig.json` has `verbatimModuleSyntax: true`
+so a non-exported import (e.g.
+`import { AuthService } from '@/modules/auth/application/...'`)
+fails at compile time. The compile-time check is asserted
+by a static test in `src/modules/auth/index.test.ts`.
+
+### App Router middleware
+
+`middleware.ts` at the project root protects future
+App Router pages (e.g. `/dashboard`) by 302-redirecting
+unauthenticated requests to `/auth/signin`. The middleware
+is the **faster-fail** path for App Router pages; the Hono
+`/api/me` route already returns 401 when the session is
+missing, and the Hono origin-check middleware already
+rejects cross-origin POSTs.
+
+The middleware matcher is:
+
+```ts
+export const config = {
+  matcher: ['/((?!_next|api/auth|favicon.ico).*)'],
+  runtime: 'nodejs',
+};
+```
+
+The matcher **does** run on `/api/*` paths (only `/api/auth/*`
+is excluded). For an unauthenticated request to a Hono route
+like `/api/me`, the middleware's `isAuthed = !!request.auth`
+check correctly returns `false`, but the `PUBLIC_PATHS`
+allowlist (`['/auth/signin', '/auth/signout', '/']`) does
+not match `/api/*`. The Hono route handler's own `auth()`
+resolution runs after the middleware and returns 401
+before any redirect is observed by the client. The matcher
+is intentional: the Hono `origin-check` middleware and the
+Hono `auth()` resolution are the **authoritative** paths for
+API requests; the App Router middleware is for pages only.
+
+Public paths (signin, signout, root) are exempted from the
+redirect so that the signin page itself is reachable when
+not authenticated.
+
+The middleware runs in the **Node.js runtime** (not the
+default Edge runtime) for the same `@node-rs/argon2` NAPI
+reason documented in the catch-all section above.
+
+### Test configuration
+
+`vitest.config.ts` configures the test runner with two
+production-relevant decisions:
+
+- **`resolve.alias`** maps `@` to `./src` so that
+  `@/modules/auth` style imports resolve in tests.
+- **`coverage.include`** restricts v8 coverage to
+  `src/modules/auth/**`, `src/shared/db/**`, `src/shared/env/**`,
+  `src/shared/logger/**`, `src/shared/http/**`,
+  `src/shared/errors/**`, `src/shared/events/**`,
+  `src/shared/crypto/**`. Coverage thresholds are
+  `lines: 80, branches: 80, functions: 80, statements: 80`
+  and fail the test job if not met.
+- **`test.exclude`** is `['node_modules', 'dist', '.next']`.
+  No production test files are excluded. The previous
+  module-resolution workaround (excluding 3 test files
+  that transitively imported `next/server` via
+  `next-auth@5.0.0-beta.25`) was closed in the
+  `auth-foundation-slice-c` change by bumping
+  `next-auth` to `5.0.0-beta.31` (which removed the bare
+  import) and by rewriting the 3 tests as static
+  source-text checks (in `index.test.ts` and
+  `app/api/auth/[...nextauth]/route.test.ts`) or
+  `vi.mock`-based contract tests (in
+  `infrastructure/external/authjs.test.ts`).
+- **`test.setupFiles`** points at `./test/setup.ts`, which
+  seeds `env.APP_URL`, `env.AUTH_SECRET`, and other
+  Zod-validated env vars so the env schema parses in tests.
+
+### Continuous integration
+
+`.github/workflows/ci.yml` defines four parallel jobs that
+run on `pull_request` to `develop` or `main` and on `push`
+to `develop` or `main`. Concurrency is cancelled in-flight
+on the same ref.
+
+| Job        | Verifies                                                                                                                                                          | Postgres service                                         |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `lint`     | `pnpm install --frozen-lockfile`, `pnpm prisma generate`, `pnpm run lint`, `pnpm run typecheck`                                                                   | no                                                       |
+| `test`     | `pnpm install --frozen-lockfile`, `pnpm prisma generate`, `pnpm prisma migrate deploy`, `SKIP_TIMING=true npx vitest run --coverage`, upload `coverage/` artifact | `services: postgres: image: postgres:16` (healthchecked) |
+| `build`    | `pnpm install --frozen-lockfile`, `pnpm prisma generate`, `pnpm run build`                                                                                        | no                                                       |
+| `security` | `pnpm install --frozen-lockfile`, `pnpm prisma generate`, `pnpm test src/modules/auth/__tests__/security/`                                                        | no (the 6 security tests do not need a real DB)          |
+
+Branch protection on `develop` (documented in
+`docs/branch-protection.md`, applied manually by the
+maintainer) requires all four jobs to be green before
+merge.
+
+### Repository governance
+
+- **`.github/CODEOWNERS`** lists `@sebailla` as the default
+  owner for every file. Every PR requests a review from
+  the maintainer.
+- **`docs/branch-protection.md`** documents the branch
+  protection rules applied to `develop` (and later to
+  `main`): require 1 review, require CI green on all 4
+  jobs, dismiss stale approvals on push, require linear
+  history (squash-merge only), no force-pushes. The
+  actual GitHub settings are applied manually by the
+  user (they require repo-admin permissions).
+- **5 ADRs** in `docs/adr/` (Auth.js v5, Prisma 6,
+  Argon2id parameters, Hono catch-all, auto-link security
+  model) follow the MADR template. Each ADR has a
+  `### Considered Options` subsection with 3+ rejected
+  alternatives.
 
 ## Out of scope
 
@@ -707,3 +871,22 @@ internals.
   separate change owns the flow.
 - Notification emails on auto-link. A future hardening
   pass.
+
+## References
+
+Documentation artifacts that accompany this spec but are
+not part of its normative content. They live at:
+
+- 5 ADRs (`docs/adr/0001..0005-*.md`) — the architectural
+  decisions that produced this spec.
+- `docs/architecture.md` "Auth" section — the at-a-glance
+  module map (Mermaid diagram, data model, routes, session
+  strategy, cross-module contracts). Spanish mirror at
+  `Documents-es/docs/architecture.md`.
+- `README.md` "Local dev" section — install, database
+  setup, dev server, test commands, `SKIP_TIMING` flag.
+  Spanish mirror at `Documents-es/README.md`.
+- `Documents-es/openspec/changes/auth-foundation/apply-progress.md`
+  — the Spanish mirror of the parent change's apply
+  progress, kept in sync to close the bilingual-drift
+  invariant (`AGENTS.md` §13.3).
