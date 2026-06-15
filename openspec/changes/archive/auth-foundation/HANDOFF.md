@@ -20,19 +20,18 @@ implementing T-001..T-033, organized as 3 chained pull requests to
 
 ## Planning artifacts (canonical, in `feat/auth-foundation`)
 
-| Artifact | EN lines | ES lines | Commit SHA |
-|---|---|---|---|
-| Proposal v2 | 512 | 544 | `051e01e` |
-| Spec v2 | 709 | 747 | `0dd2367` |
-| Design v2 | 1,245 | 1,281 | `61a3e5c` |
-| Tasks v2 | 1,456 | 1,481 | `53fcaea` |
-| **Total** | **3,922** | **4,053** | **4 commits** |
+| Artifact    | EN lines  | ES lines  | Commit SHA    |
+| ----------- | --------- | --------- | ------------- |
+| Proposal v2 | 512       | 544       | `051e01e`     |
+| Spec v2     | 709       | 747       | `0dd2367`     |
+| Design v2   | 1,245     | 1,281     | `61a3e5c`     |
+| Tasks v2    | 1,456     | 1,481     | `53fcaea`     |
+| **Total**   | **3,922** | **4,053** | **4 commits** |
 
 Also in `feat/auth-foundation`:
 
 - `eca35c9` — cleanup of the v1 artifacts (Bun + Hono + Drizzle +
-  SQLite + custom auth). The 4 v1 commits (b2a69ec, b562cee, 17c1635,
-  3083458) are preserved in git history for structural reference but
+  SQLite + custom auth). The 4 v1 commits (b2a69ec, b562cee, 17c1635, 3083458) are preserved in git history for structural reference but
   their technical content is OBSOLETE.
 
 ## Stack v2 (closed)
@@ -63,12 +62,12 @@ Also in `feat/auth-foundation`:
 
 ## Forecast of chained PRs (per tasks file, slice lines exceed 400 budget)
 
-| Slice | Tasks | Lines | Overage vs 400 |
-|---|---|---|---|
-| A — Floor + shared infra + auth domain + auth infrastructure | T-001..T-018 | ~1,450 | 3.6× |
-| B — Auth application + Hono catch-all + UI + app composition | T-019..T-024 | ~500 | 1.25× |
-| C — Security tests + CI + docs + handoff | T-025..T-033 | ~700 | 1.75× |
-| **Total** | **33** | **~2,650** | — |
+| Slice                                                        | Tasks        | Lines      | Overage vs 400 |
+| ------------------------------------------------------------ | ------------ | ---------- | -------------- |
+| A — Floor + shared infra + auth domain + auth infrastructure | T-001..T-018 | ~1,450     | 3.6×           |
+| B — Auth application + Hono catch-all + UI + app composition | T-019..T-024 | ~500       | 1.25×          |
+| C — Security tests + CI + docs + handoff                     | T-025..T-033 | ~700       | 1.75×          |
+| **Total**                                                    | **33**       | **~2,650** | —              |
 
 The user explicitly accepted the overage in this session. The
 apply-phase worker has the instruction to surface actual `git diff

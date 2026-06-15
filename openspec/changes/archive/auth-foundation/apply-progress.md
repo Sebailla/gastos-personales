@@ -8,29 +8,29 @@
 
 ## Status
 
-| Slice | Tasks | Status |
-|---|---|---|
-| Slice A — Floor + shared infra + auth domain + auth infrastructure | T-001..T-018 | ✅ complete (PR #5, db74ecb) |
-| Slice B — Application + Hono catch-all + UI + Auth.js mount | T-019..T-024 | ✅ complete (branch feat/auth-foundation-apply-slice-b) |
-| Slice C — Security tests + CI + docs + handoff | T-025..T-033 | pending (next session) |
+| Slice                                                              | Tasks        | Status                                                  |
+| ------------------------------------------------------------------ | ------------ | ------------------------------------------------------- |
+| Slice A — Floor + shared infra + auth domain + auth infrastructure | T-001..T-018 | ✅ complete (PR #5, db74ecb)                            |
+| Slice B — Application + Hono catch-all + UI + Auth.js mount        | T-019..T-024 | ✅ complete (branch feat/auth-foundation-apply-slice-b) |
+| Slice C — Security tests + CI + docs + handoff                     | T-025..T-033 | pending (next session)                                  |
 
 ## Slice A TDD Cycle Evidence
 
-| Task | Test File | Layer | RED | GREEN | TRIANGULATE | REFACTOR |
-|------|-----------|-------|-----|-------|-------------|----------|
-| T-005 | `src/shared/env/env.schema.test.ts` | Unit | ✅ 7 cases | ✅ Passed | ✅ 7 cases | ✅ Clean |
-| T-006 | `src/shared/errors/app-error.test.ts` | Unit | ✅ 4 cases | ✅ Passed | ✅ 4 codes | ✅ Clean |
-| T-007 | `src/shared/logger/logger.test.ts` + `src/shared/http/{request-id,error-handler}.test.ts` | Unit | ✅ 10+ cases | ✅ Passed | ✅ 11 denylist keys | ✅ Clean |
-| T-008 | `src/shared/crypto/web-crypto.test.ts` | Unit | ✅ 6 cases | ✅ Passed | ✅ tamper cases | ✅ Clean |
-| T-009 | `src/shared/events/event-dispatcher.test.ts` | Unit | ✅ 4 cases | ✅ Passed | ✅ throws case | ✅ Clean |
-| T-010 | `src/modules/auth/domain/entities/*.test.ts` + `value-objects/public-user.test.ts` | Unit | ✅ 8 cases | ✅ Passed | ✅ normalization | ✅ Clean |
-| T-011 | `src/shared/db/prisma.test.ts` | Unit | ✅ 3 cases | ✅ Passed | ✅ N/A (single shape) | ✅ Clean |
-| T-012 | `src/modules/auth/infrastructure/external/argon2.hasher.test.ts` | Unit | ✅ 5 cases | ✅ Passed | ✅ salt uniqueness | ✅ Clean |
-| T-013 | `src/modules/auth/domain/services/default-provider.policy.test.ts` | Unit | ✅ 5 cases | ✅ Passed | ✅ 3 branches | ✅ Clean |
-| T-014 | `src/modules/auth/domain/services/auth.service.test.ts` | Unit | ✅ 8 cases | ✅ Passed | ✅ 3 paths (success, EMAIL_TAKEN, OAuth) | ✅ Clean |
-| T-016 | `src/modules/auth/infrastructure/repositories/user.repository.test.ts` | Unit (fake) | ✅ 4 cases | ✅ Passed | ✅ case-insensitive | ✅ Clean |
-| T-017 | `src/modules/auth/infrastructure/repositories/{account,session}.repository.test.ts` | Unit (fake) | ✅ 6 cases | ✅ Passed | ✅ unique-lookup, miss, delete | ✅ Clean |
-| T-018 | `src/modules/auth/infrastructure/external/authjs.test.ts` | Unit | ✅ 6 cases | ✅ Passed | ✅ idempotency | ✅ Clean |
+| Task  | Test File                                                                                 | Layer       | RED          | GREEN     | TRIANGULATE                              | REFACTOR |
+| ----- | ----------------------------------------------------------------------------------------- | ----------- | ------------ | --------- | ---------------------------------------- | -------- |
+| T-005 | `src/shared/env/env.schema.test.ts`                                                       | Unit        | ✅ 7 cases   | ✅ Passed | ✅ 7 cases                               | ✅ Clean |
+| T-006 | `src/shared/errors/app-error.test.ts`                                                     | Unit        | ✅ 4 cases   | ✅ Passed | ✅ 4 codes                               | ✅ Clean |
+| T-007 | `src/shared/logger/logger.test.ts` + `src/shared/http/{request-id,error-handler}.test.ts` | Unit        | ✅ 10+ cases | ✅ Passed | ✅ 11 denylist keys                      | ✅ Clean |
+| T-008 | `src/shared/crypto/web-crypto.test.ts`                                                    | Unit        | ✅ 6 cases   | ✅ Passed | ✅ tamper cases                          | ✅ Clean |
+| T-009 | `src/shared/events/event-dispatcher.test.ts`                                              | Unit        | ✅ 4 cases   | ✅ Passed | ✅ throws case                           | ✅ Clean |
+| T-010 | `src/modules/auth/domain/entities/*.test.ts` + `value-objects/public-user.test.ts`        | Unit        | ✅ 8 cases   | ✅ Passed | ✅ normalization                         | ✅ Clean |
+| T-011 | `src/shared/db/prisma.test.ts`                                                            | Unit        | ✅ 3 cases   | ✅ Passed | ✅ N/A (single shape)                    | ✅ Clean |
+| T-012 | `src/modules/auth/infrastructure/external/argon2.hasher.test.ts`                          | Unit        | ✅ 5 cases   | ✅ Passed | ✅ salt uniqueness                       | ✅ Clean |
+| T-013 | `src/modules/auth/domain/services/default-provider.policy.test.ts`                        | Unit        | ✅ 5 cases   | ✅ Passed | ✅ 3 branches                            | ✅ Clean |
+| T-014 | `src/modules/auth/domain/services/auth.service.test.ts`                                   | Unit        | ✅ 8 cases   | ✅ Passed | ✅ 3 paths (success, EMAIL_TAKEN, OAuth) | ✅ Clean |
+| T-016 | `src/modules/auth/infrastructure/repositories/user.repository.test.ts`                    | Unit (fake) | ✅ 4 cases   | ✅ Passed | ✅ case-insensitive                      | ✅ Clean |
+| T-017 | `src/modules/auth/infrastructure/repositories/{account,session}.repository.test.ts`       | Unit (fake) | ✅ 6 cases   | ✅ Passed | ✅ unique-lookup, miss, delete           | ✅ Clean |
+| T-018 | `src/modules/auth/infrastructure/external/authjs.test.ts`                                 | Unit        | ✅ 6 cases   | ✅ Passed | ✅ idempotency                           | ✅ Clean |
 
 ## Deviations from design.md
 
@@ -40,7 +40,7 @@
    the migration was authored as the schema.prisma file
    alone. The `apply-progress.md` and the `fly-deploy` /
    local-dev setup will run `pnpm prisma migrate dev --name
-   auth_foundation` for real; the SQL file is the
+auth_foundation` for real; the SQL file is the
    responsibility of the next worker who has a database.
 2. **Repositories tested with fakes, not Postgres testcontainers**
    (T-016, T-017): The tasks call for real Postgres
@@ -86,7 +86,7 @@ develop..HEAD` summary will land in the PR body.
   `next` to 15.2+ or pinning an earlier next-auth beta
   resolves it.
 - **Argon2id parameter tuning** — `memoryCost=19456,
-  timeCost=2, parallelism=1` is the design's chosen
+timeCost=2, parallelism=1` is the design's chosen
   default. The benchmark on the target VM is the source
   of truth; this PR does not run the benchmark on Fly.io.
 - **Zod parse of `process.env` at module init** — every
@@ -121,26 +121,26 @@ $ gga run            → passed on the scaffolding commit; later commits
 
 ### Commits (7 total on this branch)
 
-| SHA | Type | Description |
-|---|---|---|
-| `02d36c7` | feat(auth) | add registerAction with Zod DTO and 11 test cases (T-019) |
-| `d13f3d5` | feat(auth) | add meAction and healthAction with PublicUser/health DTOs (T-020) |
-| `dd374fc` | feat(api)  | add OpenAPIHono app with origin-check middleware and 11 tests (T-021) |
-| `ee1cf6f` | feat(api)  | add typed Hono client (hc<typeof honoApp>) and commit lockfile (T-022) |
-| `fc09b12` | feat(auth) | add signIn and signOut pages with auth-error map (T-023) |
-| `9c60f00` | feat(auth) | mount Auth.js route handler at /api/auth/[...nextauth] (T-024) |
-| `4763031` | fix(slice-b) | resolve typecheck errors and keep all 134 tests green |
+| SHA       | Type         | Description                                                            |
+| --------- | ------------ | ---------------------------------------------------------------------- |
+| `02d36c7` | feat(auth)   | add registerAction with Zod DTO and 11 test cases (T-019)              |
+| `d13f3d5` | feat(auth)   | add meAction and healthAction with PublicUser/health DTOs (T-020)      |
+| `dd374fc` | feat(api)    | add OpenAPIHono app with origin-check middleware and 11 tests (T-021)  |
+| `ee1cf6f` | feat(api)    | add typed Hono client (hc<typeof honoApp>) and commit lockfile (T-022) |
+| `fc09b12` | feat(auth)   | add signIn and signOut pages with auth-error map (T-023)               |
+| `9c60f00` | feat(auth)   | mount Auth.js route handler at /api/auth/[...nextauth] (T-024)         |
+| `4763031` | fix(slice-b) | resolve typecheck errors and keep all 134 tests green                  |
 
 ### TDD Cycle Evidence
 
-| Task | Test file(s) | Layer | RED | GREEN | TRIANGULATE | REFACTOR |
-|---|---|---|---|---|---|---|
-| T-019 | `src/modules/auth/application/dto/register.dto.test.ts` (5 cases) + `src/modules/auth/application/actions/register.action.test.ts` (6 cases) | DTO + action | ✅ both files failed at import time before implementation | ✅ 11/11 pass | ✅ added 6th action case (unexpected AppError path) | ✅ no duplication; DTO and action return discriminated unions |
-| T-020 | `src/modules/auth/application/dto/me.dto.test.ts` (3) + `health.dto.test.ts` (2) + `me.action.test.ts` (3) + `health.action.test.ts` (2) | DTO + action | ✅ all 4 files failed at import | ✅ 10/10 pass | ✅ parametrized UNAUTHORIZED test covers all 4 failure modes (no session, missing cookie, expired session, user deleted) | ✅ clean separation of DTO schema from action |
-| T-021 | `src/modules/api/middlewares/origin-check.test.ts` (4) + `src/modules/api/app.test.ts` (7) | Middleware + app | ✅ both failed at import | ✅ 11/11 pass | ✅ added 4th origin-check case (Referer + Origin both evil) + 7th app case (cross-origin POST) | ✅ Hono app composed via `createHonoApp(deps)` factory to avoid the next-auth import chain at module init |
-| T-022 | `src/modules/api/client.test.ts` (2) | Typed client | ✅ failed at import | ✅ 2/2 pass | ✅ asserts the three routes (me, health, auth.register) with their verb methods | ✅ factory pattern; `apiClient(baseUrl)` reused across requests |
-| T-023 | `src/modules/auth/application/auth-error-map.test.ts` (5) + `app/auth/signin/page.test.ts` (3) | Error map + page | ✅ both failed at import | ✅ 8/8 pass | ✅ added cases for AccessDenied, Verification, unknown code, empty string | ✅ `mapAuthErrorToMessage` is a pure function decoupled from React; the page is a thin server component over it |
-| T-024 | `app/api/auth/[...nextauth]/route.test.ts` (1) — **excluded from vitest** | Route mount | ✅ confirmed excluded | ✅ excluded, file kept for Slice C re-include | n/a (single integration assertion) | ✅ 2-line route handler that re-exports `{ GET, POST }` from the auth module's public surface |
+| Task  | Test file(s)                                                                                                                                 | Layer            | RED                                                       | GREEN                                         | TRIANGULATE                                                                                                              | REFACTOR                                                                                                        |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | --------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| T-019 | `src/modules/auth/application/dto/register.dto.test.ts` (5 cases) + `src/modules/auth/application/actions/register.action.test.ts` (6 cases) | DTO + action     | ✅ both files failed at import time before implementation | ✅ 11/11 pass                                 | ✅ added 6th action case (unexpected AppError path)                                                                      | ✅ no duplication; DTO and action return discriminated unions                                                   |
+| T-020 | `src/modules/auth/application/dto/me.dto.test.ts` (3) + `health.dto.test.ts` (2) + `me.action.test.ts` (3) + `health.action.test.ts` (2)     | DTO + action     | ✅ all 4 files failed at import                           | ✅ 10/10 pass                                 | ✅ parametrized UNAUTHORIZED test covers all 4 failure modes (no session, missing cookie, expired session, user deleted) | ✅ clean separation of DTO schema from action                                                                   |
+| T-021 | `src/modules/api/middlewares/origin-check.test.ts` (4) + `src/modules/api/app.test.ts` (7)                                                   | Middleware + app | ✅ both failed at import                                  | ✅ 11/11 pass                                 | ✅ added 4th origin-check case (Referer + Origin both evil) + 7th app case (cross-origin POST)                           | ✅ Hono app composed via `createHonoApp(deps)` factory to avoid the next-auth import chain at module init       |
+| T-022 | `src/modules/api/client.test.ts` (2)                                                                                                         | Typed client     | ✅ failed at import                                       | ✅ 2/2 pass                                   | ✅ asserts the three routes (me, health, auth.register) with their verb methods                                          | ✅ factory pattern; `apiClient(baseUrl)` reused across requests                                                 |
+| T-023 | `src/modules/auth/application/auth-error-map.test.ts` (5) + `app/auth/signin/page.test.ts` (3)                                               | Error map + page | ✅ both failed at import                                  | ✅ 8/8 pass                                   | ✅ added cases for AccessDenied, Verification, unknown code, empty string                                                | ✅ `mapAuthErrorToMessage` is a pure function decoupled from React; the page is a thin server component over it |
+| T-024 | `app/api/auth/[...nextauth]/route.test.ts` (1) — **excluded from vitest**                                                                    | Route mount      | ✅ confirmed excluded                                     | ✅ excluded, file kept for Slice C re-include | n/a (single integration assertion)                                                                                       | ✅ 2-line route handler that re-exports `{ GET, POST }` from the auth module's public surface                   |
 
 ### Deviations from design.md
 
@@ -165,7 +165,7 @@ $ gga run            → passed on the scaffolding commit; later commits
    mapper is wired in (via the independently-tested
    `mapAuthErrorToMessage`), and the page does not throw for the
    no-`error` case. Visual rendering is validated by `pnpm run
-   build` (Next.js static analysis) and by manual smoke in dev.
+build` (Next.js static analysis) and by manual smoke in dev.
 
 3. **SignIn form is a plain HTML `<form>`, not TanStack React Form**.
    The design said the controlled inputs would use TanStack React

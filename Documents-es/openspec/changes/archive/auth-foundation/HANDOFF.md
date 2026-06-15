@@ -21,13 +21,13 @@ chained pull requests a `develop`.
 
 ## Artefactos de planning (canónicos, en `feat/auth-foundation`)
 
-| Artefacto | Líneas EN | Líneas ES | Commit SHA |
-|---|---|---|---|
-| Proposal v2 | 512 | 544 | `051e01e` |
-| Spec v2 | 709 | 747 | `0dd2367` |
-| Design v2 | 1.245 | 1.281 | `61a3e5c` |
-| Tasks v2 | 1.456 | 1.481 | `53fcaea` |
-| **Total** | **3.922** | **4.053** | **4 commits** |
+| Artefacto   | Líneas EN | Líneas ES | Commit SHA    |
+| ----------- | --------- | --------- | ------------- |
+| Proposal v2 | 512       | 544       | `051e01e`     |
+| Spec v2     | 709       | 747       | `0dd2367`     |
+| Design v2   | 1.245     | 1.281     | `61a3e5c`     |
+| Tasks v2    | 1.456     | 1.481     | `53fcaea`     |
+| **Total**   | **3.922** | **4.053** | **4 commits** |
 
 También en `feat/auth-foundation`:
 
@@ -64,12 +64,12 @@ También en `feat/auth-foundation`:
 
 ## Forecast de chained PRs (por tasks, las líneas exceden el budget de 400)
 
-| Slice | Tasks | Líneas | Overage vs 400 |
-|---|---|---|---|
-| A — Floor + infra + auth domain + auth infrastructure | T-001..T-018 | ~1.450 | 3,6× |
-| B — Auth application + Hono catch-all + UI + app composition | T-019..T-024 | ~500 | 1,25× |
-| C — Security tests + CI + docs + handoff | T-025..T-033 | ~700 | 1,75× |
-| **Total** | **33** | **~2.650** | — |
+| Slice                                                        | Tasks        | Líneas     | Overage vs 400 |
+| ------------------------------------------------------------ | ------------ | ---------- | -------------- |
+| A — Floor + infra + auth domain + auth infrastructure        | T-001..T-018 | ~1.450     | 3,6×           |
+| B — Auth application + Hono catch-all + UI + app composition | T-019..T-024 | ~500       | 1,25×          |
+| C — Security tests + CI + docs + handoff                     | T-025..T-033 | ~700       | 1,75×          |
+| **Total**                                                    | **33**       | **~2.650** | —              |
 
 El usuario aceptó explícitamente el overage en esta sesión. El
 worker de apply tiene la instrucción de surface los números reales

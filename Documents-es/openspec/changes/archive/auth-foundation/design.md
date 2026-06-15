@@ -14,10 +14,10 @@
 > con family revocation. v1 queda en el historial de git como
 > referencia estructural; su contenido es **obsoleto** (JWT
 > custom, refresh rotation, Drizzle, SQLite, `arctic`, `jose`,
-> `bun-argon2`). v2 mantiene la *forma* de v1 (11 secciones:
+> `bun-argon2`). v2 mantiene la _forma_ de v1 (11 secciones:
 > architecture overview, library decisions, config shape,
 > catch-all shape, schema, migrations, env vars, testing, CI,
-> open questions, risks) y reemplaza la *sustancia* por
+> open questions, risks) y reemplaza la _sustancia_ por
 > sesiones en base de datos vía Auth.js v5, el Prisma adapter,
 > el Hono catch-all, y `@node-rs/argon2` (o `argon2` como
 > fallback).
@@ -198,8 +198,7 @@ alternatives, rationale, link a la(s) regla(s) que satisface.
 - **Elegido**: `@node-rs/argon2` — binarios NAPI prebuilt
   para Alpine (`node:20-alpine`), sin paso de `node-gyp` al
   instalar, rápido en Node 20. El paquete lo mantiene la
-  org `@node-rs` y se usa mucho en el ecosistema Node en
-  2026.
+  org `@node-rs` y se usa mucho en el ecosistema Node en 2026.
 - **Fallback**: `argon2` (el paquete npm hermano del autor
   de `@node-rs/argon2`, el binding canónico de Node). Se
   usa solo si el prebuilt de `@node-rs/argon2` falla al
@@ -375,8 +374,8 @@ export const authConfig: NextAuthConfig = {
   session: { strategy: 'database' },
   secret: env.AUTH_SECRET,
   pages: {
-    signIn: '/auth/signin',    // montada por el cambio ui-auth-shell
-    signOut: '/auth/signout',  // igual
+    signIn: '/auth/signin', // montada por el cambio ui-auth-shell
+    signOut: '/auth/signout', // igual
   },
   providers: [
     Google({
@@ -804,12 +803,12 @@ migración se genera").
 
 **Comandos de migración:**
 
-| Comando | Cuándo | Notas |
-|---------|--------|-------|
-| `pnpm prisma migrate dev --name <name>` | Desarrollo local | Genera + aplica. Resetea la DB si hay drift. |
-| `pnpm prisma migrate deploy` | CI / arranque del container | Aplica migraciones pendientes. Idempotente. |
-| `pnpm prisma generate` | Después de cualquier cambio de schema | Regenera el Prisma client tipado. |
-| `pnpm prisma studio` | Debugging local | GUI. No se usa en CI. |
+| Comando                                 | Cuándo                                | Notas                                        |
+| --------------------------------------- | ------------------------------------- | -------------------------------------------- |
+| `pnpm prisma migrate dev --name <name>` | Desarrollo local                      | Genera + aplica. Resetea la DB si hay drift. |
+| `pnpm prisma migrate deploy`            | CI / arranque del container           | Aplica migraciones pendientes. Idempotente.  |
+| `pnpm prisma generate`                  | Después de cualquier cambio de schema | Regenera el Prisma client tipado.            |
+| `pnpm prisma studio`                    | Debugging local                       | GUI. No se usa en CI.                        |
 
 **Integración con CI** se describe en §9. El job `test`
 levanta un Postgres fresco (vía testcontainers o una
@@ -863,9 +862,7 @@ const envSchema = z.object({
   // para igualación de timing en la función authorize() de
   // Credentials (BR-AUTH-4, BR-AUTH-9). Se genera una vez y
   // se guarda como Fly secret. Nunca se loguea.
-  ARGON2ID_DUMMY_PASSWORD: z
-    .string()
-    .min(32, 'ARGON2ID_DUMMY_PASSWORD must be at least 32 bytes'),
+  ARGON2ID_DUMMY_PASSWORD: z.string().min(32, 'ARGON2ID_DUMMY_PASSWORD must be at least 32 bytes'),
 
   // --- Fly.io (opcional) ---
   FLY_REGION: z.string().optional(),
@@ -924,11 +921,12 @@ set` real y del orden en que se aprovisionan los secrets.
 Per skill `testing-standards`: patrón AAA, sin
 `if`/`else`/`for` dentro de los bodies de tests,
 parametrizado donde se necesita, ≥80 % de cobertura line
-+ branch en el módulo `auth` (domain + application). TDD
-estricto: los tests se escriben antes de la implementación
-que pinean. Test runner: **Vitest** (la propuesta se
-compromete con `pnpm test`; Vitest es el default TS y anda
-limpio con ESM + pnpm).
+
+- branch en el módulo `auth` (domain + application). TDD
+  estricto: los tests se escriben antes de la implementación
+  que pinean. Test runner: **Vitest** (la propuesta se
+  compromete con `pnpm test`; Vitest es el default TS y anda
+  limpio con ESM + pnpm).
 
 > **Nota sobre la referencia a `bun test` en todo el
 > proyecto** en `openspec/config.yaml`: esa línea es un
@@ -943,14 +941,14 @@ Ubicados en `src/modules/auth/domain/**/*.test.ts` y
 `src/modules/auth/infrastructure/external/*.test.ts`.
 Funciones puras, sin DB, sin HTTP.
 
-| Suite                                | Qué cubre                                                                                             |
-|--------------------------------------|--------------------------------------------------------------------------------------------------------|
-| `argon2.hasher`                      | `hashArgon2id` y `verifyArgon2id` con los parámetros elegidos; rechaza passwords incorrectas; verify devuelve `false` ante un hash tamperado. |
-| `email.normalize`                    | Lowercase + trim; saca whitespace alrededor; rechaza vacío. |
+| Suite                                    | Qué cubre                                                                                                                                                                    |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `argon2.hasher`                          | `hashArgon2id` y `verifyArgon2id` con los parámetros elegidos; rechaza passwords incorrectas; verify devuelve `false` ante un hash tamperado.                                |
+| `email.normalize`                        | Lowercase + trim; saca whitespace alrededor; rechaza vacío.                                                                                                                  |
 | `default-provider` (servicio de dominio) | Devuelve `"local"` para users creados por la acción `register`; devuelve `"google"` para signups de Google la primera vez; NO cambia en sign-ins subsiguientes (BR-AUTH-13). |
-| `user.repository` (mock in-memory)   | `create`, `findByEmail`, `findById`, lookup case-insensitive. |
-| `account.repository` (mock in-memory)| `create` honra la restricción unique sobre `(provider, providerAccountId)`. |
-| `session.repository` (mock in-memory)| `create`, `findByToken`, `delete` (sign-out). |
+| `user.repository` (mock in-memory)       | `create`, `findByEmail`, `findById`, lookup case-insensitive.                                                                                                                |
+| `account.repository` (mock in-memory)    | `create` honra la restricción unique sobre `(provider, providerAccountId)`.                                                                                                  |
+| `session.repository` (mock in-memory)    | `create`, `findByToken`, `delete` (sign-out).                                                                                                                                |
 
 ### Integration tests (Hono + Prisma + Postgres)
 
@@ -963,15 +961,15 @@ repositorios en integration tests; mockeamos solo las
 fronteras externas (endpoint de userinfo de Google, el
 reloj del sistema).
 
-| Suite                                | Qué cubre                                                                                          |
-|--------------------------------------|-----------------------------------------------------------------------------------------------------|
-| `user.repository` (Prisma real)      | `create`, `findByEmail` (case-insensitive), `update` (lastLoginAt, defaultProvider). |
-| `account.repository` (Prisma real)   | `create`, unique-violation sobre `(provider, providerAccountId)` duplicado. |
-| `session.repository` (Prisma real)   | `create`, `findByToken`, `delete`. |
-| `register.action`                    | 201 éxito; 409 `EMAIL_TAKEN` con timing comparable; 400 `WEAK_PASSWORD`; 400 `VALIDATION_ERROR`. Emite `UserRegistered` exactamente una vez. |
-| `me.action`                          | 200 con `PublicUser` (sin `passwordHash`, sin `emailVerified`); 401 `UNAUTHORIZED` sin sesión, sesión expirada, usuario desconocido — forma idéntica. |
-| `health.action`                      | 200 con `{ status: "ok", version, uptime }`. |
-| `hono.catch-all`                     | Mount + dispatch: `GET /api/me` devuelve 200 con sesión, 401 sin; `POST /api/auth/register` 201, 409, 400; `GET /api/health` 200. |
+| Suite                                   | Qué cubre                                                                                                                                                                                                    |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `user.repository` (Prisma real)         | `create`, `findByEmail` (case-insensitive), `update` (lastLoginAt, defaultProvider).                                                                                                                         |
+| `account.repository` (Prisma real)      | `create`, unique-violation sobre `(provider, providerAccountId)` duplicado.                                                                                                                                  |
+| `session.repository` (Prisma real)      | `create`, `findByToken`, `delete`.                                                                                                                                                                           |
+| `register.action`                       | 201 éxito; 409 `EMAIL_TAKEN` con timing comparable; 400 `WEAK_PASSWORD`; 400 `VALIDATION_ERROR`. Emite `UserRegistered` exactamente una vez.                                                                 |
+| `me.action`                             | 200 con `PublicUser` (sin `passwordHash`, sin `emailVerified`); 401 `UNAUTHORIZED` sin sesión, sesión expirada, usuario desconocido — forma idéntica.                                                        |
+| `health.action`                         | 200 con `{ status: "ok", version, uptime }`.                                                                                                                                                                 |
+| `hono.catch-all`                        | Mount + dispatch: `GET /api/me` devuelve 200 con sesión, 401 sin; `POST /api/auth/register` 201, 409, 400; `GET /api/health` 200.                                                                            |
 | `oauth-callback.flow` (Google mockeado) | Auto-link por match de email (BR-AUTH-5); user nuevo en el primer email; `OAuthAccountNotLinked` en conflicto `(provider, providerAccountId)` (BR-AUTH-10); rechaza con `email_verified: false` (BR-AUTH-6). |
 
 ### Security tests
@@ -980,22 +978,23 @@ Ubicados en `src/modules/auth/__tests__/security/*.test.ts`.
 Son integration tests pero viven en una carpeta dedicada
 para que el reviewer los pueda auditar de una pasada.
 
-| Test                                  | Qué prueba                                                                                          |
-|---------------------------------------|-----------------------------------------------------------------------------------------------------|
-| `login.timing.test.ts`                | El tiempo de respuesta para "email no encontrado" es estadísticamente indistinguible de "password incorrecto" y de "usuario solo-Google" (BR-AUTH-4, BR-AUTH-9). Sample size y threshold documentados en el test. |
-| `oauth.state-csrf.test.ts`            | Un callback con un parámetro `state` faltante, malformado o expirado lo rechaza Auth.js; no se crea ningún `User`; no se inserta ninguna fila de `Account`. |
-| `secrets.in-logs.test.ts`             | Un request que incluye una `password`, un token CSRF, una cookie `Authorization`, o un query param `code` de Google no causa que ninguno de esos valores aparezca en el log capturado (BR-AUTH-11). |
-| `origin-check.test.ts`                | `POST /api/auth/register` con un header `Origin` faltante o que no matchea devuelve 403 `FORBIDDEN`. |
-| `argon2.parameters.test.ts`           | `hashArgon2id` con los parámetros elegidos produce un hash en el rango 50–100 ms en la VM target. Falla el test si el runtime cae afuera de la banda. |
-| `cookie.attributes.test.ts`           | La cookie `authjs.session-token` tiene `HttpOnly` y `SameSite=Lax` siempre; `Secure` en producción, omitido en dev. |
+| Test                        | Qué prueba                                                                                                                                                                                                        |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `login.timing.test.ts`      | El tiempo de respuesta para "email no encontrado" es estadísticamente indistinguible de "password incorrecto" y de "usuario solo-Google" (BR-AUTH-4, BR-AUTH-9). Sample size y threshold documentados en el test. |
+| `oauth.state-csrf.test.ts`  | Un callback con un parámetro `state` faltante, malformado o expirado lo rechaza Auth.js; no se crea ningún `User`; no se inserta ninguna fila de `Account`.                                                       |
+| `secrets.in-logs.test.ts`   | Un request que incluye una `password`, un token CSRF, una cookie `Authorization`, o un query param `code` de Google no causa que ninguno de esos valores aparezca en el log capturado (BR-AUTH-11).               |
+| `origin-check.test.ts`      | `POST /api/auth/register` con un header `Origin` faltante o que no matchea devuelve 403 `FORBIDDEN`.                                                                                                              |
+| `argon2.parameters.test.ts` | `hashArgon2id` con los parámetros elegidos produce un hash en el rango 50–100 ms en la VM target. Falla el test si el runtime cae afuera de la banda.                                                             |
+| `cookie.attributes.test.ts` | La cookie `authjs.session-token` tiene `HttpOnly` y `SameSite=Lax` siempre; `Secure` en producción, omitido en dev.                                                                                               |
 
 ### Gate de cobertura
 
 `pnpm test -- --coverage` corre en CI. La cobertura line
-+ branch del módulo auth debe ser ≥ 80 % para hacer merge
-(per la regla de "mínimo 80 % en domain + application" de
-la skill `testing-standards`). La cobertura efectiva se
-registra en el `verify-report` al final del cambio.
+
+- branch del módulo auth debe ser ≥ 80 % para hacer merge
+  (per la regla de "mínimo 80 % en domain + application" de
+  la skill `testing-standards`). La cobertura efectiva se
+  registra en el `verify-report` al final del cambio.
 
 ### Configuración de Vitest
 
@@ -1170,6 +1169,7 @@ cualquiera de ellos.
 
 1. **¿Se actualiza `User.email` cuando Google devuelve un
    email nuevo?**
+
    - **Default**: No. Conservamos el email original con el
      que el usuario se registró. El `sub` de la cuenta de
      Google (`providerAccountId`) es la única clave de
@@ -1184,9 +1184,10 @@ cualquiera de ellos.
 
 2. **¿Las updates de `lastLoginAt` van por el callback
    `signIn` de Auth.js o por un middleware de Prisma?**
+
    - **Default**: callback `signIn` de Auth.js. La llamada
      `prisma.user.update({ data: { lastLoginAt: new Date()
-     } })` vive en el callback mostrado en §3.
+} })` vive en el callback mostrado en §3.
    - **Camino de resolución**: el middleware de Prisma
      funcionaría pero es más difícil de testear (corre en
      cada query). El callback es el extension point
@@ -1194,6 +1195,7 @@ cualquiera de ellos.
 
 3. **¿Exponemos la `/api/auth/session` built-in de
    Auth.js o la envolvemos con un endpoint de Hono?**
+
    - **Default**: exponemos la ruta built-in de Auth.js
      directamente. La forma (`{ user, expires }`) es
      estable y el hook `useSession()` de la UI la consume
@@ -1207,6 +1209,7 @@ cualquiera de ellos.
 
 4. **Sliding window de sesión: 24h (default de Auth.js) o
    más corto?**
+
    - **Default**: 24h, que es el default de Auth.js
      `session.updateAge = 24 * 60 * 60`. El
      `session.maxAge` de 30 días es el cap; la extensión
@@ -1218,6 +1221,7 @@ cualquiera de ellos.
 
 5. **¿Qué pasa con las otras sesiones en un password
    change?**
+
    - **Default**: nada en MVP. Las otras sesiones
      sobreviven hasta que expiren por su cuenta. No hay
      endpoint de password change en este cambio, así que
@@ -1229,6 +1233,7 @@ cualquiera de ellos.
      change.
 
 6. **¿Enviamos un email de notificación en el auto-link?**
+
    - **Default**: No. Fuera de alcance. Un futuro pase de
      hardening es dueño de la infraestructura de email
      transaccional.
@@ -1237,6 +1242,7 @@ cualquiera de ellos.
 
 7. **¿Necesitamos una UI de "switch account" para
    usuarios con múltiples providers OAuth?**
+
    - **Default**: No. La UI muestra un provider a la vez
      (el campo `defaultProvider` en la respuesta de
      `me`). "Switch account" es una feature de UX; si
@@ -1265,17 +1271,17 @@ Cada riesgo tiene una mitigación que vive dentro de una
 task existente (agregada en `sdd-tasks`), no una task
 nueva.
 
-| Riesgo | Mitigación |
-|--------|------------|
-| **`@node-rs/argon2` falla al instalar o cargar en la VM target.** | La task de apply del password service tiene un paso "verify load + benchmark" que corre el install + un smoke test. Si el prebuilt falta, la task cae a `argon2` (el paquete npm) y re-corre el benchmark. Ambos exponen la misma superficie de primitivas. |
-| **Hash time de Argon2id afuera del target 50–100 ms en la VM 1-CPU de Fly.io.** | El gate de benchmark en la task del password service. Si el p50 del hash time cae afuera de la banda, re-afinamos `timeCost` (1, 2, 3) antes de enviar. La decisión se registra en `apply-progress.md`. |
-| **La superficie de API de Auth.js v5 beta cambia entre la versión pineada y un beta posterior.** | Pineamos la versión exacta `next-auth@5.0.0-beta.X` en `package.json` y usamos `pnpm install --frozen-lockfile` en CI. Upgradear requiere una decisión explícita en un cambio posterior. |
-| **Drift de migración de Prisma en el free tier de Neon durante la fase de apply.** | La task de apply de la migración corre `prisma migrate dev` localmente primero, commitea el `migration.sql` generado, y corre `prisma migrate deploy` en el job de test de CI. El deploy es idempotente. |
-| **Credenciales de Google OAuth mal configuradas en el primer intento de sign-in.** | La task de apply del provider Google tiene un paso "smoke test con el cliente OAuth de test". El client ID y secret de test están en `.env.test`; un sign-in manual se hace en dev para verificar el round trip antes de marcar la task como done. |
-| **El catch-all de Hono matchea por accidente `/api/auth/*` y maneja doble los requests.** | La task de apply del catch-all incluye un test de routing que prueba que `/api/auth/signin` va a Auth.js y `/api/me` va a Hono. El test assertea que ambas rutas devuelven sus shapes esperados desde el mismo server de Next.js. |
-| **El middleware de origin-check bloquea POSTs cross-origin legítimos en dev.** | El default de `APP_URL` es `http://localhost:3000`. La task de apply del middleware de origin-check testea los casos same-origin (permitido) y cross-origin (bloqueado). La UI monta el form en el mismo origin, así que los requests legítimos nunca se bloquean. |
-| **Evento `UserRegistered` despachado en el camino de auto-link.** | El evento se despacha en la acción `POST /api/auth/register` (para local) y en la rama "primera vez que vemos este email" del callback OAuth (para Google). El camino de auto-link (BR-AUTH-5) NO despacha `UserRegistered`. La task de apply de los events incluye un test parametrizado que assertea que el evento se dispara exactamente una vez por user. |
-| **Costo de inicialización de DUMMY_HASH de Argon2id en el primer request.** | `DUMMY_HASH` se genera al init del módulo (`const DUMMY_HASH = hashArgon2id(env.ARGON2ID_DUMMY_PASSWORD)` a top-level). El primer request al callback de Credentials es ~50–100 ms más lento; los subsiguientes son rápidos. Aceptamos esto en MVP. Un follow-up puede mover la inicialización a un hook de startup si se vuelve un problema. |
-| **Índice `expires` agregado en `Session` pero no hay job de GC en este cambio.** | Documentado. El job de GC es un cambio aparte; hasta entonces, las sesiones expiradas se acumulan. El lookup de `auth()` es por `sessionToken`, así que la falta de GC no afecta correctness, solo tamaño de DB. |
-| **`session.user.id` tipado de Prisma es `string` en los tipos de Auth.js v5 pero `unknown` en algunas versiones beta.** | El callback `session` de §3 narrowea el type y assgigna `session.user.id = user.id`. Si el type cambia, el guard `if (user?.id)` del callback captura el issue. |
-| **`pnpm install --frozen-lockfile` falla en CI cuando `pnpm-lock.yaml` falta o está out of sync.** | El job `lint` de §9 corre `pnpm install --frozen-lockfile` y falla rápido. El `package.json` tiene `"packageManager": "pnpm@<version>"` así que `corepack` aprovisiona la versión correcta. |
+| Riesgo                                                                                                                  | Mitigación                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`@node-rs/argon2` falla al instalar o cargar en la VM target.**                                                       | La task de apply del password service tiene un paso "verify load + benchmark" que corre el install + un smoke test. Si el prebuilt falta, la task cae a `argon2` (el paquete npm) y re-corre el benchmark. Ambos exponen la misma superficie de primitivas.                                                                                                   |
+| **Hash time de Argon2id afuera del target 50–100 ms en la VM 1-CPU de Fly.io.**                                         | El gate de benchmark en la task del password service. Si el p50 del hash time cae afuera de la banda, re-afinamos `timeCost` (1, 2, 3) antes de enviar. La decisión se registra en `apply-progress.md`.                                                                                                                                                       |
+| **La superficie de API de Auth.js v5 beta cambia entre la versión pineada y un beta posterior.**                        | Pineamos la versión exacta `next-auth@5.0.0-beta.X` en `package.json` y usamos `pnpm install --frozen-lockfile` en CI. Upgradear requiere una decisión explícita en un cambio posterior.                                                                                                                                                                      |
+| **Drift de migración de Prisma en el free tier de Neon durante la fase de apply.**                                      | La task de apply de la migración corre `prisma migrate dev` localmente primero, commitea el `migration.sql` generado, y corre `prisma migrate deploy` en el job de test de CI. El deploy es idempotente.                                                                                                                                                      |
+| **Credenciales de Google OAuth mal configuradas en el primer intento de sign-in.**                                      | La task de apply del provider Google tiene un paso "smoke test con el cliente OAuth de test". El client ID y secret de test están en `.env.test`; un sign-in manual se hace en dev para verificar el round trip antes de marcar la task como done.                                                                                                            |
+| **El catch-all de Hono matchea por accidente `/api/auth/*` y maneja doble los requests.**                               | La task de apply del catch-all incluye un test de routing que prueba que `/api/auth/signin` va a Auth.js y `/api/me` va a Hono. El test assertea que ambas rutas devuelven sus shapes esperados desde el mismo server de Next.js.                                                                                                                             |
+| **El middleware de origin-check bloquea POSTs cross-origin legítimos en dev.**                                          | El default de `APP_URL` es `http://localhost:3000`. La task de apply del middleware de origin-check testea los casos same-origin (permitido) y cross-origin (bloqueado). La UI monta el form en el mismo origin, así que los requests legítimos nunca se bloquean.                                                                                            |
+| **Evento `UserRegistered` despachado en el camino de auto-link.**                                                       | El evento se despacha en la acción `POST /api/auth/register` (para local) y en la rama "primera vez que vemos este email" del callback OAuth (para Google). El camino de auto-link (BR-AUTH-5) NO despacha `UserRegistered`. La task de apply de los events incluye un test parametrizado que assertea que el evento se dispara exactamente una vez por user. |
+| **Costo de inicialización de DUMMY_HASH de Argon2id en el primer request.**                                             | `DUMMY_HASH` se genera al init del módulo (`const DUMMY_HASH = hashArgon2id(env.ARGON2ID_DUMMY_PASSWORD)` a top-level). El primer request al callback de Credentials es ~50–100 ms más lento; los subsiguientes son rápidos. Aceptamos esto en MVP. Un follow-up puede mover la inicialización a un hook de startup si se vuelve un problema.                 |
+| **Índice `expires` agregado en `Session` pero no hay job de GC en este cambio.**                                        | Documentado. El job de GC es un cambio aparte; hasta entonces, las sesiones expiradas se acumulan. El lookup de `auth()` es por `sessionToken`, así que la falta de GC no afecta correctness, solo tamaño de DB.                                                                                                                                              |
+| **`session.user.id` tipado de Prisma es `string` en los tipos de Auth.js v5 pero `unknown` en algunas versiones beta.** | El callback `session` de §3 narrowea el type y assgigna `session.user.id = user.id`. Si el type cambia, el guard `if (user?.id)` del callback captura el issue.                                                                                                                                                                                               |
+| **`pnpm install --frozen-lockfile` falla en CI cuando `pnpm-lock.yaml` falta o está out of sync.**                      | El job `lint` de §9 corre `pnpm install --frozen-lockfile` y falla rápido. El `package.json` tiene `"packageManager": "pnpm@<version>"` así que `corepack` aprovisiona la versión correcta.                                                                                                                                                                   |

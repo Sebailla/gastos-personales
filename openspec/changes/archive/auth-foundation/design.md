@@ -14,10 +14,10 @@
 > revocation. v1 is kept in git history for structural
 > reference; its content is **obsolete** (custom JWT, refresh
 > rotation, Drizzle, SQLite, `arctic`, `jose`, `bun-argon2`).
-> v2 keeps the v1 *shape* (11 sections: architecture overview,
+> v2 keeps the v1 _shape_ (11 sections: architecture overview,
 > library decisions, config shape, catch-all shape, schema,
 > migrations, env vars, testing, CI, open questions, risks)
-> and replaces the *substance* with Auth.js v5 database
+> and replaces the _substance_ with Auth.js v5 database
 > sessions, the Prisma adapter, the Hono catch-all, and
 > `@node-rs/argon2` (or `argon2` as fallback).
 
@@ -150,7 +150,7 @@ alternatives, rationale, link to the rule(s) it satisfies.
 - **Pin**: exact `next-auth@5.0.0-beta.X` (no caret, no
   tilde). The version is captured in `package.json`'s
   `dependencies` and enforced by `pnpm install
-  --frozen-lockfile` in CI.
+--frozen-lockfile` in CI.
 - **Alternatives**:
   - **Lucia** — rejected. Lucia is lower-level and would
     require us to build the OAuth flow, session resolution,
@@ -197,8 +197,7 @@ alternatives, rationale, link to the rule(s) it satisfies.
 - **Chosen**: `@node-rs/argon2` — prebuilt NAPI binaries for
   Alpine (`node:20-alpine`), no `node-gyp` step at install
   time, fast on Node 20. The package is maintained by the
-  `@node-rs` org and used widely in the Node ecosystem in
-  2026.
+  `@node-rs` org and used widely in the Node ecosystem in 2026.
 - **Fallback**: `argon2` (the `node-rs/argon2` author's
   sibling npm package, the canonical Node binding). Used
   only if the `@node-rs/argon2` prebuilt fails to load on
@@ -366,8 +365,8 @@ export const authConfig: NextAuthConfig = {
   session: { strategy: 'database' },
   secret: env.AUTH_SECRET,
   pages: {
-    signIn: '/auth/signin',    // mounted by the ui-auth-shell change
-    signOut: '/auth/signout',  // same
+    signIn: '/auth/signin', // mounted by the ui-auth-shell change
+    signOut: '/auth/signout', // same
   },
   providers: [
     Google({
@@ -784,12 +783,12 @@ the migration is generated").
 
 **Migration commands:**
 
-| Command | When | Notes |
-|---------|------|-------|
-| `pnpm prisma migrate dev --name <name>` | Local development | Generates + applies. Resets the DB if there is drift. |
-| `pnpm prisma migrate deploy` | CI / container startup | Applies pending migrations. Idempotent. |
-| `pnpm prisma generate` | After any schema change | Regenerates the typed Prisma client. |
-| `pnpm prisma studio` | Local debugging | GUI. Not used in CI. |
+| Command                                 | When                    | Notes                                                 |
+| --------------------------------------- | ----------------------- | ----------------------------------------------------- |
+| `pnpm prisma migrate dev --name <name>` | Local development       | Generates + applies. Resets the DB if there is drift. |
+| `pnpm prisma migrate deploy`            | CI / container startup  | Applies pending migrations. Idempotent.               |
+| `pnpm prisma generate`                  | After any schema change | Regenerates the typed Prisma client.                  |
+| `pnpm prisma studio`                    | Local debugging         | GUI. Not used in CI.                                  |
 
 **CI integration** is described in §9. The `test` job
 spins up a fresh Postgres (via testcontainers or a Neon
@@ -842,9 +841,7 @@ const envSchema = z.object({
   // timing-equalization in the Credentials authorize() function
   // (BR-AUTH-4, BR-AUTH-9). Generated once and stored as a
   // Fly secret. Never logged.
-  ARGON2ID_DUMMY_PASSWORD: z
-    .string()
-    .min(32, 'ARGON2ID_DUMMY_PASSWORD must be at least 32 bytes'),
+  ARGON2ID_DUMMY_PASSWORD: z.string().min(32, 'ARGON2ID_DUMMY_PASSWORD must be at least 32 bytes'),
 
   // --- Fly.io (optional) ---
   FLY_REGION: z.string().optional(),
@@ -921,14 +918,14 @@ Located at `src/modules/auth/domain/**/*.test.ts` and
 `src/modules/auth/infrastructure/external/*.test.ts`.
 Pure functions, no DB, no HTTP.
 
-| Suite                                | What it covers                                                                                             |
-|--------------------------------------|------------------------------------------------------------------------------------------------------------|
-| `argon2.hasher`                      | `hashArgon2id` and `verifyArgon2id` with the chosen parameters; reject wrong passwords; verify returns `false` on a tampered hash. |
-| `email.normalize`                    | Lowercase + trim; strips surrounding whitespace; rejects empty. |
-| `default-provider` (domain service)  | Returns `"local"` for users created by `register` action; returns `"google"` for first-time Google signups; does NOT change on subsequent sign-ins (BR-AUTH-13). |
-| `user.repository` (in-memory mock)   | `create`, `findByEmail`, `findById`, case-insensitive lookup. |
-| `account.repository` (in-memory mock)| `create` honors the unique constraint on `(provider, providerAccountId)`. |
-| `session.repository` (in-memory mock)| `create`, `findByToken`, `delete` (sign-out). |
+| Suite                                 | What it covers                                                                                                                                                   |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `argon2.hasher`                       | `hashArgon2id` and `verifyArgon2id` with the chosen parameters; reject wrong passwords; verify returns `false` on a tampered hash.                               |
+| `email.normalize`                     | Lowercase + trim; strips surrounding whitespace; rejects empty.                                                                                                  |
+| `default-provider` (domain service)   | Returns `"local"` for users created by `register` action; returns `"google"` for first-time Google signups; does NOT change on subsequent sign-ins (BR-AUTH-13). |
+| `user.repository` (in-memory mock)    | `create`, `findByEmail`, `findById`, case-insensitive lookup.                                                                                                    |
+| `account.repository` (in-memory mock) | `create` honors the unique constraint on `(provider, providerAccountId)`.                                                                                        |
+| `session.repository` (in-memory mock) | `create`, `findByToken`, `delete` (sign-out).                                                                                                                    |
 
 ### Integration tests (Hono + Prisma + Postgres)
 
@@ -939,16 +936,16 @@ branch per CI run. We do not mock the repositories in
 integration tests; we mock only the external boundaries
 (Google's userinfo endpoint, the system clock).
 
-| Suite                                | What it covers                                                                                          |
-|--------------------------------------|---------------------------------------------------------------------------------------------------------|
-| `user.repository` (real Prisma)      | `create`, `findByEmail` (case-insensitive), `update` (lastLoginAt, defaultProvider). |
-| `account.repository` (real Prisma)   | `create`, unique-violation on duplicate `(provider, providerAccountId)`. |
-| `session.repository` (real Prisma)   | `create`, `findByToken`, `delete`. |
-| `register.action`                    | 201 success; 409 `EMAIL_TAKEN` with comparable timing; 400 `WEAK_PASSWORD`; 400 `VALIDATION_ERROR`. Emits `UserRegistered` exactly once. |
-| `me.action`                          | 200 with `PublicUser` (no `passwordHash`, no `emailVerified`); 401 `UNAUTHORIZED` with no session, expired session, unknown user — identical shape. |
-| `health.action`                      | 200 with `{ status: "ok", version, uptime }`. |
-| `hono.catch-all`                     | Mount + dispatch: `GET /api/me` returns 200 with session, 401 without; `POST /api/auth/register` 201, 409, 400; `GET /api/health` 200. |
-| `oauth-callback.flow` (mocked Google)| Auto-link on email match (BR-AUTH-5); new user on first email; `OAuthAccountNotLinked` on `(provider, providerAccountId)` conflict (BR-AUTH-10); reject on `email_verified: false` (BR-AUTH-6). |
+| Suite                                 | What it covers                                                                                                                                                                                  |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `user.repository` (real Prisma)       | `create`, `findByEmail` (case-insensitive), `update` (lastLoginAt, defaultProvider).                                                                                                            |
+| `account.repository` (real Prisma)    | `create`, unique-violation on duplicate `(provider, providerAccountId)`.                                                                                                                        |
+| `session.repository` (real Prisma)    | `create`, `findByToken`, `delete`.                                                                                                                                                              |
+| `register.action`                     | 201 success; 409 `EMAIL_TAKEN` with comparable timing; 400 `WEAK_PASSWORD`; 400 `VALIDATION_ERROR`. Emits `UserRegistered` exactly once.                                                        |
+| `me.action`                           | 200 with `PublicUser` (no `passwordHash`, no `emailVerified`); 401 `UNAUTHORIZED` with no session, expired session, unknown user — identical shape.                                             |
+| `health.action`                       | 200 with `{ status: "ok", version, uptime }`.                                                                                                                                                   |
+| `hono.catch-all`                      | Mount + dispatch: `GET /api/me` returns 200 with session, 401 without; `POST /api/auth/register` 201, 409, 400; `GET /api/health` 200.                                                          |
+| `oauth-callback.flow` (mocked Google) | Auto-link on email match (BR-AUTH-5); new user on first email; `OAuthAccountNotLinked` on `(provider, providerAccountId)` conflict (BR-AUTH-10); reject on `email_verified: false` (BR-AUTH-6). |
 
 ### Security tests
 
@@ -956,14 +953,14 @@ Located at `src/modules/auth/__tests__/security/*.test.ts`.
 These are integration tests but live in a dedicated folder
 so the reviewer can audit them in one pass.
 
-| Test                                  | What it proves                                                                                          |
-|---------------------------------------|---------------------------------------------------------------------------------------------------------|
-| `login.timing.test.ts`                | The response time for "email not found" is statistically indistinguishable from "wrong password" and from "Google-only user" (BR-AUTH-4, BR-AUTH-9). Sample size and threshold documented in the test. |
-| `oauth.state-csrf.test.ts`            | A callback with a missing, malformed, or expired `state` parameter is rejected by Auth.js; no `User` is created; no `Account` row is inserted. |
-| `secrets.in-logs.test.ts`             | A request that includes a `password`, a CSRF token, an `Authorization` cookie, or a Google `code` query param does not cause any of those values to appear in the captured log output (BR-AUTH-11). |
-| `origin-check.test.ts`                | `POST /api/auth/register` with a missing or mismatched `Origin` header returns 403 `FORBIDDEN`. |
-| `argon2.parameters.test.ts`           | `hashArgon2id` with the chosen parameters produces a hash in the 50–100 ms range on the target VM. Fails the test if the runtime is outside the band. |
-| `cookie.attributes.test.ts`           | The `authjs.session-token` cookie has `HttpOnly` and `SameSite=Lax` always; `Secure` in production, omitted in dev. |
+| Test                        | What it proves                                                                                                                                                                                         |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `login.timing.test.ts`      | The response time for "email not found" is statistically indistinguishable from "wrong password" and from "Google-only user" (BR-AUTH-4, BR-AUTH-9). Sample size and threshold documented in the test. |
+| `oauth.state-csrf.test.ts`  | A callback with a missing, malformed, or expired `state` parameter is rejected by Auth.js; no `User` is created; no `Account` row is inserted.                                                         |
+| `secrets.in-logs.test.ts`   | A request that includes a `password`, a CSRF token, an `Authorization` cookie, or a Google `code` query param does not cause any of those values to appear in the captured log output (BR-AUTH-11).    |
+| `origin-check.test.ts`      | `POST /api/auth/register` with a missing or mismatched `Origin` header returns 403 `FORBIDDEN`.                                                                                                        |
+| `argon2.parameters.test.ts` | `hashArgon2id` with the chosen parameters produces a hash in the 50–100 ms range on the target VM. Fails the test if the runtime is outside the band.                                                  |
+| `cookie.attributes.test.ts` | The `authjs.session-token` cookie has `HttpOnly` and `SameSite=Lax` always; `Secure` in production, omitted in dev.                                                                                    |
 
 ### Coverage gate
 
@@ -1143,6 +1140,7 @@ sdd-verify phase can re-open any of them.
 
 1. **Does `User.email` get updated when Google returns a new
    email?**
+
    - **Default**: No. We keep the original email the user
      registered with. The Google account's `sub`
      (`providerAccountId`) is the only link key; if the
@@ -1157,15 +1155,17 @@ sdd-verify phase can re-open any of them.
 
 2. **Should `lastLoginAt` updates go through the Auth.js
    `signIn` callback or a Prisma middleware?**
+
    - **Default**: Auth.js `signIn` callback. The
      `prisma.user.update({ data: { lastLoginAt: new Date()
-     } })` call lives in the callback shown in §3.
+} })` call lives in the callback shown in §3.
    - **Resolution path**: Prisma middleware would work but
      is harder to test (it runs on every query). The
      callback is the documented Auth.js extension point.
 
 3. **Should we expose Auth.js's built-in `/api/auth/session`
    or wrap it with a Hono endpoint?**
+
    - **Default**: expose Auth.js's built-in route directly.
      The shape (`{ user, expires }`) is stable and the UI's
      `useSession()` hook consumes it natively. `GET /api/me`
@@ -1178,6 +1178,7 @@ sdd-verify phase can re-open any of them.
 
 4. **Session sliding window: 24h (Auth.js default) or
    shorter?**
+
    - **Default**: 24h, which is Auth.js's default
      `session.updateAge = 24 * 60 * 60`. The 30-day
      `session.maxAge` is the cap; the sliding extension
@@ -1187,6 +1188,7 @@ sdd-verify phase can re-open any of them.
      new value.
 
 5. **What happens to other sessions on password change?**
+
    - **Default**: nothing in MVP. The other sessions
      survive until they expire on their own. There is no
      password-change endpoint in this change, so this
@@ -1197,6 +1199,7 @@ sdd-verify phase can re-open any of them.
      revoke all other sessions on password change.
 
 6. **Should we send a notification email on auto-link?**
+
    - **Default**: No. Out of scope. A future hardening
      pass owns the transactional email infrastructure.
    - **Resolution path**: track in the `email-notifications`
@@ -1204,6 +1207,7 @@ sdd-verify phase can re-open any of them.
 
 7. **Do we need a "switch account" UI for users with
    multiple OAuth providers?**
+
    - **Default**: No. The UI shows one provider at a time
      (the `defaultProvider` field on the `me` response).
      "Switch account" is a UX feature; if product wants it,
@@ -1229,17 +1233,17 @@ sdd-verify phase can re-open any of them.
 Each risk has a mitigation that lives inside an existing
 task (added in `sdd-tasks`), not a new task.
 
-| Risk | Mitigation |
-|------|------------|
-| **`@node-rs/argon2` fails to install or load on the target VM.** | The apply task for the password service has a "verify load + benchmark" step that runs the install + a smoke test. If the prebuilt is missing, the task falls back to `argon2` (the npm package) and re-runs the benchmark. Both expose the same primitive surface. |
-| **Argon2id hash time outside the 50–100 ms target on the Fly.io 1-CPU VM.** | The benchmark gate in the password service task. If p50 hash time is outside the band, we re-tune `timeCost` (1, 2, 3) before shipping. The decision is recorded in `apply-progress.md`. |
-| **Auth.js v5 beta API surface changes between the pinned version and a later beta.** | We pin the exact `next-auth@5.0.0-beta.X` version in `package.json` and use `pnpm install --frozen-lockfile` in CI. Upgrading requires an explicit decision in a later change. |
-| **Prisma migration drift on the Neon free tier during the apply phase.** | The apply task for the migration runs `prisma migrate dev` locally first, commits the generated `migration.sql`, and runs `prisma migrate deploy` in the CI test job. The deploy is idempotent. |
-| **Google OAuth credentials misconfigured at first sign-in attempt.** | The apply task for the Google provider has a "smoke test with the test OAuth client" step. The test client ID and secret are in `.env.test`; a manual sign-in is performed in dev to verify the round trip before marking the task done. |
-| **Hono catch-all accidentally matches `/api/auth/*` and double-handles requests.** | The apply task for the catch-all includes a routing test that proves `/api/auth/signin` goes to Auth.js and `/api/me` goes to Hono. The test asserts both routes return their expected shapes from the same Next.js server. |
-| **Origin-check middleware blocks legitimate cross-origin POSTs in dev.** | The `APP_URL` default is `http://localhost:3000`. The apply task for the origin-check middleware tests both same-origin (allowed) and cross-origin (blocked) cases. The UI mounts the form on the same origin, so legitimate requests are never blocked. |
-| **`UserRegistered` event dispatched on auto-link path.** | The event is dispatched in the `POST /api/auth/register` action (for local) and in the OAuth callback's "first time we see this email" branch (for Google). The auto-link path (BR-AUTH-5) does NOT dispatch `UserRegistered`. The apply task for the events includes a parametrized test that asserts the event is fired exactly once per user. |
-| **Argon2id DUMMY_HASH initialization cost on first request.** | `DUMMY_HASH` is generated at module init (top-level `const DUMMY_HASH = hashArgon2id(env.ARGON2ID_DUMMY_PASSWORD)`). The first request to the Credentials callback is slower by ~50–100 ms; subsequent requests are fast. We accept this in MVP. A follow-up can move the initialization to a startup hook if it becomes a problem. |
-| **Session `expires` index added but no GC job exists in this change.** | Documented. The GC job is a separate change; until then, expired sessions accumulate. The `auth()` lookup is by `sessionToken`, so the missing GC does not affect correctness, only DB size. |
-| **Prisma's typed `session.user.id` field is `string` in the Auth.js v5 types but `unknown` in some beta versions.** | The `session` callback in §3 narrows the type and assigns `session.user.id = user.id`. If the type changes, the callback's `if (user?.id)` guard catches the issue. |
-| **`pnpm install --frozen-lockfile` fails in CI when `pnpm-lock.yaml` is missing or out of sync.** | The `lint` job in §9 runs `pnpm install --frozen-lockfile` and fails fast. The `package.json` has `"packageManager": "pnpm@<version>"` so `corepack` provisions the right version. |
+| Risk                                                                                                                | Mitigation                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **`@node-rs/argon2` fails to install or load on the target VM.**                                                    | The apply task for the password service has a "verify load + benchmark" step that runs the install + a smoke test. If the prebuilt is missing, the task falls back to `argon2` (the npm package) and re-runs the benchmark. Both expose the same primitive surface.                                                                              |
+| **Argon2id hash time outside the 50–100 ms target on the Fly.io 1-CPU VM.**                                         | The benchmark gate in the password service task. If p50 hash time is outside the band, we re-tune `timeCost` (1, 2, 3) before shipping. The decision is recorded in `apply-progress.md`.                                                                                                                                                         |
+| **Auth.js v5 beta API surface changes between the pinned version and a later beta.**                                | We pin the exact `next-auth@5.0.0-beta.X` version in `package.json` and use `pnpm install --frozen-lockfile` in CI. Upgrading requires an explicit decision in a later change.                                                                                                                                                                   |
+| **Prisma migration drift on the Neon free tier during the apply phase.**                                            | The apply task for the migration runs `prisma migrate dev` locally first, commits the generated `migration.sql`, and runs `prisma migrate deploy` in the CI test job. The deploy is idempotent.                                                                                                                                                  |
+| **Google OAuth credentials misconfigured at first sign-in attempt.**                                                | The apply task for the Google provider has a "smoke test with the test OAuth client" step. The test client ID and secret are in `.env.test`; a manual sign-in is performed in dev to verify the round trip before marking the task done.                                                                                                         |
+| **Hono catch-all accidentally matches `/api/auth/*` and double-handles requests.**                                  | The apply task for the catch-all includes a routing test that proves `/api/auth/signin` goes to Auth.js and `/api/me` goes to Hono. The test asserts both routes return their expected shapes from the same Next.js server.                                                                                                                      |
+| **Origin-check middleware blocks legitimate cross-origin POSTs in dev.**                                            | The `APP_URL` default is `http://localhost:3000`. The apply task for the origin-check middleware tests both same-origin (allowed) and cross-origin (blocked) cases. The UI mounts the form on the same origin, so legitimate requests are never blocked.                                                                                         |
+| **`UserRegistered` event dispatched on auto-link path.**                                                            | The event is dispatched in the `POST /api/auth/register` action (for local) and in the OAuth callback's "first time we see this email" branch (for Google). The auto-link path (BR-AUTH-5) does NOT dispatch `UserRegistered`. The apply task for the events includes a parametrized test that asserts the event is fired exactly once per user. |
+| **Argon2id DUMMY_HASH initialization cost on first request.**                                                       | `DUMMY_HASH` is generated at module init (top-level `const DUMMY_HASH = hashArgon2id(env.ARGON2ID_DUMMY_PASSWORD)`). The first request to the Credentials callback is slower by ~50–100 ms; subsequent requests are fast. We accept this in MVP. A follow-up can move the initialization to a startup hook if it becomes a problem.              |
+| **Session `expires` index added but no GC job exists in this change.**                                              | Documented. The GC job is a separate change; until then, expired sessions accumulate. The `auth()` lookup is by `sessionToken`, so the missing GC does not affect correctness, only DB size.                                                                                                                                                     |
+| **Prisma's typed `session.user.id` field is `string` in the Auth.js v5 types but `unknown` in some beta versions.** | The `session` callback in §3 narrows the type and assigns `session.user.id = user.id`. If the type changes, the callback's `if (user?.id)` guard catches the issue.                                                                                                                                                                              |
+| **`pnpm install --frozen-lockfile` fails in CI when `pnpm-lock.yaml` is missing or out of sync.**                   | The `lint` job in §9 runs `pnpm install --frozen-lockfile` and fails fast. The `package.json` has `"packageManager": "pnpm@<version>"` so `corepack` provisions the right version.                                                                                                                                                               |
