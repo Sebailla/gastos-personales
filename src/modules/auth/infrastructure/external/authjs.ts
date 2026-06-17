@@ -11,10 +11,10 @@
  * password" branches (BR-AUTH-4, BR-AUTH-9).
  *
  * The `signIn` callback stamps `lastLoginAt` on every
- * successful sign-in. `defaultProvider` is NEVER mutated
- * here (BR-AUTH-13). The `session` callback adds
- * `defaultProvider` and `lastLoginAt` to the session
- * JSON for `useSession()` clients.
+ * successful sign-in (best-effort — see `signInCallback`).
+ * `defaultProvider` is NEVER mutated here (BR-AUTH-13). The
+ * `session` callback adds `defaultProvider` and `lastLoginAt`
+ * to the session JSON for `useSession()` clients.
  *
  * The destructured `{ handlers, auth, signIn, signOut }`
  * is the public surface of the auth module. Mounted at
@@ -59,6 +59,48 @@ async function getDummyHash(): Promise<string> {
 }
 export const DUMMY_HASH: Promise<string> = getDummyHash();
 
+/**
+ * Normalize an email for DB lookup. Trim whitespace and lowercase.
+ * Used by `authorize()` (registration / credential sign-in),
+ * `registerAction`, and the `signIn` callback so the three call
+ * sites cannot drift.
+ */
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+/**
+ * `signIn` callback implementation, exported as a named function
+ * for direct unit testing. Stamps `lastLoginAt` on every successful
+ * sign-in (BR-AUTH-7 audit trail). Best-effort: we look up by
+ * `email` (stable across provider and DB) instead of the wrong
+ * `user.id` (which is the provider's `sub` in OAuth flows), use
+ * `updateMany` so a missing row is a soft warning, and ALWAYS
+ * return `true` so a tracking-write failure does not block an
+ * already-successful authentication. Rationale + commit: `d20c8c3`.
+ */
+export async function signInCallback(params: {
+  user?: { email?: string | null };
+}): Promise<boolean> {
+  const email = params.user?.email ? normalizeEmail(params.user.email) : null;
+  if (!email) return true;
+  try {
+    const result = await prisma().user.updateMany({
+      where: { email },
+      data: { lastLoginAt: new Date() },
+    });
+    if (result.count === 0) {
+      logger.warn('signIn_callback_user_not_found', { email });
+    }
+  } catch (err) {
+    logger.error('signIn_callback_failed', {
+      email,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+  return true;
+}
+
 export const authConfig: NextAuthConfig = {
   adapter: PrismaAdapter(prisma()),
   session: {
@@ -92,7 +134,7 @@ export const authConfig: NextAuthConfig = {
         const parsed = credentialsSchema.safeParse(credentials);
         if (!parsed.success) return null;
         const { email, password } = parsed.data;
-        const normalizedEmail = email.trim().toLowerCase();
+        const normalizedEmail = normalizeEmail(email);
 
         const user = await prisma().user.findUnique({
           where: { email: normalizedEmail },
@@ -122,38 +164,7 @@ export const authConfig: NextAuthConfig = {
     }),
   ],
   callbacks: {
-    async signIn({ user }) {
-      // Stamp `lastLoginAt` on every successful sign-in (BR-AUTH-7
-      // audit trail). We look up by `email` rather than `id` because
-      // the `user.id` Auth.js passes into this callback in OAuth flows
-      // is the provider's subject identifier, not the Prisma cuid.
-      // Using `updateMany` instead of `update` so a missing row is a
-      // soft warning rather than a Prisma P2025 exception that would
-      // block the sign-in. lastLoginAt is best-effort: if the user
-      // can't be found (e.g. the adapter hasn't finished upserting
-      // yet, or an edge case in the provider handshake), we log and
-      // proceed.
-      const email = user?.email;
-      if (!email) return true;
-      try {
-        const result = await prisma().user.updateMany({
-          where: { email },
-          data: { lastLoginAt: new Date() },
-        });
-        if (result.count === 0) {
-          logger.warn('signIn_callback_user_not_found', { email });
-        }
-      } catch (err) {
-        logger.error('signIn_callback_failed', {
-          email,
-          error: err instanceof Error ? err.message : String(err),
-        });
-        // Do not return false: the user has already authenticated
-        // successfully with Google. Blocking them because of a
-        // tracking-write failure is the wrong trade.
-      }
-      return true;
-    },
+    signIn: signInCallback,
     async session({ session, user }) {
       if (session.user && user?.id) {
         session.user.id = user.id;
@@ -172,6 +183,19 @@ export const authConfig: NextAuthConfig = {
         }
       }
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      // Pin the post-login redirect policy in this repo instead of
+      // relying on Auth.js v5's default. Same-origin paths are
+      // allowed (with protocol-relative URLs explicitly rejected);
+      // external hosts are redirected to the baseUrl.
+      if (url.startsWith('/') && !url.startsWith('//')) return `${baseUrl}${url}`;
+      try {
+        if (new URL(url).origin === baseUrl) return url;
+      } catch {
+        // Malformed URL — fall through to baseUrl.
+      }
+      return baseUrl;
     },
   },
 };
