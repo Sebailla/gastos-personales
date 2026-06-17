@@ -39,6 +39,18 @@ export const envSchema = z
 
     // --- Fly.io (optional) ---
     FLY_REGION: z.string().optional(),
+
+    // --- Sentry (optional, observability) ---
+    // Server-side DSN is read from `SENTRY_DSN` (e.g. set as a Fly
+    // secret). The client-side equivalent is `NEXT_PUBLIC_SENTRY_DSN`
+    // (inlined into the browser bundle). Both are optional: when
+    // absent, `src/shared/logger/logger.ts` keeps using console.*
+    // and the Sentry SDK is never initialised by
+    // `sentry.{server,client}.config.ts`.
+    SENTRY_DSN: z.string().url().optional(),
+    NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
+    SENTRY_ENVIRONMENT: z.string().optional(),
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     // Cross-field: AUTH_URL and APP_URL must share the same origin.

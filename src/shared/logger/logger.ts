@@ -4,10 +4,23 @@
  * includes the requestId when present, and strips sensitive
  * material regardless of how deeply it is nested.
  *
- * The logger is intentionally small: pino-style structured
- * logs without a heavy dependency. Replace with `pino` or
- * `winston` if the project needs log shipping later.
+ * The logger is intentionally small: structured JSON without a
+ * heavy dependency. Wire a transport (Sentry, Datadog, etc.)
+ * at the deployment boundary by setting the corresponding env
+ * var (e.g. `SENTRY_DSN`).
+ *
+ * When `SENTRY_DSN` is set (server runtime) or
+ * `NEXT_PUBLIC_SENTRY_DSN` (client), error logs are also
+ * forwarded to Sentry via `Sentry.captureException`. If Sentry
+ * is not installed or not initialised, the logger continues to
+ * work — only the remote forwarding is skipped.
  */
+
+// Sentry is imported statically. The project depends on
+// `@sentry/nextjs` (added in the Sentry wiring change). The
+// static import keeps the module graph analyzable for bundlers
+// and avoids dynamic-import timing pitfalls.
+import * as Sentry from '@sentry/nextjs';
 
 export const denylistKeys: readonly string[] = [
   'password',
@@ -46,6 +59,21 @@ function redact(value: unknown): unknown {
   return out;
 }
 
+/**
+ * Forward an error to Sentry if a DSN is configured. The
+ * redaction-safe payload (BR-AUTH-11) is attached as `extra`
+ * so it is searchable in the Sentry UI but never sent in the
+ * exception message itself.
+ */
+function forwardToSentry(message: string, payload: unknown): void {
+  if (!process.env.SENTRY_DSN && !process.env.NEXT_PUBLIC_SENTRY_DSN) return;
+  // `captureException` is a no-op until Sentry.init() runs (see
+  // sentry.{server,client}.config.ts). If init never ran, the
+  // call returns silently. This is intentional: the local
+  // console sink must always work, with or without remote.
+  Sentry.captureException(new Error(message), { extra: payload as Record<string, unknown> });
+}
+
 function emit(level: 'debug' | 'info' | 'warn' | 'error', message: string, payload: unknown) {
   const line = {
     level,
@@ -55,10 +83,12 @@ function emit(level: 'debug' | 'info' | 'warn' | 'error', message: string, paylo
   };
   const redacted = redact(line) as Record<string, unknown>;
   const stringified = JSON.stringify(redacted);
-  // `console` is the only sink in this MVP. Wire a transport
-  // (pino, winston, Datadog, etc.) at the deployment boundary.
+  // `console` is the local sink. Wire a transport (Sentry,
+  // Datadog, etc.) at the deployment boundary by setting the
+  // corresponding env var; `forwardToSentry` picks it up.
   if (level === 'error') {
     console.error(stringified);
+    forwardToSentry(message, redacted);
   } else if (level === 'warn') {
     console.warn(stringified);
   } else if (level === 'debug') {

@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { withSentryConfig } from '@sentry/nextjs';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -31,4 +32,20 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// `withSentryConfig` is a no-op when SENTRY_DSN is not set (the
+// `sentry.server.config.ts` / `sentry.client.config.ts` files
+// guard `Sentry.init()` on the DSN being present). We pass the
+// config unconditionally so the project can opt in to Sentry by
+// setting the env vars without code changes.
+export default withSentryConfig(nextConfig, {
+  // Hide Sentry's source maps by default in dev. Production builds
+  // upload via the Sentry CLI at release time.
+  sourcemaps: { disable: process.env.NODE_ENV !== 'production' },
+  // Disable telemetry collection (Next.js collects anonymous
+  // telemetry by default; this also disables Sentry's).
+  disableLogger: true,
+  // Tree-shake Sentry when SENTRY_DSN is not set.
+  silent: !process.env.SENTRY_DSN,
+  // Upload source maps only when a release is set (CI).
+  widenClientFileUpload: true,
+});
