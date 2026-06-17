@@ -28,3 +28,7 @@ tsconfig.tsbuildinfo
 # Local intermediate output (SDD report artifacts, mirror-pdf-drive work, etc.)
 file-only/
 dist/mirror-pdf-drive/
+
+# 4R review outputs (subagent artifacts; not deliverables)
+review-*.md
+progress.md

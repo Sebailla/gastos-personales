@@ -37,7 +37,6 @@ jobs:
       - run: pnpm install --ignore-scripts --frozen-lockfile
       - run: pnpm prisma generate
       - run: pnpm run lint
-      - run: pnpm run typecheck
 
   # ---------------------------------------------------------------------------
   # test — runs the unit + integration suite. Needs Postgres.
@@ -121,7 +120,14 @@ jobs:
           cache: pnpm
       - run: pnpm install --ignore-scripts --frozen-lockfile
       - run: pnpm prisma generate
+      # Clear any stale .next cache from a prior run on the same runner
+      # (R4 W4: stale .next/ may reference the renamed proxy.ts).
+      - run: rm -rf .next
       - run: pnpm run build
+      # `next build` materialises `.next/dev/types/routes.d.ts` which
+      # `next-env.d.ts` imports (R4 W3). Run typecheck AFTER the build
+      # so the import resolves on a fresh CI runner.
+      - run: pnpm run typecheck
 
   # ---------------------------------------------------------------------------
   # security — the 6 security tests. Run in a separate job so a

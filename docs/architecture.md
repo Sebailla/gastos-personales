@@ -110,8 +110,26 @@ strict: `UI → Application → Domain ← Infrastructure`):
 Four Prisma models, owned by `prisma/schema.prisma`. Three
 columns are added to `User` on top of the canonical Auth.js
 schema: `passwordHash` (BR-AUTH-3, BR-AUTH-9),
-`defaultProvider` (BR-AUTH-13), and `lastLoginAt` (stamped
-by the `signIn` callback).
+`defaultProvider` (BR-AUTH-13), and `lastLoginAt`
+(stamped by the `signIn` callback).
+
+> **`lastLoginAt` is best-effort, not a gate.** The `signIn`
+> callback always returns `true` after attempting the audit
+> write. A failure to stamp `lastLoginAt` (DB error, missing
+> row after a provider handshake, edge case in the OAuth
+> adapter's upsert) is logged and the user is NOT blocked.
+> Blocking an already-authenticated user because of an
+> audit-trail write failure is the wrong trade-off. The
+> callback looks up the row by `email` (stable across provider
+> and DB) and uses `updateMany` so a missing row is a soft
+> warning rather than a Prisma P2025 exception. The `signIn`
+> callback is exported as `signInCallback` from
+> `src/modules/auth/infrastructure/external/authjs.ts` and has
+> direct unit coverage in
+> `authjs.signin-callback.test.ts` (4 branches). Rationale +
+> commit: `d20c8c3` (`fix(auth): unblock Google OAuth
+sign-in flow`) and `07e3b57` (`fix(auth): callback tests,
+open-redirect allowlist, email normalization, error UX`).
 
 | Model               | Purpose                                                                                             | Key constraints                                                      |
 | ------------------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
