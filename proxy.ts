@@ -42,17 +42,20 @@ export function isPublicPath(pathname: string): boolean {
 }
 
 /**
- * Build the Next.js proxy matcher from PUBLIC_PATHS. Excludes
- * `_next`, the entire `/api` tree, and `favicon.ico` so Hono API
- * routes and framework assets are not evaluated by the redirect.
+ * The Next.js proxy matcher. Turbopack requires the matcher to be
+ * a static string literal (not a function result). This must stay
+ * in sync with `PUBLIC_PATHS` above: if a new public path is added
+ * there, the matcher also has to allow it through (which it does,
+ * because the matcher only excludes `_next`, `api`, and
+ * `favicon.ico`). The proxy.test.ts asserts the two are aligned.
+ *
+ * Excluded:
+ *  - `_next/*` — Next.js framework assets.
+ *  - `api/*`    — Hono catch-all (auth/health/me/etc). They have
+ *                 their own 401/403/JSON envelopes and must not be
+ *                 coerced into an HTML redirect.
+ *  - `favicon.ico` — static asset, not a page.
  */
-function buildMatcher(): string {
-  // Exclude /api entirely (Hono catch-all at app/api/[...path]/route.ts).
-  // Auth.js's own /api/auth/* endpoints return their own responses
-  // and must not be redirected either.
-  return '/((?!_next|api|favicon.ico).*)';
-}
-
 export default auth((request) => {
   const { pathname } = request.nextUrl;
   const isPublic = isPublicPath(pathname);
@@ -68,5 +71,5 @@ export default auth((request) => {
 });
 
 export const config = {
-  matcher: [buildMatcher()],
+  matcher: ['/((?!_next|api|favicon.ico).*)'],
 };
