@@ -1,33 +1,56 @@
 // proxy.ts
-// Next.js proxy: 302 redirect for unauthenticated App Router pages.
-// The Hono /api/me route already returns 401 when the session is
-// missing (T-020); this proxy is the faster-fail path for App Router
-// pages (e.g. /dashboard).
+// Next.js proxy: 307 redirect for unauthenticated App Router pages.
+// Hono API routes under /api/* are excluded at the matcher level
+// (they return their own 401/403/JSON envelopes and must not be
+// coerced into an HTML redirect).
 //
 // Public paths (signin, signout, root) are exempted from the redirect
 // so that the signin page itself is reachable when not authenticated.
 //
 // Renamed from middleware.ts in Next.js 16: the file convention is
 // now `proxy.ts`. Per the Next.js 16 docs, the proxy always runs in
-// the Node.js runtime, so no `runtime` segment config is allowed —
-// the older `runtime: 'nodejs'` line that we used to keep Argon2
-// off the Edge runtime is no longer needed.
-//
-// Note: an earlier version of this file matched public paths with
-// `pathname.startsWith('/auth/signin')` etc., with `/` included in
-// PUBLIC_PATHS. Because every absolute path starts with `/`, that
-// made every path "public" and broke the redirect. The check now
-// uses exact match for `/` and `startsWith` only for the signin /
-// signout prefixes.
+// the Node.js runtime, so no `runtime` segment config is allowed.
 
 import { auth } from '@/modules/auth';
 import { NextResponse } from 'next/server';
 
-function isPublicPath(pathname: string): boolean {
-  if (pathname === '/') return true;
-  if (pathname === '/auth/signin' || pathname.startsWith('/auth/signin/')) return true;
-  if (pathname === '/auth/signout' || pathname.startsWith('/auth/signout/')) return true;
+/**
+ * Single source of truth for paths the proxy treats as public.
+ * Each entry is either `{ exact: string }` (path must equal) or
+ * `{ prefix: string }` (path must equal OR start with `prefix + '/'`).
+ * The matcher below consumes the same list so the proxy exclusion
+ * and the redirect exemption cannot drift.
+ */
+const PUBLIC_PATHS: ReadonlyArray<
+  | { readonly kind: 'exact'; readonly path: string }
+  | { readonly kind: 'prefix'; readonly path: string }
+> = [
+  { kind: 'exact', path: '/' },
+  { kind: 'prefix', path: '/auth/signin' },
+  { kind: 'prefix', path: '/auth/signout' },
+] as const;
+
+export function isPublicPath(pathname: string): boolean {
+  for (const entry of PUBLIC_PATHS) {
+    if (entry.kind === 'exact') {
+      if (pathname === entry.path) return true;
+    } else {
+      if (pathname === entry.path || pathname.startsWith(`${entry.path}/`)) return true;
+    }
+  }
   return false;
+}
+
+/**
+ * Build the Next.js proxy matcher from PUBLIC_PATHS. Excludes
+ * `_next`, the entire `/api` tree, and `favicon.ico` so Hono API
+ * routes and framework assets are not evaluated by the redirect.
+ */
+function buildMatcher(): string {
+  // Exclude /api entirely (Hono catch-all at app/api/[...path]/route.ts).
+  // Auth.js's own /api/auth/* endpoints return their own responses
+  // and must not be redirected either.
+  return '/((?!_next|api|favicon.ico).*)';
 }
 
 export default auth((request) => {
@@ -45,5 +68,5 @@ export default auth((request) => {
 });
 
 export const config = {
-  matcher: ['/((?!_next|api/auth|favicon.ico).*)'],
+  matcher: [buildMatcher()],
 };
