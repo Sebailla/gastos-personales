@@ -41,10 +41,7 @@ function jitteredDelay(baseMs: number, attempt: number, jitter: number): number 
   return raw + (Math.random() * 2 - 1) * span;
 }
 
-export async function withRetry<T>(
-  fn: () => Promise<T>,
-  options: RetryOptions = {},
-): Promise<T> {
+export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions = {}): Promise<T> {
   const attempts = options.attempts ?? DEFAULT_ATTEMPTS;
   const baseDelayMs = options.baseDelayMs ?? DEFAULT_BASE_DELAY_MS;
   const jitter = options.jitter ?? DEFAULT_JITTER;

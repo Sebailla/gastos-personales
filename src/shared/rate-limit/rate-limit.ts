@@ -88,11 +88,7 @@ export async function checkRateLimit(identifier: string): Promise<RateLimitResul
 export async function assertWithinRateLimit(identifier: string): Promise<RateLimitResult> {
   const result = await checkRateLimit(identifier);
   if (!result.success) {
-    throw new RateLimitError(
-      `Rate limit exceeded for ${identifier}`,
-      result.reset,
-      result.limit,
-    );
+    throw new RateLimitError(`Rate limit exceeded for ${identifier}`, result.reset, result.limit);
   }
   return result;
 }

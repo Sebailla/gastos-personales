@@ -36,9 +36,7 @@ describe('withRetry', () => {
   it('throws the last error when all attempts fail', async () => {
     const err = new Error('always fails');
     const fn = vi.fn().mockRejectedValue(err);
-    await expect(
-      withRetry(fn, { attempts: 3, baseDelayMs: 1 }),
-    ).rejects.toBe(err);
+    await expect(withRetry(fn, { attempts: 3, baseDelayMs: 1 })).rejects.toBe(err);
     expect(fn).toHaveBeenCalledTimes(3);
   });
 
@@ -64,10 +62,7 @@ describe('withRetry', () => {
   });
 
   it('applies exponential backoff (within jitter tolerance)', async () => {
-    const fn = vi
-      .fn()
-      .mockRejectedValueOnce(new Error('1'))
-      .mockResolvedValueOnce('ok');
+    const fn = vi.fn().mockRejectedValueOnce(new Error('1')).mockResolvedValueOnce('ok');
     const onRetry = vi.fn();
     await withRetry(fn, {
       attempts: 2,

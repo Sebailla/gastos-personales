@@ -86,15 +86,14 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
     );
   }
 
-  const errorParam =
-    'error' in params && typeof params.error === 'string' ? params.error : null;
+  const errorParam = 'error' in params && typeof params.error === 'string' ? params.error : null;
 
   return (
     <main style={{ maxWidth: 420, margin: '4rem auto', padding: '0 1rem' }}>
       <h1>Crear cuenta</h1>
       <p>
-        Empezá a registrar tus gastos. Solo necesitamos un email y una
-        contraseña de al menos 10 caracteres.
+        Empezá a registrar tus gastos. Solo necesitamos un email y una contraseña de al menos 10
+        caracteres.
       </p>
 
       {errorParam ? (

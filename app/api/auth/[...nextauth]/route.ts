@@ -27,12 +27,19 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { handlers } from '@/modules/auth';
-import { assertWithinRateLimit, clientIpFromHeaders, RateLimitError } from '@/shared/rate-limit/rate-limit';
+import {
+  assertWithinRateLimit,
+  clientIpFromHeaders,
+  RateLimitError,
+} from '@/shared/rate-limit/rate-limit';
 
 // Paths under `/api/auth/*` that exercise Argon2id and must be
 // rate-limited. Kept narrow on purpose: every other Auth.js
 // route (csrf, session, providers, signout) is cheap.
-const RATE_LIMITED_PATHS = ['/api/auth/callback/credentials', '/api/auth/signin/credentials'] as const;
+const RATE_LIMITED_PATHS = [
+  '/api/auth/callback/credentials',
+  '/api/auth/signin/credentials',
+] as const;
 
 function shouldRateLimit(pathname: string): boolean {
   return RATE_LIMITED_PATHS.some((p) => pathname.startsWith(p));

@@ -25,7 +25,9 @@ vi.mock('@upstash/ratelimit', () => {
   // The static `slidingWindow` is called as `Ratelimit.slidingWindow(...)`.
   // We just return a deterministic tuple — the value isn't inspected
   // because we never assert against the algorithm shape.
-  (Ratelimit as unknown as { slidingWindow: ReturnType<typeof vi.fn> }).slidingWindow = vi.fn(() => '5/60s');
+  (Ratelimit as unknown as { slidingWindow: ReturnType<typeof vi.fn> }).slidingWindow = vi.fn(
+    () => '5/60s',
+  );
   return { Ratelimit };
 });
 
@@ -59,7 +61,9 @@ afterEach(() => {
 
 describe('clientIpFromHeaders', () => {
   it('returns the first IP from x-forwarded-for', () => {
-    expect(clientIpFromHeaders(new Headers({ 'x-forwarded-for': '1.2.3.4, 5.6.7.8' }))).toBe('1.2.3.4');
+    expect(clientIpFromHeaders(new Headers({ 'x-forwarded-for': '1.2.3.4, 5.6.7.8' }))).toBe(
+      '1.2.3.4',
+    );
   });
   it('falls back to x-real-ip', () => {
     expect(clientIpFromHeaders(new Headers({ 'x-real-ip': '9.9.9.9' }))).toBe('9.9.9.9');
