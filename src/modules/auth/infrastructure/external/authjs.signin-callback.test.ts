@@ -106,15 +106,21 @@ describe('signInCallback', () => {
     expect(error).not.toHaveBeenCalled();
   });
 
-  it('logs an error and still returns true when prisma throws', async () => {
-    updateMany.mockRejectedValueOnce(new Error('db down'));
+  it('logs an error and still returns true when prisma throws on every retry', async () => {
+    // withRetry retries 3 times by default, so the mock must reject
+    // every call. Use mockRejectedValue (no `Once`) so the mock
+    // keeps rejecting regardless of call count.
+    updateMany.mockRejectedValue(new Error('db down'));
     const result = await signInCallback({ user: { email: 'a@b.com' } });
     expect(result).toBe(true);
     expect(error).toHaveBeenCalledWith('signIn_callback_failed', {
       email: 'a@b.com',
       error: 'db down',
     });
-    expect(warn).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalledWith(
+      'signIn_callback_user_not_found',
+      expect.anything(),
+    );
   });
 
   it('returns true without touching the DB when email is missing', async () => {

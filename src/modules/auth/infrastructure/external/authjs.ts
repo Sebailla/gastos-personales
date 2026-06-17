@@ -92,10 +92,29 @@ export async function signInCallback(params: {
   const email = params.user?.email ? normalizeEmail(params.user.email) : null;
   if (!email) return true;
   try {
-    const result = await prisma().user.updateMany({
-      where: { email },
-      data: { lastLoginAt: new Date() },
-    });
+    // R4 C2: the audit write is best-effort but transient failures
+    // (connection blip, lock wait, brief failover) should not drop
+    // the timestamp. Retry up to 3 times with exponential backoff
+    // (1s, 2s, 4s). If all attempts fail, log and proceed — we
+    // never block an already-authenticated user.
+    const result = await withRetry(
+      () =>
+        prisma().user.updateMany({
+          where: { email },
+          data: { lastLoginAt: new Date() },
+        }),
+      {
+        attempts: 3,
+        baseDelayMs: 1000,
+        onRetry: (err, nextAttempt, delayMs) =>
+          logger.warn('signIn_callback_retry', {
+            email,
+            nextAttempt,
+            delayMs,
+            error: err instanceof Error ? err.message : String(err),
+          }),
+      },
+    );
     if (result.count === 0) {
       logger.warn('signIn_callback_user_not_found', { email });
     }
