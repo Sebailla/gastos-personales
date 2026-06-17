@@ -2,24 +2,29 @@
  * Auth.js signIn page (server component).
  *
  * Renders a credentials form (email + password) and a
- * "Sign in with Google" button. The credentials form posts
- * to `/api/auth/callback/credentials` (Auth.js's built-in
- * callback URL); the Google button posts to
- * `/api/auth/signin/google`. The `?error=` searchParam is
- * read here and mapped to a Spanish message via
- * `mapAuthErrorToMessage` (per decision gap #6).
+ * "Sign in with Google" button. Both forms use Auth.js v5
+ * server actions (`signIn` from `@/modules/auth`) instead
+ * of POSTing to `/api/auth/signin/<provider>` directly,
+ * because the plain `<form action="...">` POST path requires
+ * a CSRF token in the body, which the page would have to
+ * fetch from `/api/auth/csrf` first. The server-action form
+ * lets Auth.js manage the CSRF token internally.
  *
- * This page is a server component. The form is a plain
- * HTML `<form>` with `method="POST"`; no client-side
- * JavaScript is required for the MVP. The
- * `authjs.session-token` cookie is `HttpOnly`, so the
- * form-based sign-in works without React.
+ * The `?error=` searchParam is read here and mapped to a
+ * Spanish message via `mapAuthErrorToMessage`.
+ *
+ * This page is a server component. No client-side JavaScript
+ * is required for the MVP; the action attribute invokes the
+ * server action via React's form-action binding.
  */
 
+import { signIn } from '@/modules/auth';
 import { mapAuthErrorToMessage } from '@/modules/auth/application/auth-error-map';
 
 interface SignInPageProps {
-  searchParams: Promise<{ error?: string; callbackUrl?: string }> | { error?: string; callbackUrl?: string };
+  searchParams:
+    | Promise<{ error?: string; callbackUrl?: string }>
+    | { error?: string; callbackUrl?: string };
 }
 
 export const metadata = {
@@ -33,12 +38,24 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
   const errorMessage = mapAuthErrorToMessage(params.error);
   const callbackUrl = params.callbackUrl ?? '/';
 
+  async function signInWithCredentials(formData: FormData) {
+    'use server';
+    await signIn('credentials', {
+      email: formData.get('email'),
+      password: formData.get('password'),
+      redirectTo: callbackUrl,
+    });
+  }
+
+  async function signInWithGoogle() {
+    'use server';
+    await signIn('google', { redirectTo: callbackUrl });
+  }
+
   return (
     <main style={{ maxWidth: 420, margin: '4rem auto', padding: '0 1rem' }}>
       <h1>Iniciar sesión</h1>
-      <p>
-        Iniciá sesión con tu email y contraseña, o con Google.
-      </p>
+      <p>Iniciá sesión con tu email y contraseña, o con Google.</p>
 
       {errorMessage ? (
         <div
@@ -57,11 +74,9 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
       ) : null}
 
       <form
-        method="post"
-        action="/api/auth/callback/credentials"
+        action={signInWithCredentials}
         style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', margin: '1rem 0' }}
       >
-        <input type="hidden" name="callbackUrl" value={callbackUrl} />
         <label>
           Email
           <input
@@ -88,12 +103,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
         </button>
       </form>
 
-      <form
-        method="post"
-        action="/api/auth/signin/google"
-        style={{ margin: '1rem 0' }}
-      >
-        <input type="hidden" name="callbackUrl" value={callbackUrl} />
+      <form action={signInWithGoogle} style={{ margin: '1rem 0' }}>
         <button type="submit" style={{ padding: '0.5rem 1rem' }}>
           Continuar con Google
         </button>

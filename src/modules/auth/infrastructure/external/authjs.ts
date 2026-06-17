@@ -123,18 +123,34 @@ export const authConfig: NextAuthConfig = {
   ],
   callbacks: {
     async signIn({ user }) {
-      if (!user?.id) return false;
+      // Stamp `lastLoginAt` on every successful sign-in (BR-AUTH-7
+      // audit trail). We look up by `email` rather than `id` because
+      // the `user.id` Auth.js passes into this callback in OAuth flows
+      // is the provider's subject identifier, not the Prisma cuid.
+      // Using `updateMany` instead of `update` so a missing row is a
+      // soft warning rather than a Prisma P2025 exception that would
+      // block the sign-in. lastLoginAt is best-effort: if the user
+      // can't be found (e.g. the adapter hasn't finished upserting
+      // yet, or an edge case in the provider handshake), we log and
+      // proceed.
+      const email = user?.email;
+      if (!email) return true;
       try {
-        await prisma().user.update({
-          where: { id: user.id },
+        const result = await prisma().user.updateMany({
+          where: { email },
           data: { lastLoginAt: new Date() },
         });
+        if (result.count === 0) {
+          logger.warn('signIn_callback_user_not_found', { email });
+        }
       } catch (err) {
         logger.error('signIn_callback_failed', {
-          userId: user.id,
+          email,
           error: err instanceof Error ? err.message : String(err),
         });
-        return false;
+        // Do not return false: the user has already authenticated
+        // successfully with Google. Blocking them because of a
+        // tracking-write failure is the wrong trade.
       }
       return true;
     },

@@ -13,7 +13,17 @@
  * (Next.js production build) and by manual smoke in dev.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+// The page imports `signIn` from `@/modules/auth` to wire the
+// Google / Credentials server actions. `signIn` transitively pulls
+// in `next-auth`, which requires `next/server` (a Next.js runtime
+// module unavailable in plain Vitest). We mock just the surface
+// the page uses so the test loads without booting the auth module.
+vi.mock('@/modules/auth', () => ({
+  signIn: vi.fn(),
+}));
+
 import SignInPage from './page';
 import { mapAuthErrorToMessage } from '@/modules/auth/application/auth-error-map';
 
