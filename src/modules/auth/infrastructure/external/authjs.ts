@@ -11,10 +11,10 @@
  * password" branches (BR-AUTH-4, BR-AUTH-9).
  *
  * The `signIn` callback stamps `lastLoginAt` on every
- * successful sign-in. `defaultProvider` is NEVER mutated
- * here (BR-AUTH-13). The `session` callback adds
- * `defaultProvider` and `lastLoginAt` to the session
- * JSON for `useSession()` clients.
+ * successful sign-in (best-effort — see `signInCallback`).
+ * `defaultProvider` is NEVER mutated here (BR-AUTH-13). The
+ * `session` callback adds `defaultProvider` and `lastLoginAt`
+ * to the session JSON for `useSession()` clients.
  *
  * The destructured `{ handlers, auth, signIn, signOut }`
  * is the public surface of the auth module. Mounted at
@@ -31,10 +31,17 @@ import { env } from '@/shared/env/env.schema';
 import { prisma } from '@/shared/db/prisma';
 import { Argon2idHasher } from './argon2.hasher';
 import { logger } from '@/shared/logger/logger';
+import { withRetry } from '@/shared/retry/with-retry';
 
 const credentialsSchema = z.object({
   email: z.string().email().max(254),
-  password: z.string().min(1).max(128),
+  // BR-AUTH-3 + BR-AUTH-9: minimum 10-char password at the server
+  // boundary. The HTML `minLength={10}` on the signin form is a UX
+  // hint; this Zod schema is the actual security boundary. The HTML
+  // and the schema agree, so a client that bypasses the HTML
+  // attribute (curl, fetch, modified browser) still hits a 10-char
+  // minimum on the server.
+  password: z.string().min(10).max(128),
 });
 
 /**
@@ -58,6 +65,67 @@ async function getDummyHash(): Promise<string> {
   return _dummyHashPromise;
 }
 export const DUMMY_HASH: Promise<string> = getDummyHash();
+
+/**
+ * Normalize an email for DB lookup. Trim whitespace and lowercase.
+ * Used by `authorize()` (registration / credential sign-in),
+ * `registerAction`, and the `signIn` callback so the three call
+ * sites cannot drift.
+ */
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+/**
+ * `signIn` callback implementation, exported as a named function
+ * for direct unit testing. Stamps `lastLoginAt` on every successful
+ * sign-in (BR-AUTH-7 audit trail). Best-effort: we look up by
+ * `email` (stable across provider and DB) instead of the wrong
+ * `user.id` (which is the provider's `sub` in OAuth flows), use
+ * `updateMany` so a missing row is a soft warning, and ALWAYS
+ * return `true` so a tracking-write failure does not block an
+ * already-successful authentication. Rationale + commit: `d20c8c3`.
+ */
+export async function signInCallback(params: {
+  user?: { email?: string | null };
+}): Promise<boolean> {
+  const email = params.user?.email ? normalizeEmail(params.user.email) : null;
+  if (!email) return true;
+  try {
+    // R4 C2: the audit write is best-effort but transient failures
+    // (connection blip, lock wait, brief failover) should not drop
+    // the timestamp. Retry up to 3 times with exponential backoff
+    // (1s, 2s, 4s). If all attempts fail, log and proceed — we
+    // never block an already-authenticated user.
+    const result = await withRetry(
+      () =>
+        prisma().user.updateMany({
+          where: { email },
+          data: { lastLoginAt: new Date() },
+        }),
+      {
+        attempts: 3,
+        baseDelayMs: 1000,
+        onRetry: (err, nextAttempt, delayMs) =>
+          logger.warn('signIn_callback_retry', {
+            email,
+            nextAttempt,
+            delayMs,
+            error: err instanceof Error ? err.message : String(err),
+          }),
+      },
+    );
+    if (result.count === 0) {
+      logger.warn('signIn_callback_user_not_found', { email });
+    }
+  } catch (err) {
+    logger.error('signIn_callback_failed', {
+      email,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+  return true;
+}
 
 export const authConfig: NextAuthConfig = {
   adapter: PrismaAdapter(prisma()),
@@ -92,7 +160,7 @@ export const authConfig: NextAuthConfig = {
         const parsed = credentialsSchema.safeParse(credentials);
         if (!parsed.success) return null;
         const { email, password } = parsed.data;
-        const normalizedEmail = email.trim().toLowerCase();
+        const normalizedEmail = normalizeEmail(email);
 
         const user = await prisma().user.findUnique({
           where: { email: normalizedEmail },
@@ -122,22 +190,7 @@ export const authConfig: NextAuthConfig = {
     }),
   ],
   callbacks: {
-    async signIn({ user }) {
-      if (!user?.id) return false;
-      try {
-        await prisma().user.update({
-          where: { id: user.id },
-          data: { lastLoginAt: new Date() },
-        });
-      } catch (err) {
-        logger.error('signIn_callback_failed', {
-          userId: user.id,
-          error: err instanceof Error ? err.message : String(err),
-        });
-        return false;
-      }
-      return true;
-    },
+    signIn: signInCallback,
     async session({ session, user }) {
       if (session.user && user?.id) {
         session.user.id = user.id;
@@ -156,6 +209,19 @@ export const authConfig: NextAuthConfig = {
         }
       }
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      // Pin the post-login redirect policy in this repo instead of
+      // relying on Auth.js v5's default. Same-origin paths are
+      // allowed (with protocol-relative URLs explicitly rejected);
+      // external hosts are redirected to the baseUrl.
+      if (url.startsWith('/') && !url.startsWith('//')) return `${baseUrl}${url}`;
+      try {
+        if (new URL(url).origin === baseUrl) return url;
+      } catch {
+        // Malformed URL — fall through to baseUrl.
+      }
+      return baseUrl;
     },
   },
 };

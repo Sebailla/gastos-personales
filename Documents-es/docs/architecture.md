@@ -116,6 +116,24 @@ canónico de Auth.js: `passwordHash` (BR-AUTH-3, BR-AUTH-9),
 `defaultProvider` (BR-AUTH-13) y `lastLoginAt` (estampado
 por el callback `signIn`).
 
+> **`lastLoginAt` es best-effort, no es un gate.** El callback
+> `signIn` siempre retorna `true` después de intentar la escritura
+> de auditoría. Un fallo al estampar `lastLoginAt` (error de DB,
+> fila faltante después del handshake con el provider, edge case
+> en el upsert del adapter de OAuth) se loguea y el usuario NO es
+> bloqueado. Bloquear a un usuario ya autenticado por un fallo en
+> la escritura de auditoría es el trade-off incorrecto. El
+> callback busca la fila por `email` (estable entre provider y DB)
+> y usa `updateMany` para que una fila faltante sea un warning
+> suave en lugar de una excepción de Prisma P2025. El callback
+> `signIn` se exporta como `signInCallback` desde
+> `src/modules/auth/infrastructure/external/authjs.ts` y tiene
+> cobertura unitaria directa en
+> `authjs.signin-callback.test.ts` (4 branches). Justificación +
+> commits: `d20c8c3` (`fix(auth): unblock Google OAuth sign-in
+flow`) y `07e3b57` (`fix(auth): callback tests, open-redirect
+allowlist, email normalization, error UX`).
+
 | Modelo              | Propósito                                                                                                          | Restricciones clave                                                     |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
 | `User`              | Ancla de identidad; carga credenciales + perfil.                                                                   | `email @unique`, `@@index([createdAt])`                                 |
@@ -221,7 +239,7 @@ fundamentación completa y el análisis de trade-offs.
 
 - **El helper `auth()`** es el único camino de resolución
   de identidad. Cada server component, cada acción de
-  Hono, y cada middleware de Next.js importa `auth` desde
+  Hono, y cada proxy de Next.js importa `auth` desde
   `@/modules/auth` (re-exportado desde
   `src/modules/auth/index.ts`). Los ports internos, los
   repositorios y los services no se exportan.

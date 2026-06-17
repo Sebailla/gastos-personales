@@ -9,12 +9,13 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     setupFiles: ['./test/setup.ts'],
-    include: ['src/**/*.{test,spec}.ts', 'test/**/*.{test,spec}.ts', 'app/**/*.{test,spec}.ts'],
-    exclude: [
-      'node_modules',
-      'dist',
-      '.next',
+    include: [
+      'src/**/*.{test,spec}.ts',
+      'test/**/*.{test,spec}.ts',
+      'app/**/*.{test,spec}.ts',
+      'proxy.{test,spec}.ts',
     ],
+    exclude: ['node_modules', 'dist', '.next'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'json'],
