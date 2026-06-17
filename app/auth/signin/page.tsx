@@ -20,6 +20,7 @@
  */
 
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { z } from 'zod';
 
 import { signIn } from '@/modules/auth';
@@ -27,8 +28,8 @@ import { mapAuthErrorToMessage } from '@/modules/auth/application/auth-error-map
 
 interface SignInPageProps {
   searchParams:
-    | Promise<{ error?: string; callbackUrl?: string }>
-    | { error?: string; callbackUrl?: string };
+    | Promise<{ error?: string; callbackUrl?: string; registered?: string }>
+    | { error?: string; callbackUrl?: string; registered?: string };
 }
 
 export const metadata = {
@@ -127,6 +128,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
   const params = searchParams instanceof Promise ? await searchParams : searchParams;
   const errorMessage = mapAuthErrorToMessage(params.error);
   const callbackUrl = safeCallbackUrl(params.callbackUrl);
+  const justRegistered = params.registered === '1';
 
   const credentialsAction = credentialsSignInAction(callbackUrl);
   const googleAction = googleSignInAction(callbackUrl);
@@ -135,6 +137,22 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
     <main style={{ maxWidth: 420, margin: '4rem auto', padding: '0 1rem' }}>
       <h1>Iniciar sesión</h1>
       <p>Iniciá sesión con tu email y contraseña, o con Google.</p>
+
+      {justRegistered ? (
+        <div
+          role="status"
+          style={{
+            padding: '0.75rem 1rem',
+            margin: '1rem 0',
+            border: '1px solid #090',
+            borderRadius: 6,
+            color: '#060',
+            background: '#efe',
+          }}
+        >
+          Cuenta creada. Iniciá sesión con tu email y contraseña.
+        </div>
+      ) : null}
 
       {errorMessage ? (
         <div
@@ -187,6 +205,10 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
           Continuar con Google
         </button>
       </form>
+
+      <p style={{ marginTop: '1rem' }}>
+        ¿No tenés cuenta? <Link href="/auth/register">Creá una</Link>.
+      </p>
     </main>
   );
 }

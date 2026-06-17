@@ -28,6 +28,7 @@ const PUBLIC_PATHS: ReadonlyArray<
   { kind: 'exact', path: '/' },
   { kind: 'prefix', path: '/auth/signin' },
   { kind: 'prefix', path: '/auth/signout' },
+  { kind: 'prefix', path: '/auth/register' },
 ] as const;
 
 export function isPublicPath(pathname: string): boolean {
