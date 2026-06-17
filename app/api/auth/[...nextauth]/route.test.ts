@@ -20,9 +20,13 @@ const here = dirname(fileURLToPath(import.meta.url));
 const routeSource = readFileSync(resolve(here, 'route.ts'), 'utf-8');
 
 describe('Auth.js route handler mount (static check)', () => {
-  it('re-exports the handlers.GET and handlers.POST from @/modules/auth', () => {
-    // The Auth.js route file should re-export the handlers. The
-    // current shape is `export const { GET, POST } = handlers;`.
-    expect(routeSource).toMatch(/export\s+const\s*\{\s*GET\s*,\s*POST\s*\}\s*=\s*handlers/);
+  it('re-exports GET and POST handlers (rate-limited wrapper, R4 W2)', () => {
+    // The route file wraps Auth.js handlers with a path-aware
+    // rate-limit gate. The shape is:
+    //   export const { GET, POST } = { GET: rateLimitedGET, POST: rateLimitedPOST };
+    expect(routeSource).toMatch(/export\s+const\s*\{\s*GET\s*,\s*POST\s*\}/);
+    expect(routeSource).toMatch(/rateLimitedGET/);
+    expect(routeSource).toMatch(/rateLimitedPOST/);
+    expect(routeSource).toMatch(/runtime\s*=\s*'nodejs'/);
   });
 });
