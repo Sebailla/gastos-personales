@@ -34,7 +34,13 @@ import { logger } from '@/shared/logger/logger';
 
 const credentialsSchema = z.object({
   email: z.string().email().max(254),
-  password: z.string().min(1).max(128),
+  // BR-AUTH-3 + BR-AUTH-9: minimum 10-char password at the server
+  // boundary. The HTML `minLength={10}` on the signin form is a UX
+  // hint; this Zod schema is the actual security boundary. The HTML
+  // and the schema agree, so a client that bypasses the HTML
+  // attribute (curl, fetch, modified browser) still hits a 10-char
+  // minimum on the server.
+  password: z.string().min(10).max(128),
 });
 
 /**

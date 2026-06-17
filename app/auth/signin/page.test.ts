@@ -152,7 +152,7 @@ describe('credentialsSignInAction', () => {
     const action = credentialsSignInAction('/dashboard');
     const fd = new FormData();
     fd.set('email', 'a@b.com');
-    fd.set('password', 'whatever');
+    fd.set('password', 'long-enough-password');
     await expect(action(fd)).rejects.toThrow('db is on fire');
     expect(mockRedirect).not.toHaveBeenCalled();
   });
