@@ -12,9 +12,10 @@ const nextConfig: NextConfig = {
   // serverExternalPackages bypasses the bundle attempt that
   // produces that error.
   serverExternalPackages: ['@node-rs/argon2'],
-  experimental: {
-    typedRoutes: true,
-  },
+  // Next.js 16 promoted `experimental.typedRoutes` to a top-level
+  // option. Keeping it here would boot with a warning and pin us to
+  // a deprecated config surface. Promote it.
+  typedRoutes: true,
   // Security headers (BR-AUTH-11 baseline).
   async headers() {
     return [

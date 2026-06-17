@@ -211,7 +211,7 @@ for the full rationale and the trade-off analysis.
 
 - **`auth()` helper** is the only identity-resolution
   path. Every server component, every Hono action, and
-  every Next.js middleware imports `auth` from
+  every Next.js proxy imports `auth` from
   `@/modules/auth` (re-exported from
   `src/modules/auth/index.ts`). The internal ports,
   repositories, and services are not exported.
