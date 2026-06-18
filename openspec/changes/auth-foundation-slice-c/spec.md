@@ -1,6 +1,6 @@
 # Spec — `auth-foundation-slice-c` (delta)
 
-**Status**: draft · **Author**: Sebastián Illa
+**Status**: closed-via-archive · **Author**: Sebastián Illa
 **Created**: 2026-06-13 · **Capability**: `auth`
 **Parent change**: `auth-foundation` (Slice A + B merged as PRs #5, #17)
 **Upstream canonical spec**: `openspec/specs/auth/spec.md` (v2, draft 2026-06-10)

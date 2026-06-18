@@ -2,7 +2,7 @@
 
 **Author**: Sebastián Illa
 **Change**: `auth-foundation-slice-c`
-**Status**: ready-for-apply · **Created**: 2026-06-13
+**Status**: closed-via-archive · **Created**: 2026-06-13
 **Upstream**: `openspec/changes/auth-foundation-slice-c/proposal.md` (approved) ·
 `openspec/changes/auth-foundation-slice-c/spec.md` (16 deltas, approved) ·
 `openspec/changes/auth-foundation-slice-c/design.md` (8 sections, approved)
@@ -13,6 +13,7 @@
 **Stack v2 (inherited)**: Next.js 16 + Node 20 + Hono catch-all + Auth.js v5 + `@auth/prisma-adapter` + Prisma 6 + PostgreSQL + Zod + Vitest + pnpm
 
 > **Closure notes**:
+>
 > - **FLAG-1 (CRITICAL)**: module-resolution bug (issue #18) keeps 3 test files excluded in `vitest.config.ts`. C-1 closes it via Vite `resolve.alias` patch + 30-line stub. Target: 137/137 tests verde, coverage ≥ 80% on `src/modules/auth/**`.
 > - **FLAG-2 (WARNING)**: bilingual drift in `Documents-es/openspec/changes/auth-foundation/apply-progress.md` (stale at Slice A only). C-3 closes it as part of the handoff commit.
 
@@ -37,21 +38,25 @@ Close the 9 remaining tasks (T-025..T-033) of the parent `auth-foundation` chang
 ### C-1 task list
 
 - [ ] **T-C1.0** Module-resolution fix (FLAG-1 closure, issue #18)
+
   - **Scope (RED → GREEN)**: add a `resolve.alias` in `vitest.config.ts` mapping `'next/server'` to a 30-line stub at `test/stubs/next-server.ts`. The stub provides `NextRequest`, `NextResponse`, and `userAgent` no-ops (test-only; production uses real `next/server`). Remove the 3 entries from `test.exclude` (the previously-excluded files now run). Verify: `npx vitest run` → 137/137 verde, `npx vitest run --coverage` → coverage on `src/modules/auth/**` ≥ 80%.
   - **Files**: `vitest.config.ts` (+~10 lines for the alias + removing 3 exclude entries), `test/stubs/next-server.ts` (new file, ~30 lines)
   - **Lines estimate**: 40
   - **Depends on**: Slice A + B + chores already merged (`develop` HEAD ≥ `c84b4ee`)
   - **Tests**: 0 new tests; **re-include** 3 existing tests that previously failed at import: `src/modules/auth/infrastructure/external/authjs.test.ts`, `src/modules/auth/index.test.ts`, `app/api/auth/[...nextauth]/route.test.ts`
   - **Verify**:
+
     ```bash
     npx vitest run
     # → 137/137 passed in 33 test files
     npx vitest run --coverage
     # → Coverage on src/modules/auth/** ≥ 80% (lines, branches, functions, statements)
     ```
+
   - **Fallback** (if the stub is insufficient): bump `next-auth@5.0.0-beta.32+` when available. Document in the handoff; parent decides.
 
 - [ ] **T-025** Mount `app/api/[...path]/route.ts` (Hono catch-all)
+
   - **Scope (RED → GREEN)**: the route delegates GET/POST/PATCH/DELETE to `honoApp.fetch(request)`. Routing precedence: Next.js's file-based routing matches `app/api/auth/[...nextauth]/route.ts` BEFORE `app/api/[...path]/route.ts` (the more specific path wins). Tests assert: 1) `GET /api/me` without session → 401, 2) `GET /api/auth/signin` → returns Auth.js's HTML response (NOT Hono's JSON).
   - **Files**:
     - `app/api/[...path]/route.ts` (~30 lines)
@@ -60,6 +65,7 @@ Close the 9 remaining tasks (T-025..T-033) of the parent `auth-foundation` chang
   - **Depends on**: T-021 (Hono app), T-024 (Auth.js mount), T-C1.0 (module-resolution fix)
   - **Tests**: 2 cases. AAA pattern. Both are integration tests against a real Next.js server.
   - **Verify**:
+
     ```bash
     pnpm test app/api/
     # → 2 cases pass
@@ -68,6 +74,7 @@ Close the 9 remaining tasks (T-025..T-033) of the parent `auth-foundation` chang
     ```
 
 - [ ] **T-026** Public API export (`src/modules/auth/index.ts`) + Next.js middleware
+
   - **Scope (RED → GREEN)**: `src/modules/auth/index.ts` exports `auth`, `signIn`, `signOut`, `handlers`, `honoApp`, `UserRegistered`, `UserSignedIn`. `tsconfig.json` has `verbatimModuleSyntax: true` so non-exported imports fail at compile time. `middleware.ts` at project root exports a default `auth((request) => ...)` handler that 302-redirects unauthenticated requests to `/auth/signin`. Tests assert: 1) compile-time check of the named exports, 2) 302 redirect for unauthenticated `/dashboard`, 3) 200 for authenticated `/dashboard`.
   - **Files**:
     - `src/modules/auth/index.ts` (~30 lines)
@@ -77,6 +84,7 @@ Close the 9 remaining tasks (T-025..T-033) of the parent `auth-foundation` chang
   - **Depends on**: T-018 (authjs), T-021 (Hono app), T-025 (catch-all), T-C1.0
   - **Tests**: 3 cases. AAA pattern.
   - **Verify**:
+
     ```bash
     pnpm test src/modules/auth/index.test.ts
     # → 1 case passes (compile-time check)
@@ -104,12 +112,14 @@ Close the 9 remaining tasks (T-025..T-033) of the parent `auth-foundation` chang
 ### C-2 task list
 
 - [ ] **T-027.1** Security test: timing equalization (`login.timing.test.ts`)
+
   - **Scope (RED → GREEN)**: 30 paired samples of `authorize()` with `known@example.com + wrong password` vs `unknown@example.com + any password`. Welch's t-test, p > 0.01. The test runs in CI; local dev can `SKIP_TIMING=true pnpm test` to skip. Real Argon2id runtime (in-process via `@node-rs/argon2`).
   - **Files**: `src/modules/auth/__tests__/security/login.timing.test.ts` (~80 lines)
   - **Lines estimate**: 80
   - **Depends on**: T-014 (auth.service with timing equalization)
   - **Tests**: Welch's t-test, 60 paired samples (30 + 30). Assert p > 0.01.
   - **Verify**:
+
     ```bash
     pnpm test src/modules/auth/__tests__/security/login.timing.test.ts
     # → p > 0.01
@@ -118,66 +128,77 @@ Close the 9 remaining tasks (T-025..T-033) of the parent `auth-foundation` chang
     ```
 
 - [ ] **T-027.2** Security test: OAuth state CSRF (`oauth.state-csrf.test.ts`)
+
   - **Scope (RED → GREEN)**: simulate Auth.js callback with tampered `state` parameter. Assert: no `User` row created, no `Account` row inserted, error response.
   - **Files**: `src/modules/auth/__tests__/security/oauth.state-csrf.test.ts` (~40 lines)
   - **Lines estimate**: 40
   - **Depends on**: T-018 (authjs wiring)
   - **Tests**: 3 cases (tampered state, missing state, valid state). Assert row counts.
   - **Verify**:
+
     ```bash
     pnpm test src/modules/auth/__tests__/security/oauth.state-csrf.test.ts
     # → 3 cases pass
     ```
 
 - [ ] **T-027.3** Security test: secrets in logs (`secrets.in-logs.test.ts`)
+
   - **Scope (RED → GREEN)**: capture log output during register, OAuth callback, and session-resolution paths. Inject `password`, `refresh_token`, `Authorization: Bearer <jwt>`, `id_token`, and CSRF token. Assert: none of those values appear in the captured log. End-to-end refinement of BR-AUTH-11.
   - **Files**: `src/modules/auth/__tests__/security/secrets.in-logs.test.ts` (~50 lines)
   - **Lines estimate**: 50
   - **Depends on**: T-007 (logger with denylist)
   - **Tests**: 4 scenarios (password, refresh_token, Bearer, id_token). Nested-object redaction.
   - **Verify**:
+
     ```bash
     pnpm test src/modules/auth/__tests__/security/secrets.in-logs.test.ts
     # → 4 scenarios pass
     ```
 
 - [ ] **T-027.4** Security test: origin-check (`origin-check.test.ts`)
+
   - **Scope (RED → GREEN)**: `POST /api/auth/register` with `Origin: https://attacker.com` → 403 `FORBIDDEN`. Same-origin POST → not 403.
   - **Files**: `src/modules/auth/__tests__/security/origin-check.test.ts` (~40 lines)
   - **Lines estimate**: 40
   - **Depends on**: T-021 (Hono origin-check middleware)
   - **Tests**: 2 cases (cross-origin + same-origin).
   - **Verify**:
+
     ```bash
     pnpm test src/modules/auth/__tests__/security/origin-check.test.ts
     # → 2 cases pass
     ```
 
 - [ ] **T-027.5** Security test: Argon2id parameters (`argon2.parameters.test.ts`)
+
   - **Scope (RED → GREEN)**: 30 calls to `hashArgon2id(password)`. Median runtime in [50, 100] ms on CI runner. Real Argon2id runtime. Fails the test if the runtime is outside the band.
   - **Files**: `src/modules/auth/__tests__/security/argon2.parameters.test.ts` (~40 lines)
   - **Lines estimate**: 40
   - **Depends on**: T-012 (argon2.hasher), T-027.1 (timing test sets the pattern)
   - **Tests**: 30 calls; assert median in [50, 100] ms.
   - **Verify**:
+
     ```bash
     pnpm test src/modules/auth/__tests__/security/argon2.parameters.test.ts
     # → median in [50, 100] ms
     ```
 
 - [ ] **T-027.6** Security test: cookie attributes (`cookie.attributes.test.ts`)
+
   - **Scope (RED → GREEN)**: capture `Set-Cookie: authjs.session-token=...` header. Assert: `HttpOnly`, `SameSite=Lax` always. `Secure` in production (`NODE_ENV=production`).
   - **Files**: `src/modules/auth/__tests__/security/cookie.attributes.test.ts` (~40 lines)
   - **Lines estimate**: 40
   - **Depends on**: T-018 (authjs)
   - **Tests**: 4 cases (HttpOnly, SameSite=Lax, Secure-in-prod, missing-Secure-in-dev).
   - **Verify**:
+
     ```bash
     pnpm test src/modules/auth/__tests__/security/cookie.attributes.test.ts
     # → 4 cases pass
     ```
 
 - [ ] **T-028** Author `.github/workflows/ci.yml`
+
   - **Scope**: 4 parallel jobs:
     1. **`lint`**: `pnpm install --frozen-lockfile`, `pnpm run lint`, `pnpm run typecheck`
     2. **`test`**: `pnpm install --frozen-lockfile`, `pnpm prisma migrate deploy` (with `services: postgres:` in the workflow), `pnpm test --coverage`, upload coverage artifact
@@ -191,6 +212,7 @@ Close the 9 remaining tasks (T-025..T-033) of the parent `auth-foundation` chang
   - **Verify**: pushing the branch triggers the workflow; the PR's docs link to the green check.
 
 - [ ] **T-029** Branch protection + `CODEOWNERS`
+
   - **Scope**: `.github/CODEOWNERS` at the repo root pointing to the maintainer (`@sebailla`). `docs/branch-protection.md` describes the rules: 1 review required, CI green, dismiss stale approvals on push, linear history, no force-pushes. The actual GitHub branch-protection settings are applied manually by the user (not in this change).
   - **Files**:
     - `.github/CODEOWNERS` (~5 lines)
@@ -199,6 +221,7 @@ Close the 9 remaining tasks (T-025..T-033) of the parent `auth-foundation` chang
   - **Depends on**: T-028 (the CI workflow must exist before branch protection can require it)
   - **Tests**: N/A
   - **Verify**:
+
     ```bash
     cat .github/CODEOWNERS
     # → lists @sebailla
@@ -225,6 +248,7 @@ Close the 9 remaining tasks (T-025..T-033) of the parent `auth-foundation` chang
 ### C-3 task list
 
 - [ ] **T-030** Five ADRs (Auth.js v5, Prisma 6, Argon2id, Hono catch-all, auto-link)
+
   - **Scope**: 5 ADRs in `docs/adr/`, MADR template (Context, Decision Drivers, Considered Options, Decision Outcome, Consequences, Confirmation). Each ADR has 3+ alternatives.
   - **Files**:
     - `docs/adr/0001-authjs-v5.md` (~30 lines)
@@ -236,6 +260,7 @@ Close the 9 remaining tasks (T-025..T-033) of the parent `auth-foundation` chang
   - **Depends on**: T-012 (argon2.hasher), T-018 (authjs), T-021 (Hono app)
   - **Tests**: N/A
   - **Verify**:
+
     ```bash
     ls docs/adr/
     # → 5 ADRs present
@@ -244,6 +269,7 @@ Close the 9 remaining tasks (T-025..T-033) of the parent `auth-foundation` chang
     ```
 
 - [ ] **T-031** Update `docs/architecture.md` (Auth section) + Spanish mirror
+
   - **Scope**: append an "Auth" section to `docs/architecture.md` with: high-level Mermaid diagram (the same one from the design's §1), data model summary (4 Prisma models, 3 added columns, unique constraint on `Account`), 8 Auth.js routes + 3 Hono routes, session strategy (database sessions, 30-day sliding, no JWT), auto-link security model, cross-module contracts (`auth()` helper, `User` is the identity anchor, `UserRegistered` / `UserSignedIn` events). Spanish mirror at `Documents-es/docs/architecture.md` updated in the same commit.
   - **Files**:
     - `docs/architecture.md` (+~150 lines)
@@ -252,6 +278,7 @@ Close the 9 remaining tasks (T-025..T-033) of the parent `auth-foundation` chang
   - **Depends on**: T-030 (ADRs)
   - **Tests**: N/A
   - **Verify**:
+
     ```bash
     grep -c "## Auth" docs/architecture.md
     # → 1
@@ -261,6 +288,7 @@ Close the 9 remaining tasks (T-025..T-033) of the parent `auth-foundation` chang
     ```
 
 - [ ] **T-032** Update `README.md` (local dev) + Spanish mirror
+
   - **Scope**: append a "Local dev" section to `README.md` with: `pnpm install`, Postgres setup (`docker compose up -d postgres` or Neon free-tier), `pnpm dev`, `pnpm test`, `pnpm test -- src/modules/auth/__tests__/security/`, `SKIP_TIMING=true` flag for noisy local dev. Spanish mirror at `Documents-es/README.md` updated in the same commit.
   - **Files**:
     - `README.md` (+~30 lines)
@@ -269,6 +297,7 @@ Close the 9 remaining tasks (T-025..T-033) of the parent `auth-foundation` chang
   - **Depends on**: T-031 (architecture.md Auth section)
   - **Tests**: N/A
   - **Verify**:
+
     ```bash
     grep -c "## Local dev" README.md
     # → 1
@@ -277,6 +306,7 @@ Close the 9 remaining tasks (T-025..T-033) of the parent `auth-foundation` chang
     ```
 
 - [ ] **T-033** Final commit, push, open PR, request reviewer (handoff)
+
   - **Scope**: 3 atomic commits for the C-3 PR:
     1. `docs(adr): add 5 ADRs for auth-foundation decisions` (T-030)
     2. `docs(architecture): add Auth section + Spanish mirror` (T-031, includes the FLAG-2 closure: re-sync `Documents-es/openspec/changes/auth-foundation/apply-progress.md` to mirror the English Slice B content)
@@ -296,6 +326,7 @@ Close the 9 remaining tasks (T-025..T-033) of the parent `auth-foundation` chang
   - **Depends on**: T-030, T-031, T-032
   - **Tests**: N/A (handoff)
   - **Verify**:
+
     ```bash
     git log origin/develop..HEAD
     # → 9 commits for Slice C (3 for C-1, 3 for C-2, 3 for C-3, plus apply-progress)
@@ -320,12 +351,12 @@ Close the 9 remaining tasks (T-025..T-033) of the parent `auth-foundation` chang
 
 ## Review workload forecast (mandatory)
 
-| Sub-slice | Tasks | Estimated lines | Overage vs 400-line budget |
-|-----------|-------|-----------------|---------------------------|
-| C-1 (module-resolution + catch-all + middleware + public API) | T-C1.0, T-025, T-026 | ~200 | **0.5× (under budget!)** |
-| C-2 (security tests + CI + branch protection) | T-027.1..6, T-028, T-029 | ~400 | 1.0× (right at budget) |
-| C-3 (ADRs + architecture.md + README + handoff) | T-030, T-031, T-032, T-033 | ~600 | 1.5× |
-| **Total** | 14 tasks (T-C1.0 + 9 Slice C + 4 handoff commits) | ~1,200 | — |
+| Sub-slice                                                     | Tasks                                             | Estimated lines | Overage vs 400-line budget |
+| ------------------------------------------------------------- | ------------------------------------------------- | --------------- | -------------------------- |
+| C-1 (module-resolution + catch-all + middleware + public API) | T-C1.0, T-025, T-026                              | ~200            | **0.5× (under budget!)**   |
+| C-2 (security tests + CI + branch protection)                 | T-027.1..6, T-028, T-029                          | ~400            | 1.0× (right at budget)     |
+| C-3 (ADRs + architecture.md + README + handoff)               | T-030, T-031, T-032, T-033                        | ~600            | 1.5×                       |
+| **Total**                                                     | 14 tasks (T-C1.0 + 9 Slice C + 4 handoff commits) | ~1,200          | —                          |
 
 C-1 is **under** the 400-line budget. C-2 is right at the budget. C-3 is over but the user already accepted overage for the parent change.
 

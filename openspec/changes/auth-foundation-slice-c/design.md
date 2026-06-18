@@ -1,6 +1,6 @@
 # Design — `auth-foundation-slice-c`
 
-**Status**: draft · **Author**: Sebastián Illa
+**Status**: closed-via-archive · **Author**: Sebastián Illa
 **Created**: 2026-06-13 · **Change**: `auth-foundation-slice-c`
 **Parent change**: `auth-foundation` (Slice A + B merged) · **Spec deltas**: `openspec/changes/auth-foundation-slice-c/spec.md`
 **Capabilities affected**: auth (extends canonical `openspec/specs/auth/spec.md`)
@@ -71,7 +71,11 @@ export class NextResponse extends Response {
   }
 
   static redirect(url: string, init?: ResponseInit): NextResponse {
-    return new NextResponse(null, { ...init, status: 302, headers: { location: url, ...(init?.headers || {}) } });
+    return new NextResponse(null, {
+      ...init,
+      status: 302,
+      headers: { location: url, ...(init?.headers || {}) },
+    });
   }
 }
 
@@ -212,14 +216,14 @@ src/modules/auth/__tests__/security/
 
 ### 4.2 The 6 tests
 
-| # | File | Requirement | Test method |
-|---|------|-------------|-------------|
-| 1 | `login.timing.test.ts` | Welch's t-test, p > 0.01 over 30 paired samples (`known + wrong` vs `unknown + any`) | Statistical test with real Argon2id |
-| 2 | `oauth.state-csrf.test.ts` | Tampered `state` parameter rejected, no `User`/`Account` rows inserted | Mock Auth.js callback, assert row counts |
-| 3 | `secrets.in-logs.test.ts` | 4 secret types (`password`, `refresh_token`, `Bearer`, `id_token`, CSRF) not in log output | Capture log output during register/callback/session paths |
-| 4 | `origin-check.test.ts` | Cross-origin POST → 403 `FORBIDDEN` | Assert 403 status |
-| 5 | `argon2.parameters.test.ts` | Hash median in [50, 100] ms on CI runner | Run 30 hashes, take median |
-| 6 | `cookie.attributes.test.ts` | `HttpOnly` + `SameSite=Lax` always; `Secure` in production | Capture `Set-Cookie` header |
+| #   | File                        | Requirement                                                                                | Test method                                               |
+| --- | --------------------------- | ------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| 1   | `login.timing.test.ts`      | Welch's t-test, p > 0.01 over 30 paired samples (`known + wrong` vs `unknown + any`)       | Statistical test with real Argon2id                       |
+| 2   | `oauth.state-csrf.test.ts`  | Tampered `state` parameter rejected, no `User`/`Account` rows inserted                     | Mock Auth.js callback, assert row counts                  |
+| 3   | `secrets.in-logs.test.ts`   | 4 secret types (`password`, `refresh_token`, `Bearer`, `id_token`, CSRF) not in log output | Capture log output during register/callback/session paths |
+| 4   | `origin-check.test.ts`      | Cross-origin POST → 403 `FORBIDDEN`                                                        | Assert 403 status                                         |
+| 5   | `argon2.parameters.test.ts` | Hash median in [50, 100] ms on CI runner                                                   | Run 30 hashes, take median                                |
+| 6   | `cookie.attributes.test.ts` | `HttpOnly` + `SameSite=Lax` always; `Secure` in production                                 | Capture `Set-Cookie` header                               |
 
 ### 4.3 Testcontainers-vs-fakes decision
 
@@ -433,33 +437,33 @@ The parent change's `apply-progress.md` is stale in Spanish (it covers Slice A o
 
 Per the parent change's `openspec/config.yaml` (`strictTdd.enabled: true`):
 
-| Task | Test files | RED | GREEN | TRIANGULATE | REFACTOR |
-|------|-----------|-----|-------|-------------|----------|
-| T-025 | `app/api/[...path]/route.test.ts` | 2 cases (auth.js routing precedence, hono routing) | both pass | cross-origin POST + auth.js signin path | clean |
-| T-026 | `src/modules/auth/index.test.ts` + `middleware.test.ts` | 2 cases (compile-time export, 302 redirect) | both pass | same path authenticated vs not | clean |
-| T-027.1 | `src/modules/auth/__tests__/security/login.timing.test.ts` | Welch's t-test, 30 paired samples | p > 0.01 | alternate wrong-password vs dummy-hash | clean |
-| T-027.2 | `oauth.state-csrf.test.ts` | tampered state rejected | passes | row counts for User + Account | clean |
-| T-027.3 | `secrets.in-logs.test.ts` | 4 scenarios (password, refresh_token, Bearer, id_token) | all 4 pass | nested-object redaction | clean |
-| T-027.4 | `origin-check.test.ts` | cross-origin → 403 | passes | same-origin → not 403 | clean |
-| T-027.5 | `argon2.parameters.test.ts` | 30 hash calls | median in [50, 100] ms | alt params out of band | clean |
-| T-027.6 | `cookie.attributes.test.ts` | HttpOnly + SameSite=Lax | both pass | Secure in production | clean |
-| T-028 | N/A (CI is the test) | workflow runs 4 jobs | all green on merge commit | job-failure scenarios | clean |
-| T-029 | N/A | CODEOWNERS file lists maintainer | passes | rules documented | clean |
-| T-030 | N/A | 5 ADRs exist with `### Decision` + `### Considered Options` | 5/5 | each ADR has 3+ alternatives | clean |
-| T-031 | N/A (docs) | `docs/architecture.md` has Auth section | passes | Mermaid renders | clean |
-| T-032 | N/A (docs) | `README.md` has local-dev section | passes | `--skip-timing` flag documented | clean |
-| T-033 | N/A (handoff) | all 9 tasks `[x]` + PR opened + reviewer assigned | passes | handoff file written | clean |
+| Task    | Test files                                                 | RED                                                         | GREEN                     | TRIANGULATE                             | REFACTOR |
+| ------- | ---------------------------------------------------------- | ----------------------------------------------------------- | ------------------------- | --------------------------------------- | -------- |
+| T-025   | `app/api/[...path]/route.test.ts`                          | 2 cases (auth.js routing precedence, hono routing)          | both pass                 | cross-origin POST + auth.js signin path | clean    |
+| T-026   | `src/modules/auth/index.test.ts` + `middleware.test.ts`    | 2 cases (compile-time export, 302 redirect)                 | both pass                 | same path authenticated vs not          | clean    |
+| T-027.1 | `src/modules/auth/__tests__/security/login.timing.test.ts` | Welch's t-test, 30 paired samples                           | p > 0.01                  | alternate wrong-password vs dummy-hash  | clean    |
+| T-027.2 | `oauth.state-csrf.test.ts`                                 | tampered state rejected                                     | passes                    | row counts for User + Account           | clean    |
+| T-027.3 | `secrets.in-logs.test.ts`                                  | 4 scenarios (password, refresh_token, Bearer, id_token)     | all 4 pass                | nested-object redaction                 | clean    |
+| T-027.4 | `origin-check.test.ts`                                     | cross-origin → 403                                          | passes                    | same-origin → not 403                   | clean    |
+| T-027.5 | `argon2.parameters.test.ts`                                | 30 hash calls                                               | median in [50, 100] ms    | alt params out of band                  | clean    |
+| T-027.6 | `cookie.attributes.test.ts`                                | HttpOnly + SameSite=Lax                                     | both pass                 | Secure in production                    | clean    |
+| T-028   | N/A (CI is the test)                                       | workflow runs 4 jobs                                        | all green on merge commit | job-failure scenarios                   | clean    |
+| T-029   | N/A                                                        | CODEOWNERS file lists maintainer                            | passes                    | rules documented                        | clean    |
+| T-030   | N/A                                                        | 5 ADRs exist with `### Decision` + `### Considered Options` | 5/5                       | each ADR has 3+ alternatives            | clean    |
+| T-031   | N/A (docs)                                                 | `docs/architecture.md` has Auth section                     | passes                    | Mermaid renders                         | clean    |
+| T-032   | N/A (docs)                                                 | `README.md` has local-dev section                           | passes                    | `--skip-timing` flag documented         | clean    |
+| T-033   | N/A (handoff)                                              | all 9 tasks `[x]` + PR opened + reviewer assigned           | passes                    | handoff file written                    | clean    |
 
 ---
 
 ## 9. Review workload forecast (mandatory)
 
-| Sub-slice | Tasks | Estimated lines | Overage vs 400-line budget |
-|-----------|-------|-----------------|---------------------------|
-| C-1 (module-resolution + catch-all + middleware + public API) | DELTA-C1.1, T-025, T-026 | ~200 | 0.5× (under budget!) |
-| C-2 (security tests + CI + branch protection) | T-027, T-028, T-029 | ~700 | 1.75× |
-| C-3 (ADRs + architecture.md + README + handoff) | T-030, T-031, T-032, T-033 | ~600 | 1.5× |
-| **Total** | 9 tasks + module-resolution fix | ~1,500 | — |
+| Sub-slice                                                     | Tasks                           | Estimated lines | Overage vs 400-line budget |
+| ------------------------------------------------------------- | ------------------------------- | --------------- | -------------------------- |
+| C-1 (module-resolution + catch-all + middleware + public API) | DELTA-C1.1, T-025, T-026        | ~200            | 0.5× (under budget!)       |
+| C-2 (security tests + CI + branch protection)                 | T-027, T-028, T-029             | ~700            | 1.75×                      |
+| C-3 (ADRs + architecture.md + README + handoff)               | T-030, T-031, T-032, T-033      | ~600            | 1.5×                       |
+| **Total**                                                     | 9 tasks + module-resolution fix | ~1,500          | —                          |
 
 C-1 is under the 400-line budget. C-2 and C-3 are over but the user already accepted overage for the parent change. The 3 chained PRs are sequenced C-1 → C-2 → C-3.
 

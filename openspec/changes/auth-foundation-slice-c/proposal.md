@@ -1,6 +1,6 @@
 # Proposal — `auth-foundation-slice-c`
 
-**Status**: draft · **Author**: Sebastián Illa
+**Status**: closed-via-archive · **Author**: Sebastián Illa
 **Created**: 2026-06-13 · **Target slice**: Slice C of `auth-foundation` · **Capability**: auth
 **Upstream**: global SDD preflight (interactive, both, auto-forecast, 400 lines)
 **Parent change**: `auth-foundation` (Slice A + B already merged to develop as PRs #5, #17) · **Verify report**: `file-only/verify-auth-foundation-slice-ab.md` · **CRITICAL flag**: issue #18 (module-resolution bug)
