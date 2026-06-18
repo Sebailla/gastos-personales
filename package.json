@@ -18,7 +18,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "prisma": "prisma",
-    "prepare": "husky"
+    "prepare": "husky",
+    "docs:obsidian": "tsx scripts/sync-obsidian.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "2.11.2",
