@@ -340,14 +340,20 @@ These are open for the next round (proposal review → user
 confirm → spec writes). Defaults are stated; the user can
 override at review.
 
-1. **DG-V3-1 — Styling system.** The task description referenced
-   "plain Tailwind utility classes", but the project does not have
-   `tailwindcss` in `package.json`, no `tailwind.config.ts`, no
-   `postcss.config.*`. Adding Tailwind is a 3–5 file change
-   (install, postcss config, content paths, base CSS). **Default**:
-   plain CSS via `app/accounts/accounts.module.css` (~50 lines)
-   or inline `style={{ ... }}` for one-offs. **Open**: confirm
-   plain CSS, or accept the Tailwind install in this SDD.
+1. **DG-V3-1 — Styling system. ✅ RESOLVED 2026-06-18 (user decision).**
+   The task description referenced "plain Tailwind utility classes",
+   but the project did not have `tailwindcss` in `package.json`, no
+   `tailwind.config.ts`, no `postcss.config.*`. **Resolution**: Tailwind
+   is in scope for this SDD. The `sdd-apply` phase installs
+   `tailwindcss` + `@tailwindcss/postcss` (or `tailwindcss` + PostCSS
+   config, depending on the Next.js 16 + Tailwind v4 compatibility
+   choice at apply time — finalized in `sdd-design`), adds
+   `postcss.config.mjs`, adds `tailwind.config.ts` with the project's
+   content paths (`./app/**/*.{ts,tsx}`, `./src/**/*.{ts,tsx}`), and
+   adds a `globals.css` with the three `@tailwind base/components/utilities`
+   directives. The UI smoke slice uses Tailwind utility classes for all
+   styling. The future `ui-accounts` change can extend the design system
+   (theme tokens, component primitives) without re-doing setup.
 2. **DG-V3-2 — List truncation hint.** When `total > 50`, render
    `"Showing first 50 of <total>"` in the table footer.
    **Default**: yes, show the count. **Open**: silent truncation
@@ -389,14 +395,14 @@ EUR }`, opening-balance hybrid switches between fresh and
 
 ## Risks
 
-| Risk                                                                                | Mitigation                                                                              |
-| ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Plain-CSS default (DG-V3-1) looks unstyled vs. the task's Tailwind intent.          | DG-V3-1 surfaces it; if user prefers Tailwind, the design tasks add it before PR merge. |
-| UI scope creep (edit/archive buttons, skeletons, navigation) leaks into the change. | Out-of-scope section is explicit; reviewer's job to enforce.                            |
-| `fx-cache` lands after `accounts-ledger` and the balance widget shows 503 in prod.  | The 503 inline error is the documented behavior. Widget is verified by hand pre-merge.  |
-| v2 git history is unrecoverable (branches deleted).                                 | Commit messages live in reflog ~30 days; v2 commit message is in `.git/COMMIT_EDITMSG`. |
-| Three chained PRs exceed the 400-line review budget.                                | Auto-forecast accepts overage (user has done this before on `auth-foundation`).         |
-| Smoke UI is mistaken for production-ready and shipped without `ui-accounts`.        | A short `// smoke-minimal, not production` comment in each page header.                 |
+| Risk                                                                                | Mitigation                                                                                                                                         |
+| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Plain-CSS default (DG-V3-1) looks unstyled vs. the task's Tailwind intent.          | **Resolved 2026-06-18**: user accepted the Tailwind install. The apply phase installs + configures Tailwind; the smoke slice uses utility classes. |
+| UI scope creep (edit/archive buttons, skeletons, navigation) leaks into the change. | Out-of-scope section is explicit; reviewer's job to enforce.                                                                                       |
+| `fx-cache` lands after `accounts-ledger` and the balance widget shows 503 in prod.  | The 503 inline error is the documented behavior. Widget is verified by hand pre-merge.                                                             |
+| v2 git history is unrecoverable (branches deleted).                                 | Commit messages live in reflog ~30 days; v2 commit message is in `.git/COMMIT_EDITMSG`.                                                            |
+| Three chained PRs exceed the 400-line review budget.                                | Auto-forecast accepts overage (user has done this before on `auth-foundation`).                                                                    |
+| Smoke UI is mistaken for production-ready and shipped without `ui-accounts`.        | A short `// smoke-minimal, not production` comment in each page header.                                                                            |
 
 ## Rollback
 

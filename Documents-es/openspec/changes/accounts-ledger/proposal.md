@@ -359,15 +359,21 @@ Quedan abiertos para la próxima ronda (revisión de propuesta →
 confirmación del usuario → escritura de spec). Los defaults están
 planteados; el usuario puede overridear en la revisión.
 
-1. **DG-V3-1 — Styling system.** La descripción de la tarea
-   referenció "plain Tailwind utility classes", pero el proyecto
-   no tiene `tailwindcss` en `package.json`, ni `tailwind.config.ts`,
-   ni `postcss.config.*`. Agregar Tailwind es un cambio de 3–5
-   files (install, postcss config, content paths, base CSS).
-   **Default**: CSS plano vía `app/accounts/accounts.module.css`
-   (~50 líneas) o `style={{ ... }}` inline para one-offs. **Open**:
-   confirmar CSS plano, o aceptar la instalación de Tailwind en
-   este SDD.
+1. **DG-V3-1 — Styling system. ✅ RESUELTO 2026-06-18 (decisión del usuario).**
+   La descripción de la tarea referenció "plain Tailwind utility classes",
+   pero el proyecto no tenía `tailwindcss` en `package.json`, ni
+   `tailwind.config.ts`, ni `postcss.config.*`. **Resolución**: Tailwind
+   está en el alcance de este SDD. La fase `sdd-apply` instala
+   `tailwindcss` + `@tailwindcss/postcss` (o `tailwindcss` + PostCSS
+   config, dependiendo de la decisión de compatibilidad Next.js 16 +
+   Tailwind v4 al momento de aplicar — se finaliza en `sdd-design`),
+   agrega `postcss.config.mjs`, agrega `tailwind.config.ts` con los
+   content paths del proyecto (`./app/**/*.{ts,tsx}`, `./src/**/*.{ts,tsx}`),
+   y agrega un `globals.css` con las tres directivas
+   `@tailwind base/components/utilities`. El slice UI smoke usa Tailwind
+   utility classes para todo el styling. El futuro change `ui-accounts`
+   puede extender el design system (theme tokens, primitivos de
+   componentes) sin rehacer el setup.
 2. **DG-V3-2 — List truncation hint.** Cuando `total > 50`,
    renderizar `"Showing first 50 of <total>"` en el footer de la
    tabla. **Default**: sí, mostrar el count. **Open**: la
@@ -411,14 +417,14 @@ El change está done cuando:
 
 ## Risks
 
-| Riesgo                                                                                    | Mitigación                                                                                          |
-| ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| El default plain-CSS (DG-V3-1) se ve sin estilo vs. la intención de Tailwind de la task.  | DG-V3-1 lo flagea; si el usuario prefiere Tailwind, las tasks de design lo agregan antes del merge. |
-| Scope creep de la UI (botones edit/archive, skeletons, navegación) se filtra al change.   | La sección de out-of-scope es explícita; el trabajo del reviewer es enforcearla.                    |
-| `fx-cache` aterriza después de `accounts-ledger` y el balance widget muestra 503 en prod. | El error inline `503` es el comportamiento documentado. El widget se verifica a mano pre-merge.     |
-| La historia de git de v2 es irrecuperable (branches borradas).                            | Los mensajes de commit viven en reflog ~30 días; el mensaje de v2 está en `.git/COMMIT_EDITMSG`.    |
-| Tres PRs encadenados exceden el budget de revisión de 400 líneas.                         | El auto-forecast acepta el overage (el usuario lo ha hecho antes en `auth-foundation`).             |
-| La UI smoke se confunde con production-ready y se envía sin `ui-accounts`.                | Un comment corto `// smoke-minimal, not production` en el header de cada página.                    |
+| Riesgo                                                                                    | Mitigación                                                                                                                                             |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| El default plain-CSS (DG-V3-1) se ve sin estilo vs. la intención de Tailwind de la task.  | **Resuelto 2026-06-18**: el usuario aceptó la instalación de Tailwind. La fase apply instala y configura Tailwind; el slice smoke usa utility classes. |
+| Scope creep de la UI (botones edit/archive, skeletons, navegación) se filtra al change.   | La sección de out-of-scope es explícita; el trabajo del reviewer es enforcearla.                                                                       |
+| `fx-cache` aterriza después de `accounts-ledger` y el balance widget muestra 503 en prod. | El error inline `503` es el comportamiento documentado. El widget se verifica a mano pre-merge.                                                        |
+| La historia de git de v2 es irrecuperable (branches borradas).                            | Los mensajes de commit viven en reflog ~30 días; el mensaje de v2 está en `.git/COMMIT_EDITMSG`.                                                       |
+| Tres PRs encadenados exceden el budget de revisión de 400 líneas.                         | El auto-forecast acepta el overage (el usuario lo ha hecho antes en `auth-foundation`).                                                                |
+| La UI smoke se confunde con production-ready y se envía sin `ui-accounts`.                | Un comment corto `// smoke-minimal, not production` en el header de cada página.                                                                       |
 
 ## Rollback
 
