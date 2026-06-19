@@ -41,6 +41,7 @@ describe('AppError', () => {
       NAME_TAKEN: 409,
       NOT_FOUND: 404,
       FX_UNAVAILABLE: 503,
+      FX_NOT_SUPPORTED: 409,
       RATE_LIMITED: 429,
       OAUTH_PROVIDER_UNAVAILABLE: 502,
       INTERNAL_ERROR: 500,

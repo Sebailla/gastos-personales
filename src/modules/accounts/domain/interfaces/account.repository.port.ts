@@ -64,26 +64,26 @@ export interface CreateFinancialAccountInput {
 }
 
 export interface UpdateFinancialAccountPatch {
-  readonly name?: string;
-  readonly currency?: AccountCurrency;
-  readonly openingBalanceMinor?: number;
-  readonly openingBalanceMode?: 'FRESH' | 'HISTORICAL';
-  readonly openingBalanceDate?: Date | null;
-  readonly bankName?: string | null;
-  readonly accountKind?: 'SAVINGS' | 'CHECKING' | null;
-  readonly issuer?: string | null;
-  readonly creditLimitMinor?: number | null;
-  readonly statementDay?: number | null;
-  readonly paymentDueDay?: number | null;
-  readonly broker?: string | null;
-  readonly investmentType?:
+  name?: string;
+  currency?: AccountCurrency;
+  openingBalanceMinor?: number;
+  openingBalanceMode?: 'FRESH' | 'HISTORICAL';
+  openingBalanceDate?: Date | null;
+  bankName?: string | null;
+  accountKind?: 'SAVINGS' | 'CHECKING' | null;
+  issuer?: string | null;
+  creditLimitMinor?: number | null;
+  statementDay?: number | null;
+  paymentDueDay?: number | null;
+  broker?: string | null;
+  investmentType?:
     | 'STOCKS'
     | 'BONDS'
     | 'MUTUAL_FUNDS'
     | 'CERTS_OF_DEPOSIT'
     | 'OTHER'
     | null;
-  readonly walletAddress?: string | null;
+  walletAddress?: string | null;
 }
 
 export interface AccountRepositoryPort {
