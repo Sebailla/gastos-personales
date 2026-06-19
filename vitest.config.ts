@@ -21,6 +21,7 @@ export default defineConfig({
       reporter: ['text', 'lcov', 'json'],
       include: [
         'src/modules/auth/**',
+        'src/modules/accounts/**',
         'src/shared/db/**',
         'src/shared/env/**',
         'src/shared/logger/**',

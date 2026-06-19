@@ -19,22 +19,23 @@ generator client {
 // --- Auth.js Prisma adapter canonical models ---
 
 model User {
-  id              String    @id @default(cuid())
-  name            String?
-  email           String    @unique
-  emailVerified   DateTime?
-  image           String?
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
 
   // --- Additions on top of the Auth.js canonical schema ---
   passwordHash    String?
   defaultProvider String    @default("local")
   lastLoginAt     DateTime?
 
-  accounts        Account[]
-  sessions        Session[]
+  accounts          Account[]
+  sessions          Session[]
+  financialAccounts FinancialAccount[]
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([createdAt]) // for the future user-deletion change's bulk queries
 }
@@ -74,4 +75,101 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// ============================================================================
+// accounts capability — added by accounts-ledger (PR-A, task T-A1)
+// See: openspec/changes/accounts-ledger/specs/accounts/spec.md §"Enums"
+// See: openspec/changes/accounts-ledger/design.md §3
+//
+// Pure enum declarations for the FinancialAccount model. The model
+// itself lands in T-A2. These enums are the source of truth; the
+// domain layer in src/modules/accounts/domain/entities/financial-account.ts
+// mirrors them as plain TypeScript const objects (no Prisma import
+// in the domain layer — architecture-standards rule).
+// ============================================================================
+
+enum AccountType {
+  BANK
+  CREDIT
+  INVESTMENT
+  CRYPTO
+  CASH
+  OTHER
+}
+
+enum AccountKind {
+  SAVINGS
+  CHECKING
+}
+
+enum InvestmentType {
+  STOCKS
+  BONDS
+  MUTUAL_FUNDS
+  CERTS_OF_DEPOSIT
+  OTHER
+}
+
+enum OpeningBalanceMode {
+  FRESH // balance starts at zero on creation date
+  HISTORICAL // balance is back-dated to openingBalanceDate
+}
+
+enum AccountCurrency {
+  ARS
+  USD
+  EUR
+}
+
+// ============================================================================
+// FinancialAccount model — added by accounts-ledger (PR-A, task T-A2)
+// See: openspec/changes/accounts-ledger/specs/accounts/spec.md §"Entities"
+// See: openspec/changes/accounts-ledger/design.md §3
+//
+// Cross-module invariant: FinancialAccount.userId references User.id
+// (defined by auth-foundation in openspec/specs/auth/spec.md, BR-AUTH-1)
+// with onDelete: Cascade. The application layer MUST NOT trust any
+// userId from a request body; the session is the source of truth
+// (openspec/changes/accounts-ledger/specs/accounts/spec.md,
+// "All endpoints require an authenticated session").
+//
+// Index strategy (from the spec §"Indexes"):
+//   @@unique([userId, type, name])   -- names unique per user per type
+//   @@index([userId, archivedAt])    -- list: live accounts first
+//   @@index([userId, createdAt])     -- list: order by recency
+// ============================================================================
+
+model FinancialAccount {
+  id                  String             @id @default(cuid())
+  userId              String
+  type                AccountType
+  name                String
+  currency            AccountCurrency
+  openingBalanceMinor Int
+  openingBalanceMode  OpeningBalanceMode
+  openingBalanceDate  DateTime?
+  archivedAt          DateTime?
+
+  // Type-specific fields (only the relevant set is populated per type).
+  // The Zod create schema (application/validation/account-create.schema.ts
+  // in PR-B) enforces that the wrong-type field set is rejected at the API.
+  bankName         String?
+  accountKind      AccountKind?
+  issuer           String?
+  creditLimitMinor Int?
+  statementDay     Int?
+  paymentDueDay    Int?
+  broker           String?
+  investmentType   InvestmentType?
+  walletAddress    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, name])
+  @@index([userId, archivedAt])
+  @@index([userId, createdAt])
 }
