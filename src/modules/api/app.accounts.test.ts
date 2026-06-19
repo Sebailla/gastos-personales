@@ -78,15 +78,17 @@ function buildDeps(accountService: AccountService, fx: FxRateProviderStub): Hono
   };
 }
 
-function buildAccountServiceMock(overrides: Partial<{
-  list: ReturnType<typeof vi.fn>;
-  getById: ReturnType<typeof vi.fn>;
-  create: ReturnType<typeof vi.fn>;
-  update: ReturnType<typeof vi.fn>;
-  archive: ReturnType<typeof vi.fn>;
-  unarchive: ReturnType<typeof vi.fn>;
-  getBalance: ReturnType<typeof vi.fn>;
-}> = {}): AccountService {
+function buildAccountServiceMock(
+  overrides: Partial<{
+    list: ReturnType<typeof vi.fn>;
+    getById: ReturnType<typeof vi.fn>;
+    create: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+    archive: ReturnType<typeof vi.fn>;
+    unarchive: ReturnType<typeof vi.fn>;
+    getBalance: ReturnType<typeof vi.fn>;
+  }> = {},
+): AccountService {
   return {
     list: overrides.list ?? vi.fn(async () => ({ data: [], nextCursor: null })),
     getById: overrides.getById ?? vi.fn(async () => makeRow()),
@@ -94,15 +96,17 @@ function buildAccountServiceMock(overrides: Partial<{
     update: overrides.update ?? vi.fn(async () => makeRow()),
     archive: overrides.archive ?? vi.fn(async () => makeRow({ archivedAt: new Date() })),
     unarchive: overrides.unarchive ?? vi.fn(async () => makeRow({ archivedAt: null })),
-    getBalance: overrides.getBalance ?? vi.fn(async () => ({
-      native: { amount: 100000, currency: AccountCurrency.USD },
-      display: {
-        amount: 92000,
-        currency: AccountCurrency.EUR,
-        fxRate: 0.92,
-        fxAsOf: new Date('2026-06-18T20:00:00.000Z'),
-      },
-    })),
+    getBalance:
+      overrides.getBalance ??
+      vi.fn(async () => ({
+        native: { amount: 100000, currency: AccountCurrency.USD },
+        display: {
+          amount: 92000,
+          currency: AccountCurrency.EUR,
+          fxRate: 0.92,
+          fxAsOf: new Date('2026-06-18T20:00:00.000Z'),
+        },
+      })),
   } as unknown as AccountService;
 }
 
