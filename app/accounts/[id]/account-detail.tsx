@@ -1,3 +1,4 @@
+// smoke-minimal, not production
 /**
  * AccountDetail — pure render Server Component.
  *
@@ -12,20 +13,10 @@
  */
 
 import type { FinancialAccountWire } from '../../_lib/account-types';
+import { formatMinor } from '../../_lib/format-minor';
 
 interface Props {
   account: FinancialAccountWire;
-}
-
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  ARS: '$',
-  USD: 'US$',
-  EUR: '€',
-};
-
-function formatMinor(amountMinor: number, currency: string): string {
-  const symbol = CURRENCY_SYMBOLS[currency] ?? currency;
-  return `${symbol}${(amountMinor / 100).toFixed(2)}`;
 }
 
 function formatDate(iso: string | null): string {

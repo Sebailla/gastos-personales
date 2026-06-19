@@ -1,3 +1,4 @@
+// smoke-minimal, not production
 'use client';
 
 /**
@@ -31,6 +32,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { FinancialAccountBalanceWire } from '../../_lib/account-types';
+import { formatMinor } from '../../_lib/format-minor';
 
 const CURRENCIES = ['ARS', 'USD', 'EUR'] as const;
 type DisplayCurrency = (typeof CURRENCIES)[number];
@@ -39,17 +41,6 @@ interface Props {
   accountId: string;
   nativeAmount: number;
   nativeCurrency: DisplayCurrency;
-}
-
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  ARS: '$',
-  USD: 'US$',
-  EUR: '€',
-};
-
-function formatMinor(amount: number, currency: string): string {
-  const symbol = CURRENCY_SYMBOLS[currency] ?? currency;
-  return `${symbol}${(amount / 100).toFixed(2)}`;
 }
 
 export function BalanceWidget({

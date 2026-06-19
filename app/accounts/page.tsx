@@ -21,9 +21,13 @@
  * The `EphemeralToast` is mounted on this page because both
  * the post-create redirect (BR-ACC-16) and the detail 404
  * redirect (BR-ACC-19) land on `/accounts` with a
- * `?toast=…` query parameter.
+ * `?toast=…` query parameter. The toast is wrapped in
+ * `<Suspense>` because `useSearchParams()` requires a
+ * Suspense boundary in Next.js 16+; without it, the entire
+ * route falls back to client-side rendering.
  */
 
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { auth } from '@/modules/auth';
 import { serverHonoRequest } from '@/lib/server-hono';
@@ -65,7 +69,9 @@ export default async function AccountsPage() {
         </a>
       </header>
 
-      <EphemeralToast searchParamKey="toast" />
+      <Suspense>
+        <EphemeralToast searchParamKey="toast" />
+      </Suspense>
 
       {body.data.length === 0 ? (
         <p>No accounts yet — create one</p>

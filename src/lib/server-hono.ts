@@ -33,10 +33,7 @@
  */
 
 import { auth } from '@/modules/auth';
-import {
-  createHonoApp,
-  type HonoAppDeps,
-} from '@/modules/api';
+import { createHonoApp, type HonoAppDeps } from '@/modules/api';
 import type { HonoContextVariables } from '@/modules/api/app';
 import { UserRepository } from '@/modules/auth/infrastructure/repositories/user.repository';
 import { Argon2idHasher } from '@/modules/auth/infrastructure/external/argon2.hasher';
@@ -49,11 +46,6 @@ import { FxRateProviderUnconfigured } from '@/modules/accounts/infrastructure/ex
 import { OpenAPIHono } from '@hono/zod-openapi';
 
 function buildAccountsDeps(): Omit<HonoAppDeps, 'authjsAuth'> {
-  // The PrismaClient satisfies the narrow port structurally
-  // (the `user` and `financialAccount` delegates have the
-  // methods the repositories use). The cast keeps this
-  // helper from importing the full PrismaClientOptions type
-  // for what is, in practice, a structural compat check.
   // The PrismaClient satisfies the narrow port structurally
   // (the `user` and `financialAccount` delegates have the
   // methods the repositories use). The cast keeps this
@@ -81,24 +73,22 @@ function buildAccountsDeps(): Omit<HonoAppDeps, 'authjsAuth'> {
  * (e.g. `/api/accounts?limit=50`). The protocol + host are
  * placeholders; Hono only uses the path + headers + body.
  */
-export async function serverHonoRequest(
-  path: string,
-  init: RequestInit = {},
-): Promise<Response> {
+export async function serverHonoRequest(path: string, init: RequestInit = {}): Promise<Response> {
   const session = await auth();
   // Auth.js v5 returns `Session | null` where `session.user`
   // is `{ id, email, ... }` (broader than the AuthjsAuthFn
   // type's narrow shape). We narrow via the optional fields
   // (the production `auth()` call always has them populated
   // for an authenticated user).
-  const narrowed = session?.user?.id && session.user.email
-    ? {
-        user: {
-          id: String(session.user.id),
-          email: String(session.user.email),
-        },
-      }
-    : null;
+  const narrowed =
+    session?.user?.id && session.user.email
+      ? {
+          user: {
+            id: String(session.user.id),
+            email: String(session.user.email),
+          },
+        }
+      : null;
   const deps: HonoAppDeps = {
     ...buildAccountsDeps(),
     authjsAuth: async () => narrowed,
