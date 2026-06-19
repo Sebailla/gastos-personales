@@ -6,6 +6,8 @@ import type { PasswordHasherPort } from '@/modules/auth/domain/interfaces/passwo
 import type { User, NewUser, DefaultProvider } from '@/modules/auth/domain/entities/user';
 import { EventDispatcher } from '@/shared/events/event-dispatcher';
 import { ErrorCode } from '@/shared/errors/error-codes';
+import { AccountService } from '@/modules/accounts';
+import { FxRateProviderStub } from '@/modules/accounts/infrastructure/external/fx-rate-provider.stub';
 
 const buildSvc = (findByIdResult: User | null): AuthService => {
   const users: UserRepositoryPort = {
@@ -48,6 +50,16 @@ const buildSvc = (findByIdResult: User | null): AuthService => {
 const buildDeps = (svc: AuthService, authjsAuth: HonoAppDeps['authjsAuth']): HonoAppDeps => ({
   authService: svc,
   authjsAuth,
+  accountService: {
+    list: vi.fn(),
+    getById: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    archive: vi.fn(),
+    unarchive: vi.fn(),
+    getBalance: vi.fn(),
+  } as unknown as AccountService,
+  fxRateProvider: new FxRateProviderStub(),
 });
 
 describe('createHonoApp', () => {

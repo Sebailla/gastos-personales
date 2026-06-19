@@ -62,3 +62,7 @@ export type {
   FxConversionRequest,
   FxConversionResult,
 } from './domain/interfaces/fx-rate-provider.port';
+
+export { FxRateProviderUnconfigured } from './infrastructure/external/fx-rate-provider.unconfigured';
+export { FxRateProviderStub } from './infrastructure/external/fx-rate-provider.stub';
+export { AccountRepositoryPrisma } from './infrastructure/repositories/account.repository.prisma';
