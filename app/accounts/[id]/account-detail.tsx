@@ -1,3 +1,4 @@
+// smoke-minimal, not production
 /**
  * AccountDetail — pure render Server Component.
  *
