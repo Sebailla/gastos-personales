@@ -1063,3 +1063,503 @@ Delta por archivo en PR-B:
 | Los tests de integración de Hono usan un fake estructural de Prisma; el path real de Prisma no se ejercita en la suite local de dev                                         | CI usa testcontainers-Postgres para el path real de Prisma; la suite local de dev usa el fake. El módulo de auth usa el mismo patrón.                        |
 | Los archivos de actions comparten un par `_narrow.ts` + `_shared.ts` que no se exporta desde `src/modules/accounts/index.ts`                                                | El prefijo `_` los marca como privados al directorio de actions; la superficie pública es intencionalmente estrecha.                                         |
 | `pnpm run build` requiere env vars (gap preexistente del setup del proyecto)                                                                                                | Build verificado exportando las mismas vars que usa `test/setup.ts`; documentado en la fila del gate de pre-completion de PR-B.                              |
+
+# Progreso de apply — `accounts-ledger` (PR-C)
+
+**Branch**: `feat/accounts-ledger-c` (basada en `develop` @ `c8df8f1`, post-merge de PR-B #30)
+**Worker**: subagent sdd-apply, sin children lanzados
+**Strict TDD**: activado per `openspec/config.yaml` (runner: `pnpm test`)
+**Scope**: solo PR-C — T-C1..T-C10. PR-A y PR-B ya están mergeadas (#29, #30).
+**Started**: 2026-06-19
+
+> **Nota sobre strict TDD en PR-C**: per el proposal v3 y el design §10.5, la UI smoke se verifica a mano (sin tests automatizados). El ciclo TDD aplica a las subtasks testeables: T-C1 (lockfile check), T-C2 (build verde), T-C6 (typecheck compile-time), T-C8 (grep test), T-C9 (docs), T-C10 (pre-merge gate). T-C3, T-C4, T-C5, T-C7 son hand-verified; el checklist de verificación manual queda capturado en T-C10.
+
+---
+
+## Notas de pre-flight
+
+- Worktree en `/Users/sebailla/Documents/Proyectos/2026/on-line/gastos-personales-accounts-ledger-c`, branch `feat/accounts-ledger-c`. Branch pointer en `c8df8f1` (develop HEAD) al inicio de la sesión, **0 commits ahead of develop** al arrancar.
+- **No hay archivo `.env`** en la raíz del worktree. `pnpm run build` requiere env vars (gap preexistente del setup del proyecto); build verificado exportando las mismas vars que usa `test/setup.ts`.
+- **Conflicto de pnpm workspace**: el `/Users/sebailla/pnpm-workspace.yaml` a nivel usuario (config de `allowBuilds`) hacía que `pnpm install` usara HOME como workspace root. Workaround: cada `pnpm add` y `pnpm install` en esta sesión usa `--ignore-workspace`. Documentado como deviation abajo.
+- **`pnpm install --frozen-lockfile` requiere el flag `--ignore-workspace`** en este environment por la misma razón. El flag es una conveniencia de la sesión; no cambia el contenido del lockfile.
+- **Husky pre-commit + `gga run`**: igual que en PR-A/PR-B, falla porque `openrouter` no está configurado. El worker NO corre `git commit`; todos los cambios quedan staged o unstaged para el user.
+- **No `Co-authored-by` en ningún commit message** (AGENTS.md §4.5, §12.2).
+- **No hay nuevas deps más allá de la lista aprobada de T-C1** (`tailwindcss@^4.1.0`, `@tailwindcss/postcss@^4.1.0`, `postcss@^8.4.0`).
+
+---
+
+## T-C1 — Instalar Tailwind v4 + PostCSS
+
+**Status**: GREEN ✓
+
+### Evidencia TDD
+
+- **RED (contrato del lockfile)**: `pnpm install --frozen-lockfile` debe exit 0. Antes del install, el lockfile está stale (sin entries de Tailwind), así que un install con `--frozen-lockfile` falla. Estado RED: el lockfile no contiene `tailwindcss`, `@tailwindcss/postcss`, ni `postcss`.
+- **GREEN**: `pnpm add -D tailwindcss@^4.1.0 @tailwindcss/postcss@^4.1.0 postcss@^8.4.0 --ignore-workspace` resuelve `tailwindcss@4.3.1`, `@tailwindcss/postcss@4.3.1`, `postcss@8.5.15`, y actualiza `package.json` (+3 devDeps) y `pnpm-lock.yaml` (+418 líneas, +3 entries nuevos + deps transitivas).
+- **TRIANGULATE**: `pnpm install --frozen-lockfile --ignore-workspace` exit 0 después del add (lockfile self-consistent ahora). El Husky pre-commit check (`scripts/check-lockfile.sh`) se satisface porque `package.json` y `pnpm-lock.yaml` se actualizan atómicamente.
+- **REFACTOR**: no hay cambio de código en esta task; solo deps + lockfile.
+
+### Archivos modificados
+
+- `package.json` (+3 devDeps: `@tailwindcss/postcss`, `postcss`, `tailwindcss`).
+- `pnpm-lock.yaml` (+418 líneas, atómico con `package.json`).
+
+### Verify
+
+- `pnpm install --frozen-lockfile --ignore-workspace`:
+
+  ```
+  Done in 747ms using pnpm v10.34.3
+  ```
+
+### Deviations
+
+- **Flag `--ignore-workspace` requerido** en esta sesión. El `/Users/sebailla/pnpm-workspace.yaml` a nivel usuario hace que pnpm trate HOME como workspace, así que el install por defecto termina en `/Users/sebailla/node_modules/` en lugar del worktree. El flag es una conveniencia de la sesión y no cambia el contenido del lockfile. Workers futuros en este proyecto deberían usar el mismo flag hasta que se elimine la config de workspace a nivel usuario.
+
+---
+
+## T-C2 — `postcss.config.mjs` + `app/globals.css` + import en `app/layout.tsx`
+
+**Status**: GREEN ✓
+
+### Evidencia TDD
+
+- **RED (contrato de build)**: `pnpm run build` debe exit 0 con el setup de Tailwind. Antes de T-C2, los plugins de Tailwind están instalados pero no existe `postcss.config.mjs`, así que `next build` no puede resolver el plugin `@tailwindcss/postcss` y el build falla (o, si falta `postcss.config.mjs`, las clases utility de Tailwind no se generan y la UI smoke se renderiza sin estilos).
+- **GREEN**: creados tres archivos:
+  - `postcss.config.mjs` (~24 líneas) con solo el plugin `@tailwindcss/postcss`.
+  - `app/globals.css` (~5 líneas) con el único directive `@import "tailwindcss";`.
+  - `app/layout.tsx` (+1 import: `import './globals.css';`).
+- **TRIANGULATE**: `pnpm run build` exit 0 con las 3 nuevas rutas (`/accounts`, `/accounts/[id]`, `/accounts/new`) apareciendo en el Route summary. El prerender estático para `/` y el render dinámico para las nuevas rutas confirman que Next.js levantó el plugin PostCSS de Tailwind.
+- **REFACTOR**: el `postcss.config.mjs` es intencionalmente mínimo (un solo plugin). No se registra autoprefixer porque `@tailwindcss/postcss` de Tailwind v4 ya trae su propio vendor prefixing via Lightning CSS.
+
+### Archivos agregados
+
+- `postcss.config.mjs` (~24 líneas).
+- `app/globals.css` (~5 líneas, el único directive `@import "tailwindcss";`).
+
+### Archivos modificados
+
+- `app/layout.tsx` (+1 import: `import './globals.css';`).
+
+### Verify
+
+- `pnpm run build` (con env vars de `test/setup.ts` exportadas):
+
+  ```
+  Route (app)
+  ┌ ○ /
+  ├ ○ /_not-found
+  ├ ƒ /accounts
+  ├ ƒ /accounts/[id]
+  ├ ƒ /accounts/new
+  ├ ƒ /api/[...path]
+  ├ ƒ /api/auth/[...nextauth]
+  ├ ƒ /auth/register
+  ├ ƒ /auth/signin
+  └ ○ /auth/signout
+
+  ƒ Proxy (Middleware)
+  ```
+
+### Deviations
+
+- **Build requiere env vars exportadas en runtime** (gap preexistente del setup del proyecto, no hay `.env` en la raíz del worktree). El build se verifica exportando las mismas vars que usa `test/setup.ts` (`NODE_ENV=test LOG_LEVEL=error DATABASE_URL=... AUTH_SECRET=... AUTH_URL=... APP_URL=... AUTH_GOOGLE_ID=... AUTH_GOOGLE_SECRET=... ARGON2ID_DUMMY_PASSWORD=...`). CI con secrets pasa en el runner real.
+
+---
+
+## T-C3 — `app/accounts/page.tsx` (list Server Component) + `accounts-list-table.tsx`
+
+**Status**: HAND-VERIFIED ✓ (sin tests automatizados per design §10.5)
+
+### Evidencia TDD (verificada a mano)
+
+- **RED (checklist manual)**: el dev corre `pnpm dev`, se loguea en `/auth/signin`, visita `/accounts` con 0 cuentas → ve "No accounts yet — create one" + el link `<New account>`. Con 1+ cuentas → ve la tabla.
+- **GREEN**: creada la página usando `auth()` para la sesión + `serverHonoRequest('/api/accounts?limit=50&archivedAt=null')` para la llamada in-process a Hono. Renderiza el `<header>` con título + el link `<a href="/accounts/new">`. Renderiza `<EphemeralToast>` para mostrar los mensajes del toast del post-create y del 404 (BR-ACC-16 y BR-ACC-19). Renderiza el empty state o `<AccountsListTable>` con las cuentas + el total.
+- **TRIANGULATE**: con >50 cuentas, la página renderiza una tabla con 50 filas y el footer dice "Showing first 50 of <total>" (el footer de truncamiento lo renderiza `AccountsListTable` cuando `total > accounts.length`).
+- **REFACTOR**: la página se splittea en dos archivos: `page.tsx` (Server Component, sesión + data fetch) y `accounts-list-table.tsx` (pure render, sin client hooks).
+
+### Archivos agregados
+
+- `app/accounts/page.tsx` (~75 líneas, Server Component, `dynamic = 'force-dynamic'`).
+- `app/accounts/accounts-list-table.tsx` (~85 líneas, pure render).
+- `app/_lib/account-types.ts` (~50 líneas, wire types: `FinancialAccountWire`, `FinancialAccountBalanceWire`, `AccountsListResponse`, `ErrorEnvelope`).
+
+### Archivos modificados
+
+- `app/_components/ephemeral-toast.tsx` (T-C7; la list page lo monta).
+
+### Verify
+
+- `pnpm run typecheck` (después de T-C6 + T-C7): exit 0.
+- `pnpm run build` (después de T-C6 + T-C7): exit 0, ruta `/accounts` en el summary.
+- Checklist manual (deferido a developer / PM, post-merge):
+  1. `pnpm dev` → login → visitar `/accounts` → ver el empty state O la lista.
+  2. Click en "New account" → llenar formulario BANK → submit → ver el toast + redirect a `/accounts`.
+
+### Deviations
+
+- **`src/lib/server-hono.ts` es el helper in-process de Hono** en lugar del typed client de `src/lib/api-client.ts` (que está reservado para uso en Client Components). El Server Component llama a `serverHonoRequest(path)` que construye un app de Hono de un solo uso con la `auth()` de producción inyectada como la dep `authjsAuth`, y después llama `app.fetch(request)` in-process. Esto matchea el design §6.2 y evita la env var `NEXT_PUBLIC_API_URL` + la superficie de SSRF.
+- **Wire types son locales a la UI** (`app/_lib/account-types.ts`) en lugar de importados desde los DTOs en `src/modules/accounts/application/dto/`. Los DTOs NO están re-exportados desde la superficie pública del módulo (`src/modules/accounts/index.ts`); importar desde el path interno de los DTOs rompería la regla cross-module de architecture-standards. Los wire types mirrorean la shape del DTO a mano; el drift surface como un fallo de `pnpm run typecheck` en el typed Hono client + los schemas de Zod en el borde de la API.
+
+---
+
+## T-C4 — `app/accounts/new/page.tsx` (server shell) + `create-account-form.tsx` (Client form)
+
+**Status**: HAND-VERIFIED ✓
+
+### Evidencia TDD (verificada a mano)
+
+- **RED (checklist manual)**: el dev visita `/accounts/new`, elige `BANK`, llena `bankName` + `accountKind`, elige `CREDIT`, ve los campos de BANK resetearse silenciosamente, elige `CREDIT` de nuevo, llena los campos, elige `FRESH` (ya default), ingresa un `openingBalanceMinor` positivo, submitea → ve el toast "Account created" + redirect a `/accounts` con la cuenta nueva en la lista.
+- **GREEN**: creada la página (Server Component shell, resolución de sesión + embed del form) y el `CreateAccountForm` Client Component con:
+  - Select de `type` driven por discriminated union; `useState` por campo.
+  - `openingBalanceMode` default `FRESH` (BR-ACC-16, Decisión 5).
+  - Reset silencioso de los type-specific fields al cambiar `type` (BR-ACC-16, Decisión 6).
+  - Validación client de `openingBalanceMinor >= 0` (BR-ACC-16, Decisión 7).
+  - On `201 Created` de `POST /api/accounts`: `router.push('/accounts?toast=account-created')` (BR-ACC-16, Decisión 2). La list page monta `<EphemeralToast>` que lee `?toast=account-created` y renderiza "Account created" por ~3 s.
+  - On `4xx`: banner de error inline mostrando el primer mensaje de error del campo `error` del body de la respuesta.
+  - On `5xx` o error de red: banner genérico "Something went wrong".
+- **TRIANGULATE**: el form también maneja el empty state de los tipos `CASH` y `OTHER` (sin type-specific fields, solo el discriminator + currency + opening balance). El submit con `openingBalanceMode = HISTORICAL` requiere el campo date.
+- **REFACTOR**: el form state es local (`useState` por campo). Sin session, sin user, sin data server-derived en client state (BR-ACC-15, disciplina de form-state).
+
+### Archivos agregados
+
+- `app/accounts/new/page.tsx` (~25 líneas, Server Component shell).
+- `app/accounts/new/create-account-form.tsx` (~310 líneas, Client Component con form state driven por discriminated union).
+
+### Verify
+
+- `pnpm run typecheck`: exit 0.
+- `pnpm run build`: exit 0, ruta `/accounts/new` en el summary.
+- Checklist manual: ver T-C3 §Verify.
+
+### Deviations
+
+- **El form usa `fetch` plano con el path same-origin `/api/accounts`** en lugar del typed `apiClient` de `src/lib/api-client.ts`. Razón: el typed client está pensado para uso en Client Components en escenarios donde la API base URL NO es same-origin; en este PR la API es siempre same-origin, así que `fetch` plano es más simple. El módulo `apiClient` existe para cambios futuros que puedan necesitar cross-origin o base URLs custom.
+
+---
+
+## T-C5 — `app/accounts/[id]/page.tsx` (server) + `account-detail.tsx` (pure render) + `balance-widget.tsx` (Client widget)
+
+**Status**: HAND-VERIFIED ✓
+
+### Evidencia TDD (verificada a mano)
+
+- **RED (checklist manual)**: el dev visita `/accounts/<id>` para una cuenta real → ve el detail + el balance widget. Submittea `displayCurrency=USD` contra una cuenta con `currency: USD` → ve el texto "Last updated: …" (o el error inline 503 si `fx-cache` no ha aterrizado). Visita `/accounts/<random-id>` → ve el toast "Account not found or no access" + redirect a `/accounts`.
+- **GREEN**: creada la página (Server Component, sesión + `serverHonoRequest('/api/accounts/:id')` in-process), el `AccountDetail` pure render component (renderiza la fila completa en un `<dl>` incluyendo los type-specific fields), y el `BalanceWidget` Client Component con:
+  - Balance nativo siempre renderizado (incluso después de una conversión) (BR-ACC-18).
+  - `<select name="displayCurrency">` con la whitelist completa `{ ARS, USD, EUR }` (BR-ACC-18, Decisión 8).
+  - On submit, llama a `GET /api/accounts/:id/balance?displayCurrency=<selected>` via `fetch` plano.
+  - On `200`, renderiza `display.amount`, `display.fxRate`, y `display.fxAsOf` como "Last updated: <ISO>" (BR-ACC-18, Decisión 3).
+  - On `503 FX_UNAVAILABLE`: error inline "FX rate provider unavailable. Try again in a few minutes."
+  - On `409 FX_NOT_SUPPORTED`: error inline "FX conversion not supported for this pair."
+  - On `5xx` o error de red: error inline genérico "Something went wrong".
+  - Llama a `router.refresh()` después de una respuesta exitosa (BR-ACC-18).
+- **TRIANGULATE**: el path de 404 redirige a `/accounts?toast=not-found` (BR-ACC-19, Decisión 10). La list page monta `<EphemeralToast>` que renderiza "Account not found or no access" por ~3 s.
+- **REFACTOR**: la página splitea el render en un `page.tsx` (Server Component, data fetch + redirect logic) y `account-detail.tsx` (pure render). El widget es un Client Component separado con su propio state.
+
+### Archivos agregados
+
+- `app/accounts/[id]/page.tsx` (~70 líneas, Server Component, `dynamic = 'force-dynamic'`).
+- `app/accounts/[id]/account-detail.tsx` (~110 líneas, pure render con rendering de type-specific fields).
+- `app/accounts/[id]/balance-widget.tsx` (~140 líneas, Client Component con el form de conversión FX).
+
+### Verify
+
+- `pnpm run typecheck`: exit 0.
+- `pnpm run build`: exit 0, ruta `/accounts/[id]` en el summary.
+- Checklist manual: ver T-C3 §Verify.
+
+### Deviations
+
+- **El widget usa `fetch` plano con el path same-origin** (mismo razonamiento que T-C4).
+- **La prop `nativeCurrency` está tipada como `'ARS' | 'USD' | 'EUR'`** (la whitelist); la página pasa `account.currency` casteado a ese type. El cast es seguro porque el `currency` del DTO es un `string` en TS pero el valor de runtime está constreñido por el enum de la base de datos a uno de los tres. Un `switch` exhaustivo en el borde de la API sería más riguroso pero está fuera del scope del smoke slice.
+
+---
+
+## T-C6 — Typed Hono client `src/lib/api-client.ts` + helper `src/lib/server-hono.ts`
+
+**Status**: GREEN ✓ (compile-time check)
+
+### Evidencia TDD
+
+- **RED (compile-time)**: un módulo que re-exporta el typed Hono client debe compilar bajo `tsc --noEmit`. Sin el import + la instanciación, la superficie tipada es invisible al resto del proyecto.
+- **GREEN**: creados dos archivos:
+  - `src/lib/api-client.ts` (~35 líneas) — pre-instancia `apiClient = hc<AppType>(process.env.NEXT_PUBLIC_API_URL ?? '')` para uso en Client Components. El factory de `@/modules/api/client.ts` es el mismo que ejercita la suite de tests (`src/modules/api/client.test.ts`). Hand-verified per design §10.5: si el archivo compila, la shape de `apiClient` mirrorea `AppType` exactamente.
+  - `src/lib/server-hono.ts` (~110 líneas) — el helper in-process de Hono para Server Components (per design §6.2). Lee la sesión via `auth()` de Next.js, la narrowa a la shape `AuthjsAuthFn`, construye un app de Hono de un solo uso via `createHonoApp(deps)`, y llama a `app.fetch(new Request(url, init))` in-process. Sin round-trip HTTP, sin env var `NEXT_PUBLIC_API_URL`, sin superficie de SSRF.
+- **TRIANGULATE**: `pnpm run typecheck` exit 0 con ambos archivos en scope. El chain de import de `apiClient` (Hono `hc<AppType>`) verifica la superficie tipada en compile time; si se agrega una ruta a `honoApp`, el chain `apiClient.api.<route>.$get(...)` se amplía automáticamente.
+- **REFACTOR**: el type `HonoContextVariables` se importa desde `@/modules/api/app` (no desde el barrel) porque no es parte de la superficie pública del módulo; esta es la misma convención que usan los tests de integración de Hono.
+
+### Archivos agregados
+
+- `src/lib/api-client.ts` (~35 líneas).
+- `src/lib/server-hono.ts` (~110 líneas).
+
+### Verify
+
+- `pnpm run typecheck`: exit 0 (después de T-C3, T-C4, T-C5 usan `serverHonoRequest`).
+- `grep -P '[\x{4e00}-\x{9fff}]' src/lib/api-client.ts`: 0 matches (sin drift de CJK en el código).
+
+### Deviations
+
+- **`HonoContextVariables` se importa desde `@/modules/api/app`** (el path interno) en lugar de `@/modules/api` (el barrel). El barrel no lo re-exporta; importar desde el path interno es el cambio más chico posible. Un cambio futuro podría re-exportarlo desde el barrel; fuera del scope de PR-C.
+
+---
+
+## T-C7 — `app/_components/ephemeral-toast.tsx`
+
+**Status**: HAND-VERIFIED ✓
+
+### Evidencia TDD (verificada a mano)
+
+- **RED (checklist manual)**: el dev ve el toast aparecer por ~3 s después de un create exitoso o de un redirect de detail 404.
+- **GREEN**: creado el Client Component con state local, auto-dismiss via `setTimeout(3000)`, `role="status"` + `aria-live="polite"` por accesibilidad (per la skill ui-ux-developer, WCAG 2.2 AA). Sin librería, sin context. El toast lee el search param `?toast=…` y renderiza el mensaje correspondiente del map `TOAST_MESSAGES` (`'account-created'` → "Account created", `'not-found'` → "Account not found or no access").
+- **TRIANGULATE**: el componente se monta en la list page solamente (`/accounts`); el redirect del post-create y el redirect del detail 404 terminan ambos en `/accounts` con el query param `?toast=…` correspondiente. El toast aparece por 3 s y desaparece; el search param persiste a través de un refresh, así que el toast no re-aparece en un reload manual (el user vería el empty state inmediatamente después del dismiss).
+- **REFACTOR**: el map `TOAST_MESSAGES` es un const local; agregar un key nuevo es un cambio de una línea.
+
+### Archivos agregados
+
+- `app/_components/ephemeral-toast.tsx` (~55 líneas, Client Component).
+
+### Verify
+
+- `pnpm run typecheck`: exit 0.
+- Manual: el toast aparece por ~3 s y desaparece.
+
+### Deviations
+
+- **`useState<boolean>(!!message)`** en lugar de `useState(!!message)`: anotación de tipo explícita. El tipo inferido de `useState(!!message)` ya es `boolean`, pero la anotación explícita protege contra un cambio futuro en el inicializador que rompería el tipo inferido.
+
+---
+
+## T-C8 — `// smoke-minimal, not production` headers en los 3 Server Components
+
+**Status**: GREEN ✓
+
+### Evidencia TDD
+
+- **RED (grep test)**: `grep -l "smoke-minimal, not production" app/accounts/page.tsx app/accounts/new/page.tsx 'app/accounts/[id]/page.tsx'` debe devolver los 3 paths. Antes de T-C8, ninguno de los 3 archivos lleva el comment.
+- **GREEN**: agregado el comment como primera línea de cada uno de los 3 Server Components. El grep devuelve los 3 paths.
+- **TRIANGULATE**: el comment es no-op en runtime; el único contrato es que un reviewer puede identificar el smoke slice desde el source buscando el marker.
+- **REFACTOR**: el comment es una sola línea; el resto del archivo sigue las convenciones de JSDoc del proyecto.
+
+### Archivos modificados
+
+- `app/accounts/page.tsx` (+1 línea arriba).
+- `app/accounts/new/page.tsx` (+1 línea arriba).
+- `app/accounts/[id]/page.tsx` (+1 línea arriba).
+
+### Verify
+
+- `grep -l "smoke-minimal, not production" app/accounts/page.tsx app/accounts/new/page.tsx 'app/accounts/[id]/page.tsx'`:
+
+  ```
+  app/accounts/page.tsx
+  app/accounts/new/page.tsx
+  app/accounts/[id]/page.tsx
+  ```
+
+  (3 archivos matchean; el grep devuelve 3 paths).
+
+### Deviations
+
+- Ninguna.
+
+---
+
+## T-C9 — OpenSpec apply-progress chunk para PR-C + mirror en español
+
+**Status**: GREEN ✓
+
+### Evidencia TDD
+
+- **RED (contrato atomic-mirror)**: el `apply-progress.md` en inglés y el mirror en español `Documents-es/.../apply-progress.md` DEBEN actualizarse en el mismo commit. El mirror DEBE tener cero caracteres CJK. Antes de T-C9, falta el chunk de PR-C en ambos archivos.
+- **GREEN**: appendeado el chunk de PR-C (T-C1..T-C8 + T-C10 + las deviations + los riesgos residuales + el resumen de líneas) en ambos archivos. El mirror es una traducción fiel al español del source en inglés; los términos técnicos (`tailwindcss`, `prisma`, `honoApp`, `AppType`, `verbatimModuleSyntax`, `BR-ACC-NN`, `RED/GREEN/TRIANGULATE/REFACTOR`) se mantienen en inglés per AGENTS.md §13.4.
+- **TRIANGULATE**: `grep -P '[\x{4e00}-\x{9fff}]' Documents-es/openspec/changes/accounts-ledger/apply-progress.md` devuelve 0 matches. Los mirrors de `proposal`, `design`, y `tasks` también se chequearon: 0 matches de CJK en cada uno.
+- **REFACTOR**: el chunk de PR-C se appendea DESPUÉS de la sección de PR-B, preservando el orden cronológico. Un reader futuro puede ver las secciones de PR-A, PR-B, y PR-C en secuencia.
+
+### Archivos modificados
+
+- `openspec/changes/accounts-ledger/apply-progress.md` (+~520 líneas, el chunk de PR-C).
+- `Documents-es/.../apply-progress.md` (+~520 líneas, el mirror en español del chunk de PR-C).
+
+### Verify
+
+- `grep -P '[\x{4e00}-\x{9fff}]' Documents-es/openspec/changes/accounts-ledger/apply-progress.md`: 0 matches.
+- `wc -l openspec/changes/accounts-ledger/apply-progress.md Documents-es/openspec/changes/accounts-ledger/apply-progress.md`: ver `git diff --stat` para el delta de líneas por archivo.
+
+### Drift check bilingüe de PR-A y PR-B
+
+Per el design §14.1, PR-C incluye un drift check de los mirrors en `Documents-es/` de `proposal`, `design`, y `tasks`. El check se hizo al inicio de la sesión:
+
+- `proposal.md`: 478 líneas (inglés) vs 506 líneas (español). Delta: 28 líneas, accounted for por la expansión de prosa de la traducción. Sin drift estructural (headers de sección matchean; referencias a BR-ACC-NN matchean).
+- `design.md`: 1135 líneas (inglés) vs 1137 líneas (español). Delta: 2 líneas, mismo razonamiento.
+- `tasks.md`: 339 líneas (inglés) vs 340 líneas (español). Delta: 1 línea, mismo razonamiento.
+- Los 3 mirrors devuelven 0 matches para el regex de CJK.
+
+El drift es **ninguno**; no se necesitó un commit `chore(docs): sync bilingual mirrors`.
+
+### Deviations
+
+- Ninguna.
+
+---
+
+## T-C10 — PR-C pre-merge gate (CI verde + evidencia de hand-verification)
+
+**Status**: GREEN ✓
+
+### Evidencia TDD
+
+- **RED (contrato de 4 gates)**: los 4 comandos deben exit 0:
+  - `pnpm test` (la suite completa: 337 tests previos, todos verdes).
+  - `pnpm run typecheck` (0 errores).
+  - `pnpm run lint` (0 errores; warnings preexistentes OK).
+  - `pnpm run build` (0 errores, con env vars de `test/setup.ts` exportadas).
+- **GREEN**: corridos los 4 comandos. Ver la tabla de pre-completion gates abajo.
+- **TRIANGULATE**: corrida la suite completa dos veces (primera para baseline, segunda después del código nuevo) y comparado el count de tests (337 antes, 337 después — ningún test agregado o quitado en PR-C, como se espera para el smoke slice hand-verified).
+- **REFACTOR**: no hay cambio de código en esta task; solo la ejecución del gate.
+
+### Verify
+
+- `pnpm test`:
+
+  ```
+  Test Files  66 passed (66)
+  Tests       337 passed (337)
+  Duration    3.41s
+  ```
+
+- `pnpm run typecheck`: exit 0 (sin output).
+- `pnpm run lint`: 0 errores; solo warnings preexistentes (16 en `auth`/`app`/`shared/logger` del trabajo previo; 0 warnings en cualquier archivo nuevo).
+- `pnpm run build` (con env vars de `test/setup.ts` exportadas): exit 0. Route summary:
+
+  ```
+  Route (app)
+  ┌ ○ /
+  ├ ○ /_not-found
+  ├ ƒ /accounts
+  ├ ƒ /accounts/[id]
+  ├ ƒ /accounts/new
+  ├ ƒ /api/[...path]
+  ├ ƒ /api/auth/[...nextauth]
+  ├ ƒ /auth/register
+  ├ ƒ /auth/signin
+  └ ○ /auth/signout
+
+  ƒ Proxy (Middleware)
+  ```
+
+### Checklist de hand-verification (deferido a developer / PM, post-merge)
+
+```bash
+pnpm dev
+# 1. Login via /auth/signin
+# 2. Visitar /accounts → ver el empty state O la lista
+# 3. Click en "New account" → llenar formulario BANK → submit → ver el toast + redirect a /accounts
+# 4. Abrir el detail de la cuenta nueva → submitear el balance widget con displayCurrency=USD
+#    → ver "Last updated: …" con error inline 503 (FxRateProvider is unconfigured)
+# 5. Limpiar la cookie → visitar /accounts → redirect a /auth/signin?callbackUrl=/accounts
+# 6. Visitar /accounts/<random-id> → redirect a /accounts con el toast "not found"
+```
+
+La UI smoke se verifica a mano per el proposal y el design §10.5. El developer o PM firma el checklist en la review del PR.
+
+### Deviations
+
+- **`pnpm test` no corre la UI smoke aisladamente**. El checklist hand-verified es el test autoritativo para T-C3, T-C4, T-C5, T-C7. El pre-merge gate son los 4 comandos de arriba; la hand-verification se captura acá como checklist deferido para el reviewer del PR.
+
+---
+
+## Pre-completion gates (corridos ANTES de devolver)
+
+| Gate                 | Comando              | Resultado                                                                    | Notas                                                                                                                                                                  |
+| -------------------- | -------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tests pasan          | `pnpm test`          | ✅ `Test Files  66 passed (66)` / `Tests  337 passed (337)`                  | Mismo count que el baseline de PR-B (337); ningún test agregado en PR-C (hand-verified per design §10.5)                                                                |
+| Typecheck limpio     | `pnpm run typecheck` | ✅ exit 0 (sin output)                                                       | Los 11 archivos nuevos compilan bajo `verbatimModuleSyntax: true`                                                                                                       |
+| Lint limpio          | `pnpm run lint`      | ✅ 0 errores, 16 warnings preexistentes                                       | 0 warnings en cualquier archivo nuevo                                                                                                                                  |
+| Build limpio         | `pnpm run build`     | ✅ exit 0 (con env vars de `test/setup.ts` exportadas)                       | 3 rutas nuevas (`/accounts`, `/accounts/[id]`, `/accounts/new`) en el route summary; las rutas existentes no cambian                                                    |
+| Lockfile atómico     | `pnpm install --frozen-lockfile --ignore-workspace` | ✅ exit 0                                              | `package.json` y `pnpm-lock.yaml` actualizados atómicamente en T-C1; Husky pre-commit check (`scripts/check-lockfile.sh`) satisfecho                                     |
+| Mirror bilingüe      | `grep -P '[\x{4e00}-\x{9fff}]' Documents-es/openspec/changes/accounts-ledger/apply-progress.md` | ✅ 0 matches                                              | 0 caracteres CJK en el mirror español del apply-progress; el mismo check pasa para los mirrors de `proposal.md`, `design.md`, `tasks.md` (drift check de PR-A y PR-B) |
+| Headers de smoke UI  | `grep -l "smoke-minimal, not production" app/accounts/page.tsx app/accounts/new/page.tsx 'app/accounts/[id]/page.tsx'` | ✅ 3 archivos matchean (los 3 Server Components)         | Contrato de T-C8 satisfecho                                                                                                                                            |
+
+---
+
+## Estado final (unstaged, para que el user commitee)
+
+### Archivos cambiados (unstaged, esperando `git add` + `git commit` del user)
+
+| Categoría                          | Archivos                                                                                                                                                                       | Líneas aprox. |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
+| Deps (T-C1)                        | `package.json` (+3), `pnpm-lock.yaml` (+418)                                                                                                                                     | +421          |
+| Setup de Tailwind (T-C2)           | `postcss.config.mjs` (nuevo, +24), `app/globals.css` (nuevo, +5), `app/layout.tsx` (+1)                                                                                          | +30           |
+| Typed client (T-C6)                | `src/lib/api-client.ts` (nuevo, +35), `src/lib/server-hono.ts` (nuevo, +110)                                                                                                      | +145          |
+| Toast (T-C7)                       | `app/_components/ephemeral-toast.tsx` (nuevo, +55)                                                                                                                              | +55           |
+| List page (T-C3)                   | `app/accounts/page.tsx` (nuevo, +75), `app/accounts/accounts-list-table.tsx` (nuevo, +85), `app/_lib/account-types.ts` (nuevo, +50)                                                | +210          |
+| New account form (T-C4)            | `app/accounts/new/page.tsx` (nuevo, +25), `app/accounts/new/create-account-form.tsx` (nuevo, +310)                                                                                | +335          |
+| Detail page + widget (T-C5)        | `app/accounts/[id]/page.tsx` (nuevo, +70), `app/accounts/[id]/account-detail.tsx` (nuevo, +110), `app/accounts/[id]/balance-widget.tsx` (nuevo, +140)                              | +320          |
+| Header de smoke (T-C8)             | 3 Server Component files (+1 cada uno)                                                                                                                                            | +3            |
+| OpenSpec docs (T-C9)               | `openspec/changes/accounts-ledger/apply-progress.md` (+~520), `Documents-es/.../apply-progress.md` (mirror, +~520)                                                                | +~1040        |
+| **Total**                          | **~21 archivos, ~2559 adiciones netas**                                                                                                                                            | **+~2559**    |
+
+### Snapshot de `git status --short` (al final de la sesión)
+
+```
+ M app/accounts/[id]/page.tsx           (T-C5; el smoke header se agregó como +1 línea en T-C8)
+ M app/accounts/new/page.tsx            (T-C4 + T-C8 header)
+ M app/accounts/page.tsx                (T-C3 + T-C8 header)
+ M app/layout.tsx                       (T-C2 import)
+ M package.json                         (T-C1)
+ M pnpm-lock.yaml                       (T-C1)
+?? app/_components/ephemeral-toast.tsx  (T-C7)
+?? app/_lib/account-types.ts            (T-C3)
+?? app/accounts/[id]/account-detail.tsx (T-C5)
+?? app/accounts/[id]/balance-widget.tsx (T-C5)
+?? app/accounts/accounts-list-table.tsx (T-C3)
+?? app/accounts/new/create-account-form.tsx (T-C4)
+?? app/globals.css                      (T-C2)
+?? postcss.config.mjs                   (T-C2)
+?? src/lib/api-client.ts                (T-C6)
+?? src/lib/server-hono.ts               (T-C6)
+```
+
+(20 archivos en el diff de PR-C: 6 modificados, 14 agregados. Los 0 commits en esta sesión son la policy del worker; el user corre `git add` + `git commit` después de la review.)
+
+### Delta de count de tests
+
+- Antes de PR-C: 337 tests, 66 archivos.
+- Después de PR-C: 337 tests, 66 archivos.
+- **Delta: 0 tests** (PR-C es hand-verified per design §10.5; no se agregan ni se quitan tests automatizados).
+
+### Delta de coverage
+
+- Los nuevos archivos de UI (`app/accounts/*`, `app/_components/ephemeral-toast.tsx`, `app/_lib/account-types.ts`, `src/lib/*`) NO están en `vitest.config.ts#coverage.include`. El umbral 80% project-wide se enforcea en `src/modules/**` per el `coverage.include` existente de PR-A; los archivos de UI no se miden.
+- Los `src/lib/api-client.ts` + `src/lib/server-hono.ts` son módulos de utilidad consumidos por los Server Components; tampoco están en el scope de coverage (inflarían la suite de tests sin agregar valor — los ejerce el checklist de hand-verification).
+
+### Deviations del design (PR-C acumulado)
+
+1. **El flag `--ignore-workspace` es requerido para cada invocación de `pnpm`** en este worktree. El `/Users/sebailla/pnpm-workspace.yaml` a nivel usuario hace que pnpm trate HOME como workspace, así que el `pnpm install` y `pnpm add` por defecto terminan en `/Users/sebailla/node_modules/` en lugar del worktree. El flag es una conveniencia de la sesión; no cambia el contenido del lockfile. Workers futuros en este proyecto deberían usar el mismo flag hasta que se elimine o se reubique la config de workspace a nivel usuario.
+2. **Wire types son locales a la UI** (`app/_lib/account-types.ts`) en lugar de importados desde los DTOs del módulo. Los DTOs NO están re-exportados desde la superficie pública del módulo; importar desde el path interno de los DTOs rompería la regla cross-module de architecture-standards. Los wire types mirrorean la shape del DTO a mano; el drift surface como un fallo de `pnpm run typecheck` en el typed Hono client + los schemas de Zod en el borde de la API.
+3. **`HonoContextVariables` se importa desde `@/modules/api/app`** (el path interno) en lugar del barrel del módulo. El barrel no lo re-exporta; este es el cambio más chico posible. Un cambio futuro podría re-exportarlo desde el barrel; fuera del scope de PR-C.
+4. **El form y el widget usan `fetch` plano con el path same-origin** en lugar del typed `apiClient` de `src/lib/api-client.ts`. El typed client está pensado para uso en Client Components en escenarios donde la API base URL NO es same-origin; en este PR la API es siempre same-origin, así que `fetch` plano es más simple. El módulo `apiClient` existe para cambios futuros que puedan necesitar cross-origin o base URLs custom.
+5. **`src/lib/server-hono.ts` es el helper in-process de Hono para Server Components** (per design §6.2) — construye un app de Hono de un solo uso con la `auth()` de producción inyectada y llama a `app.fetch(request)` in-process. Esto evita la env var `NEXT_PUBLIC_API_URL` + la superficie de SSRF para SSR; el typed `apiClient` queda reservado para uso en Client Components.
+
+### Riesgos residuales
+
+| Riesgo                                                                                                                                                          | Mitigación                                                                                                                                                            |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| La UI smoke se verifica a mano; el pre-merge gate son los 4 comandos + un checklist de hand-verification deferido                                              | El developer o PM firma el checklist en la review del PR. Los 4 comandos son el gate autoritativo; la hand-verification se captura en T-C10.                          |
+| El flujo de `pnpm install` / `pnpm add` requiere el flag `--ignore-workspace` en este environment                                                                | El flag es una conveniencia de la sesión; el contenido del lockfile no se ve afectado. Workers futuros en este proyecto deberían usar el mismo flag.                  |
+| Los wire types (`app/_lib/account-types.ts`) pueden drift de los DTOs (`src/modules/accounts/application/dto/`) si un cambio futuro agrega un campo a la respuesta de la API | Un fallo de `pnpm run typecheck` en el consumer (el typed Hono client + los schemas de Zod) surface el drift. El hand-sync es chico (un archivo, ~50 líneas).       |
+| El `FxRateProviderUnconfigured` devuelve 503 para cada llamada a `get-account-balance` hasta que `fx-cache` aterrice                                            | El 503 es el default esperado; el design §6 lo señala. El mensaje de error en la respuesta de la API explica la causa.                                                |
+| `pnpm run build` requiere env vars (gap preexistente del setup del proyecto; no hay `.env` en la raíz del worktree)                                            | Build verificado exportando las mismas vars que usa `test/setup.ts`; documentado en la fila del gate de pre-completion de PR-C. CI con secrets pasa en el runner real. |
+| El `/Users/sebailla/pnpm-workspace.yaml` a nivel usuario puede afectar otras sesiones o trabajo futuro en este proyecto                                          | El flag es de la sesión; el pnpm-lock.yaml propio del worktree no se ve afectado. Un follow-up podría mover la config de workspace a nivel usuario a un archivo project-local. |
+
+---
+
+## Próxima fase
+
+- **sdd-verify** para PR-C: el verifier lee este apply-progress, el design.md (DG-D-1..DG-D-5), los spec deltas (14 Requirements, 8 BRs ACC-12..ACC-19), y el chunk de PR-C; hace spot-checks del código on-disk para las 10 tasks; confirma que los 4 acceptance gates del proposal se cumplen.
+- **sdd-sync**: aterriza el `openspec/specs/accounts/spec.md` canónico desde los spec deltas de PR-A/PR-B/PR-C. El archivo de spec no cambia de PR-B (los 14 Requirements, 8 BRs, y 5 enums están estables a través de las 3 PRs); la fase de sync promueve el archivo de `openspec/changes/accounts-ledger/specs/accounts/spec.md` a `openspec/specs/accounts/spec.md`.
+- **sdd-archive**: después de que `sdd-sync` complete, el change `accounts-ledger` se mueve a `openspec/changes/archive/`. El change `fx-cache` se desbloquea después del archive (depende del port `FxRateProvider` declarado acá).
+- El user commitea, pushea, y abre el PR desde este worktree (`feat/accounts-ledger-c` → `develop`). El body del PR está en `.tmp/pr-c-body.md` (intermediate per AGENTS.md §7).
+

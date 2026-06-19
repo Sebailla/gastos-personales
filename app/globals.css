@@ -1,0 +1,18 @@
+/**
+ * Global stylesheet for the gastos-personales Next.js app.
+ *
+ * Tailwind v4 uses a single `@import "tailwindcss";`
+ * directive that bundles the base, components, and
+ * utilities layers (the v3 split into three
+ * `@tailwind base/components/utilities` is no longer
+ * needed in v4).
+ *
+ * This file is imported ONCE in `app/layout.tsx` so the
+ * utility classes are available in every page of the App
+ * Router. The smoke UI under `app/accounts/*` uses
+ * utility classes directly; the production `ui-accounts`
+ * change will extend the design system via
+ * `@theme`/`@layer` directives in this file.
+ */
+
+@import "tailwindcss";
