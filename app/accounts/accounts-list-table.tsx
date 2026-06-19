@@ -1,3 +1,4 @@
+// smoke-minimal, not production
 /**
  * AccountsListTable — pure render Server Component.
  *

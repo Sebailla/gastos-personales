@@ -1,3 +1,4 @@
+// smoke-minimal, not production
 /**
  * Wire types for the accounts UI smoke slice.
  *
