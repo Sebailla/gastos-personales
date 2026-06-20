@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+# Post-commit: re-index Documents-es/ into the user's Obsidian vault.
+# Runs on every commit but is a no-op (with a warning) on machines
+# where the vault is not mounted, so it doesn't break the workflow
+# on other dev machines or CI. See ADR-0007.
+
+# The path string lives here (and only here, by ADR-0007 contract).
+# The TS script reads it from the environment.
+OBSIDIAN_VAULT_PATH="/Users/sebailla/Library/Mobile Documents/iCloud~md~obsidian/Documents/Proyectos"
+
+if [ ! -d "$OBSIDIAN_VAULT_PATH" ]; then
+  echo "[post-commit] Obsidian vault root not found at $OBSIDIAN_VAULT_PATH"
+  echo "[post-commit] Skipping docs:obsidian sync. Run \`pnpm docs:obsidian\` manually when the vault is available."
+  exit 0
+fi
+
+if ! command -v corepack >/dev/null 2>&1; then
+  echo "[post-commit] corepack not available; cannot run pnpm@10.34.3 (the project's pinned version)."
+  exit 0
+fi
+
+export OBSIDIAN_VAULT_PATH
+corepack pnpm docs:obsidian

@@ -31,7 +31,6 @@ import { env } from '@/shared/env/env.schema';
 import { prisma } from '@/shared/db/prisma';
 import { Argon2idHasher } from './argon2.hasher';
 import { logger } from '@/shared/logger/logger';
-import { withRetry } from '@/shared/retry/with-retry';
 
 const credentialsSchema = z.object({
   email: z.string().email().max(254),

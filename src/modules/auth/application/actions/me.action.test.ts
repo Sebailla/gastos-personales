@@ -6,6 +6,7 @@ import type { PasswordHasherPort } from '@/modules/auth/domain/interfaces/passwo
 import type { User, NewUser, DefaultProvider } from '@/modules/auth/domain/entities/user';
 import { EventDispatcher } from '@/shared/events/event-dispatcher';
 import { ErrorCode } from '@/shared/errors/error-codes';
+import { systemClock } from '@/shared/clock/system-clock';
 import type { Context } from 'hono';
 
 const buildSvc = (findByIdResult: User | null): AuthService => {
@@ -43,7 +44,7 @@ const buildSvc = (findByIdResult: User | null): AuthService => {
     hash: vi.fn(async (s: string) => s),
     verify: vi.fn(async () => false),
   };
-  return new AuthService(users, hasher, new EventDispatcher());
+  return new AuthService(users, hasher, new EventDispatcher(), systemClock);
 };
 
 const buildContext = (user: { id: string; email: string } | null): Context => {

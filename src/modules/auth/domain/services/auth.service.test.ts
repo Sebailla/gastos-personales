@@ -8,6 +8,7 @@ import { AppError } from '@/shared/errors/app-error';
 import { ErrorCode } from '@/shared/errors/error-codes';
 import { EventDispatcher } from '@/shared/events/event-dispatcher';
 import { PublicUser } from '../value-objects/public-user';
+import { systemClock } from '@/shared/clock/system-clock';
 import type { DefaultProvider } from '../entities/user';
 
 const buildRepoStub = (): {
@@ -19,33 +20,40 @@ const buildRepoStub = (): {
     update: ReturnType<typeof vi.fn>;
   };
 } => {
-  const create = vi.fn(async (input: NewUser): Promise<User> => ({
-    id: 'u-new',
-    email: input.email,
-    name: input.name,
-    image: input.image,
-    passwordHash: input.passwordHash,
-    defaultProvider: input.defaultProvider,
-    lastLoginAt: null,
-    emailVerified: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }));
+  const create = vi.fn(
+    async (input: NewUser): Promise<User> => ({
+      id: 'u-new',
+      email: input.email,
+      name: input.name,
+      image: input.image,
+      passwordHash: input.passwordHash,
+      defaultProvider: input.defaultProvider,
+      lastLoginAt: null,
+      emailVerified: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }),
+  );
   const findByEmail = vi.fn(async (_email: string): Promise<User | null> => null);
   const findById = vi.fn(async (_id: string): Promise<User | null> => null);
-  const update = vi.fn(async (id: string, patch: Partial<NewUser> & { lastLoginAt?: Date }): Promise<User> => ({
-    id,
-    email: patch.email ?? 'a@b.com',
-    name: patch.name ?? null,
-    image: patch.image ?? null,
-    passwordHash: patch.passwordHash ?? null,
-    defaultProvider: (patch.defaultProvider ?? 'local') as DefaultProvider,
-    lastLoginAt: patch.lastLoginAt ?? null,
-    emailVerified: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }));
-  return { repo: { create, findByEmail, findById, update }, spy: { create, findByEmail, findById, update } };
+  const update = vi.fn(
+    async (id: string, patch: Partial<NewUser> & { lastLoginAt?: Date }): Promise<User> => ({
+      id,
+      email: patch.email ?? 'a@b.com',
+      name: patch.name ?? null,
+      image: patch.image ?? null,
+      passwordHash: patch.passwordHash ?? null,
+      defaultProvider: (patch.defaultProvider ?? 'local') as DefaultProvider,
+      lastLoginAt: patch.lastLoginAt ?? null,
+      emailVerified: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }),
+  );
+  return {
+    repo: { create, findByEmail, findById, update },
+    spy: { create, findByEmail, findById, update },
+  };
 };
 
 const buildHasherStub = (): {
@@ -75,7 +83,7 @@ describe('AuthService.register', () => {
     const { repo, spy } = buildRepoStub();
     const { hasher } = buildHasherStub();
     const { dispatcher } = buildDispatcherStub();
-    const svc = new AuthService(repo, hasher, dispatcher);
+    const svc = new AuthService(repo, hasher, dispatcher, systemClock);
 
     const result = await svc.register({ email: 'A@B.com', password: samplePassword });
 
@@ -103,20 +111,22 @@ describe('AuthService.register', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const svc = new AuthService(repo, hasher, dispatcher);
+    const svc = new AuthService(repo, hasher, dispatcher, systemClock);
 
-    const hashCallsBefore = hasherSpy.hash.mock.calls.length;
-    await expect(svc.register({ email: 'a@b.com', password: samplePassword })).rejects.toBeInstanceOf(
-      AppError,
-    );
+    // F-06: a single register call drives both the
+    // `AppError` class check AND the `code` check, so the
+    // timing-equalization hash count is asserted exactly.
     try {
       await svc.register({ email: 'a@b.com', password: samplePassword });
+      expect.fail('expected register to throw on duplicate email');
     } catch (err) {
+      expect(err).toBeInstanceOf(AppError);
       expect((err as AppError).code).toBe(ErrorCode.EMAIL_TAKEN);
     }
-    // The hasher.hash was invoked at least once on the duplicate path
-    // (BR-AUTH-4 equalization). The repo's create is never called.
-    expect(hasherSpy.hash.mock.calls.length).toBeGreaterThan(hashCallsBefore);
+    // BR-AUTH-4: the hasher.hash was invoked exactly once
+    // on the duplicate path (timing equalization). The
+    // repo's create is never called.
+    expect(hasherSpy.hash).toHaveBeenCalledTimes(1);
     expect(spy.create).not.toHaveBeenCalled();
   });
 
@@ -124,7 +134,7 @@ describe('AuthService.register', () => {
     const { repo } = buildRepoStub();
     const { hasher } = buildHasherStub();
     const { dispatcher, spy } = buildDispatcherStub();
-    const svc = new AuthService(repo, hasher, dispatcher);
+    const svc = new AuthService(repo, hasher, dispatcher, systemClock);
 
     await svc.register({ email: 'A@B.com', password: samplePassword });
 
@@ -133,6 +143,23 @@ describe('AuthService.register', () => {
       return ev.type === 'UserRegistered';
     });
     expect(userRegisteredCalls).toHaveLength(1);
+  });
+
+  it('propagates the clock time as UserRegistered.occurredAt', async () => {
+    const { repo } = buildRepoStub();
+    const { hasher } = buildHasherStub();
+    const dispatcher = new EventDispatcher();
+    const fixed = new Date('2026-06-19T12:00:00.000Z');
+    const fixedClock = { now: () => fixed };
+    const evtSpy = vi.fn();
+    dispatcher.subscribe('UserRegistered', evtSpy);
+    const svc = new AuthService(repo, hasher, dispatcher, fixedClock);
+
+    await svc.register({ email: 'A@B.com', password: samplePassword });
+
+    expect(evtSpy).toHaveBeenCalledTimes(1);
+    const event = evtSpy.mock.calls[0]?.[0] as { payload: { occurredAt: string } };
+    expect(event.payload.occurredAt).toBe(fixed.toISOString());
   });
 
   it('does NOT dispatch UserRegistered on EMAIL_TAKEN', async () => {
@@ -153,11 +180,11 @@ describe('AuthService.register', () => {
     });
     const dSpy = vi.fn();
     dispatcher.subscribe('UserRegistered', dSpy);
-    const svc = new AuthService(repo, hasher, dispatcher);
+    const svc = new AuthService(repo, hasher, dispatcher, systemClock);
 
-    await expect(svc.register({ email: 'a@b.com', password: samplePassword })).rejects.toBeInstanceOf(
-      AppError,
-    );
+    await expect(
+      svc.register({ email: 'a@b.com', password: samplePassword }),
+    ).rejects.toBeInstanceOf(AppError);
     expect(dSpy).not.toHaveBeenCalled();
   });
 
@@ -165,16 +192,19 @@ describe('AuthService.register', () => {
     const { repo } = buildRepoStub();
     const { hasher } = buildHasherStub();
     const { dispatcher } = buildDispatcherStub();
-    const svc = new AuthService(repo, hasher, dispatcher);
+    const svc = new AuthService(repo, hasher, dispatcher, systemClock);
 
-    await expect(svc.register({ email: 'a@b.com', password: 'short' })).rejects.toBeInstanceOf(
-      AppError,
-    );
+    // F-06: single call to assert both class and code so
+    // the hash count is exactly zero (the password check
+    // happens BEFORE the duplicate-email path that hashes).
     try {
       await svc.register({ email: 'a@b.com', password: 'short' });
+      expect.fail('expected register to throw on weak password');
     } catch (err) {
+      expect(err).toBeInstanceOf(AppError);
       expect((err as AppError).code).toBe(ErrorCode.WEAK_PASSWORD);
     }
+    expect(hasher.hash).not.toHaveBeenCalled();
   });
 });
 
@@ -195,22 +225,24 @@ describe('AuthService.buildPublicUser', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const svc = new AuthService(repo, hasher, dispatcher);
+    const svc = new AuthService(repo, hasher, dispatcher, systemClock);
 
     const projection = await svc.buildPublicUser('u1');
 
-    expect(projection).toEqual(PublicUser.from({
-      id: 'u1',
-      email: 'a@b.com',
-      name: 'Alice',
-      image: null,
-      passwordHash: '$argon2id$h',
-      defaultProvider: 'google',
-      lastLoginAt: new Date('2026-06-12T10:00:00Z'),
-      emailVerified: new Date('2026-06-12T10:00:00Z'),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }));
+    expect(projection).toEqual(
+      PublicUser.from({
+        id: 'u1',
+        email: 'a@b.com',
+        name: 'Alice',
+        image: null,
+        passwordHash: '$argon2id$h',
+        defaultProvider: 'google',
+        lastLoginAt: new Date('2026-06-12T10:00:00Z'),
+        emailVerified: new Date('2026-06-12T10:00:00Z'),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+    );
     expect(projection).not.toHaveProperty('passwordHash');
     expect(projection).not.toHaveProperty('emailVerified');
   });
@@ -219,7 +251,7 @@ describe('AuthService.buildPublicUser', () => {
     const { repo } = buildRepoStub();
     const { hasher } = buildHasherStub();
     const { dispatcher } = buildDispatcherStub();
-    const svc = new AuthService(repo, hasher, dispatcher);
+    const svc = new AuthService(repo, hasher, dispatcher, systemClock);
 
     expect(await svc.buildPublicUser('missing')).toBeNull();
   });
@@ -242,7 +274,7 @@ describe('AuthService.applyDefaultProviderOnOAuth', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    const svc = new AuthService(repo, hasher, dispatcher);
+    const svc = new AuthService(repo, hasher, dispatcher, systemClock);
 
     await svc.applyDefaultProviderOnOAuth('u1', 'google');
 

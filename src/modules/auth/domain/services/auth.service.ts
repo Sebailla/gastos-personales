@@ -19,6 +19,7 @@
 
 import { AppError } from '@/shared/errors/app-error';
 import { ErrorCode } from '@/shared/errors/error-codes';
+import type { Clock } from '@/shared/clock/clock.port';
 import type { PasswordHasherPort } from '../interfaces/password-hasher.port';
 import type { UserRepositoryPort } from '../interfaces/user.repository.port';
 import type { DefaultProvider, NewUser } from '../entities/user';
@@ -46,6 +47,7 @@ export class AuthService {
     private readonly users: UserRepositoryPort,
     private readonly hasher: PasswordHasherPort,
     private readonly dispatcher: EventDispatcher,
+    private readonly clock: Clock,
   ) {}
 
   async register({ email, password }: RegisterInput): Promise<PublicUserShape> {
@@ -87,7 +89,7 @@ export class AuthService {
         userId: created.id,
         email: created.email,
         provider: 'local',
-        occurredAt: new Date().toISOString(),
+        occurredAt: this.clock.now().toISOString(),
       },
     };
     await this.dispatcher.dispatch(event);

@@ -21,6 +21,7 @@ export default defineConfig({
       reporter: ['text', 'lcov', 'json'],
       include: [
         'src/modules/auth/**',
+        'src/modules/accounts/**',
         'src/shared/db/**',
         'src/shared/env/**',
         'src/shared/logger/**',
@@ -28,6 +29,14 @@ export default defineConfig({
         'src/shared/errors/**',
         'src/shared/events/**',
         'src/shared/crypto/**',
+      ],
+      exclude: [
+        // Pure type interfaces (ports): contracts, no executable code.
+        'src/modules/**/domain/interfaces/**/*.ts',
+        // Barrel re-exports: pure imports + exports, no logic.
+        'src/**/index.ts',
+        // Event type definitions: pure state, dispatched by infrastructure.
+        'src/shared/events/user-events.ts',
       ],
       thresholds: {
         lines: 80,

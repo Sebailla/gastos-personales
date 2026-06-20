@@ -81,6 +81,10 @@ export async function registerAction(
       // Any other AppError from the domain layer is an
       // unexpected condition from the register path; log and
       // surface as INTERNAL_ERROR (per `error-handling` skill).
+      // Accounts actions use the shared `appErrorToActionError`
+      // helper instead; the register action keeps the collapse
+      // because the auth surface deliberately does not echo
+      // arbitrary AppError messages back to the client.
       logger.error('register_action_app_error', { code: err.code, message: err.message });
       return {
         status: 500,

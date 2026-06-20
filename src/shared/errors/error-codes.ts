@@ -23,6 +23,14 @@ export const ErrorCode = {
 
   // --- Conflict (409) ---
   EMAIL_TAKEN: 'EMAIL_TAKEN',
+  NAME_TAKEN: 'NAME_TAKEN', // accounts: (userId, type, name) unique violation
+
+  // --- Not found (404) ---
+  NOT_FOUND: 'NOT_FOUND', // accounts: cross-user or non-existent row
+
+  // --- FX (503 / 409) ---
+  FX_UNAVAILABLE: 'FX_UNAVAILABLE', // accounts: no FxRateProvider registered (PR-B stub)
+  FX_NOT_SUPPORTED: 'FX_NOT_SUPPORTED', // accounts: provider does not support the pair
 
   // --- Rate (429) ---
   RATE_LIMITED: 'RATE_LIMITED',
@@ -48,6 +56,10 @@ export const ErrorStatus: Record<ErrorCode, number> = {
   UNAUTHORIZED: 401,
   FORBIDDEN: 403,
   EMAIL_TAKEN: 409,
+  NAME_TAKEN: 409,
+  NOT_FOUND: 404,
+  FX_UNAVAILABLE: 503,
+  FX_NOT_SUPPORTED: 409,
   RATE_LIMITED: 429,
   OAUTH_PROVIDER_UNAVAILABLE: 502,
   INTERNAL_ERROR: 500,

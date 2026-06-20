@@ -18,7 +18,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "prisma": "prisma",
-    "prepare": "husky"
+    "prepare": "husky",
+    "docs:obsidian": "tsx scripts/sync-obsidian.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "2.11.2",
@@ -39,6 +40,7 @@
     "@commitlint/cli": "19.6.0",
     "@commitlint/config-conventional": "19.6.0",
     "@node-rs/argon2": "2.0.2",
+    "@tailwindcss/postcss": "^4.3.1",
     "@testing-library/dom": "10.4.0",
     "@types/node": "22.10.2",
     "@types/react": "19.0.1",
@@ -50,8 +52,10 @@
     "eslint-config-prettier": "9.1.0",
     "husky": "9.1.7",
     "lint-staged": "15.2.11",
+    "postcss": "^8.5.15",
     "prettier": "3.4.2",
     "prisma": "6.0.1",
+    "tailwindcss": "^4.3.1",
     "tsx": "4.19.2",
     "typescript": "5.7.2",
     "vitest": "2.1.8"
@@ -63,6 +67,13 @@
     ],
     "*.{md,json,yml,yaml}": [
       "prettier --write"
+    ]
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma"
     ]
   }
 }

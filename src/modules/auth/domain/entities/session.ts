@@ -17,7 +17,12 @@ export interface Session {
   readonly expires: Date;
 }
 
-/** A session is active iff `expires > now`. Pure, deterministic. */
-export function isSessionActive(expires: Date, now: Date = new Date()): boolean {
+/** A session is active iff `expires > now`. Pure, deterministic.
+ *
+ * `now` is required (no `new Date()` default) so the call
+ * site owns the time source. Production code passes
+ * `systemClock.now()`; tests pass a fixed `Date`.
+ */
+export function isSessionActive(expires: Date, now: Date): boolean {
   return expires.getTime() > now.getTime();
 }
