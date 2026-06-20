@@ -22,6 +22,7 @@ import { AuthService } from '@/modules/auth/domain/services/auth.service';
 import { UserRepository } from '@/modules/auth/infrastructure/repositories/user.repository';
 import { Argon2idHasher } from '@/modules/auth/infrastructure/external/argon2.hasher';
 import { EventDispatcher } from '@/shared/events/event-dispatcher';
+import { systemClock } from '@/shared/clock/system-clock';
 import { prisma } from '@/shared/db/prisma';
 import { ErrorCode } from '@/shared/errors/error-codes';
 
@@ -37,6 +38,7 @@ const authService = new AuthService(
   new UserRepository(prisma() as unknown as ConstructorParameters<typeof UserRepository>[0]),
   new Argon2idHasher(),
   new EventDispatcher(),
+  systemClock,
 );
 
 /**
