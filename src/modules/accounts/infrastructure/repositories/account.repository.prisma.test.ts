@@ -33,6 +33,9 @@ import {
   type FinancialAccount,
 } from '../../domain/entities/financial-account';
 import { ErrorCode } from '@/shared/errors/error-codes';
+import type { Clock } from '@/shared/clock/clock.port';
+
+const fixedClock: Clock = { now: () => new Date('2026-06-20T00:00:00.000Z') };
 import type { PrismaFinancialAccountDelegate } from '@/shared/db/prisma-types';
 
 // ---------------------------------------------------------------------------
@@ -400,7 +403,7 @@ describe('AccountRepositoryPrisma.archive / unarchive', () => {
       financialAccount: prisma.financialAccount,
     });
     await repo.create('u-1', aRowInput({ name: 'A' }));
-    const r = await repo.archive('u-1', 'fa-1');
+    const r = await repo.archive('u-1', 'fa-1', fixedClock);
     expect(r?.archivedAt).toBeInstanceOf(Date);
   });
 
@@ -410,7 +413,7 @@ describe('AccountRepositoryPrisma.archive / unarchive', () => {
       financialAccount: prisma.financialAccount,
     });
     await repo.create('u-1', aRowInput({ name: 'A' }));
-    await repo.archive('u-1', 'fa-1');
+    await repo.archive('u-1', 'fa-1', fixedClock);
     const r = await repo.unarchive('u-1', 'fa-1');
     expect(r?.archivedAt).toBeNull();
   });
@@ -421,8 +424,8 @@ describe('AccountRepositoryPrisma.archive / unarchive', () => {
       financialAccount: prisma.financialAccount,
     });
     await repo.create('u-1', aRowInput({ name: 'A' }));
-    const first = await repo.archive('u-1', 'fa-1');
-    const second = await repo.archive('u-1', 'fa-1');
+    const first = await repo.archive('u-1', 'fa-1', fixedClock);
+    const second = await repo.archive('u-1', 'fa-1', fixedClock);
     expect(first?.archivedAt).toBeInstanceOf(Date);
     expect(second?.archivedAt).toEqual(first?.archivedAt);
     // Only the first call should have written; the second
@@ -437,7 +440,7 @@ describe('AccountRepositoryPrisma.archive / unarchive', () => {
       financialAccount: prisma.financialAccount,
     });
     await repo.create('u-1', aRowInput({ name: 'A' }));
-    await repo.archive('u-1', 'fa-1');
+    await repo.archive('u-1', 'fa-1', fixedClock);
     const first = await repo.unarchive('u-1', 'fa-1');
     const second = await repo.unarchive('u-1', 'fa-1');
     expect(first?.archivedAt).toBeNull();

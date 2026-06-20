@@ -26,6 +26,7 @@
  */
 
 import type { AccountCurrency, AccountType, FinancialAccount } from '../entities/financial-account';
+import type { Clock } from '@/shared/clock/clock.port';
 
 export interface ListAccountsOptions {
   readonly cursor?: string;
@@ -90,13 +91,7 @@ export interface UpdateFinancialAccountPatch {
   statementDay?: number | null;
   paymentDueDay?: number | null;
   broker?: string | null;
-  investmentType?:
-    | 'STOCKS'
-    | 'BONDS'
-    | 'MUTUAL_FUNDS'
-    | 'CERTS_OF_DEPOSIT'
-    | 'OTHER'
-    | null;
+  investmentType?: 'STOCKS' | 'BONDS' | 'MUTUAL_FUNDS' | 'CERTS_OF_DEPOSIT' | 'OTHER' | null;
   walletAddress?: string | null;
 }
 
@@ -128,13 +123,14 @@ export interface AccountRepositoryPort {
     patch: UpdateFinancialAccountPatch,
   ): Promise<FinancialAccount | null>;
 
-  /** Set archivedAt = now() on a live account. Idempotent:
+  /** Set archivedAt = clock.now() on a live account. Idempotent:
    *  archives only if the row is currently live (`archivedAt = null`).
    *  Returns `null` on miss or cross-user (same pattern as `update`). */
-  archive(userId: string, id: string): Promise<FinancialAccount | null>;
+  archive(userId: string, id: string, clock: Clock): Promise<FinancialAccount | null>;
 
   /** Set archivedAt = null on an archived account. Idempotent:
    *  unarchives only if the row is currently archived (`archivedAt != null`).
-   *  Returns `null` on miss or cross-user (same pattern as `update`). */
+   *  Returns `null` on miss or cross-user (same pattern as `update`).
+   *  No clock needed: the value written is `null`, not `now()`. */
   unarchive(userId: string, id: string): Promise<FinancialAccount | null>;
 }

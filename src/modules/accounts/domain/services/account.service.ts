@@ -96,7 +96,7 @@ export class AccountService {
   }
 
   async archive(userId: string, id: string): Promise<FinancialAccount> {
-    const row = await this.repo.archive(userId, id);
+    const row = await this.repo.archive(userId, id, this.clock);
     if (row === null) {
       throw new AppError({
         code: ErrorCode.NOT_FOUND,

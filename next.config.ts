@@ -17,7 +17,12 @@ const nextConfig: NextConfig = {
   // option. Keeping it here would boot with a warning and pin us to
   // a deprecated config surface. Promote it.
   typedRoutes: true,
-  // Security headers (BR-AUTH-11 baseline).
+  // Security headers (BR-AUTH-11 baseline + HSTS + CSP).
+  // 4R-R1 finding: HSTS and CSP were missing, leaving a
+  // HTTPS-downgrade and content-injection surface on a public
+  // finance app. The CSP allowlist mirrors the actual surface
+  // (self + Sentry + Google OAuth + Auth.js + Sentry uploads);
+  // any new external origin needs an explicit entry here.
   async headers() {
     return [
       {
@@ -26,6 +31,25 @@ const nextConfig: NextConfig = {
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=31536000; includeSubDomains; preload',
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' https://*.sentry.io https://accounts.google.com",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: https: blob:",
+              "font-src 'self' data:",
+              "connect-src 'self' https://*.sentry.io https://accounts.google.com https://oauth2.googleapis.com",
+              "frame-src 'self' https://accounts.google.com https://*.sentry.io",
+              "frame-ancestors 'none'",
+              "base-uri 'self'",
+              "form-action 'self' https://accounts.google.com",
+            ].join('; '),
+          },
         ],
       },
     ];

@@ -31,6 +31,7 @@ import { env } from '@/shared/env/env.schema';
 import { prisma } from '@/shared/db/prisma';
 import { Argon2idHasher } from './argon2.hasher';
 import { logger } from '@/shared/logger/logger';
+import { withRetry } from '@/shared/retry/with-retry';
 
 const credentialsSchema = z.object({
   email: z.string().email().max(254),
@@ -87,14 +88,32 @@ export function normalizeEmail(email: string): string {
  */
 export async function signInCallback(params: {
   user?: { email?: string | null };
+  clock?: { now: () => Date };
 }): Promise<boolean> {
   const email = params.user?.email ? normalizeEmail(params.user.email) : null;
   if (!email) return true;
+  const clock = params.clock ?? { now: () => new Date() };
   try {
-    const result = await prisma().user.updateMany({
-      where: { email },
-      data: { lastLoginAt: new Date() },
-    });
+    // withRetry gives the audit-trail write a chance to survive
+    // transient Prisma outages (connection blip, brief failover,
+    // lock wait). The policy is bounded: 3 attempts, exponential
+    // backoff with 20% jitter. After 3 attempts the call falls
+    // through to the catch-and-log branch (best-effort by design
+    // — a tracking write must not block an already-successful
+    // sign-in). The error is logged with the last attempt's
+    // error message. Fixes 4R-R4 C-1 (withRetry was dead code).
+    const result = await withRetry(
+      () => prisma().user.updateMany({
+        where: { email },
+        data: { lastLoginAt: clock.now() },
+      }),
+      {
+        attempts: 3,
+        baseDelayMs: 100,
+        onRetry: (err: unknown, next: number, delayMs: number) =>
+          logger.warn('signIn_callback_retry', { email, next, delayMs, error: err instanceof Error ? err.message : String(err) }),
+      },
+    );
     if (result.count === 0) {
       logger.warn('signIn_callback_user_not_found', { email });
     }

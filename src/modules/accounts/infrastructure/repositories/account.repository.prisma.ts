@@ -32,6 +32,7 @@
 import { Prisma } from '@prisma/client';
 import { AppError } from '@/shared/errors/app-error';
 import { ErrorCode } from '@/shared/errors/error-codes';
+import type { Clock } from '@/shared/clock/clock.port';
 import type { PrismaFinancialAccountDelegate } from '@/shared/db/prisma-types';
 import {
   AccountCurrency,
@@ -146,14 +147,14 @@ export class AccountRepositoryPrisma implements AccountRepositoryPort {
     return this.findById(userId, id);
   }
 
-  async archive(userId: string, id: string): Promise<FinancialAccount | null> {
+  async archive(userId: string, id: string, clock: Clock): Promise<FinancialAccount | null> {
     // Idempotency guard: the WHERE includes `archivedAt: null`
     // so the write is a no-op when the row is already archived.
     // This makes a double-archive request a safe idempotent call
     // and keeps the post-state observable through `findById`.
     const result = await this.prisma.financialAccount.updateMany({
       where: { id, userId, archivedAt: null },
-      data: { archivedAt: new Date() },
+      data: { archivedAt: clock.now() },
     });
     if (result.count === 0) {
       // Either the row does not exist, is owned by another user,
