@@ -22,13 +22,14 @@ import {
   OpeningBalance,
 } from './index';
 import type { FinancialAccount, AccountRepositoryPort, FxRateProvider } from './index';
+import { systemClock } from '@/shared/clock/system-clock';
 
 describe('accounts module public API (compile-time)', () => {
   it('re-exports AccountService as a constructible class', () => {
     expect(typeof AccountService).toBe('function');
     const fakeRepo = {} as AccountRepositoryPort;
     const fakeFx = {} as FxRateProvider;
-    const svc = new AccountService(fakeRepo, fakeFx);
+    const svc = new AccountService(fakeRepo, fakeFx, systemClock);
     expect(svc).toBeInstanceOf(AccountService);
   });
 

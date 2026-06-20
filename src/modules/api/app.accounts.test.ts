@@ -15,8 +15,9 @@ import { AuthService } from '@/modules/auth/domain/services/auth.service';
 import type { UserRepositoryPort } from '@/modules/auth/domain/interfaces/user.repository.port';
 import type { PasswordHasherPort } from '@/modules/auth/domain/interfaces/password-hasher.port';
 import { EventDispatcher } from '@/shared/events/event-dispatcher';
+import { systemClock } from '@/shared/clock/system-clock';
 import { AccountService } from '@/modules/accounts';
-import { FxRateProviderStub } from '@/modules/accounts';
+import { FxRateProviderStub } from '@/modules/accounts/infrastructure/external/fx-rate-provider.stub';
 import {
   AccountCurrency,
   AccountKind,
@@ -40,7 +41,7 @@ function buildAuthSvc(): AuthService {
     hash: vi.fn(),
     verify: vi.fn(),
   };
-  return new AuthService(users, hasher, new EventDispatcher());
+  return new AuthService(users, hasher, new EventDispatcher(), systemClock);
 }
 
 function makeRow(overrides: Partial<FinancialAccount> = {}): FinancialAccount {
@@ -81,6 +82,7 @@ function buildDeps(accountService: AccountService, fx: FxRateProviderStub): Hono
 function buildAccountServiceMock(
   overrides: Partial<{
     list: ReturnType<typeof vi.fn>;
+    count: ReturnType<typeof vi.fn>;
     getById: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
@@ -91,6 +93,7 @@ function buildAccountServiceMock(
 ): AccountService {
   return {
     list: overrides.list ?? vi.fn(async () => ({ data: [], nextCursor: null })),
+    count: overrides.count ?? vi.fn(async () => 0),
     getById: overrides.getById ?? vi.fn(async () => makeRow()),
     create: overrides.create ?? vi.fn(async () => makeRow()),
     update: overrides.update ?? vi.fn(async () => makeRow()),

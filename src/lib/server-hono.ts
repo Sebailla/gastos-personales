@@ -40,28 +40,23 @@ import { Argon2idHasher } from '@/modules/auth/infrastructure/external/argon2.ha
 import { AuthService } from '@/modules/auth/domain/services/auth.service';
 import { dispatcher } from '@/shared/events/event-dispatcher';
 import { prisma } from '@/shared/db/prisma';
-import { AccountService } from '@/modules/accounts';
-import { AccountRepositoryPrisma } from '@/modules/accounts/infrastructure/repositories/account.repository.prisma';
+import { systemClock } from '@/shared/clock/system-clock';
 import { FxRateProviderUnconfigured } from '@/modules/accounts/infrastructure/external/fx-rate-provider.unconfigured';
 import { OpenAPIHono } from '@hono/zod-openapi';
+import { asPrismaDelegateView } from '@/shared/db/prisma-types';
 
 function buildAccountsDeps(): Omit<HonoAppDeps, 'authjsAuth'> {
-  // The PrismaClient satisfies the narrow port structurally
-  // (the `user` and `financialAccount` delegates have the
-  // methods the repositories use). The cast keeps this
-  // helper from importing the full PrismaClientOptions type
-  // for what is, in practice, a structural compat check.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const prismaAny = prisma() as any;
-  const userRepo = new UserRepository(prismaAny);
+  // F-14: use the narrow delegate view instead of
+  // `as any`. The structural cast happens once inside
+  // `asPrismaDelegateView`.
+  const prismaView = asPrismaDelegateView(prisma());
+  const userRepo = new UserRepository({ user: prismaView.user });
   const hasher = new Argon2idHasher();
-  const authService = new AuthService(userRepo, hasher, dispatcher);
-  const accountRepo = new AccountRepositoryPrisma({
-    financialAccount: prismaAny.financialAccount,
-  });
+  const authService = new AuthService(userRepo, hasher, dispatcher, systemClock);
+  // F-05: only the FX provider is wired at the deps level;
+  // the AccountService is built inside `createHonoApp`.
   const fxProvider = new FxRateProviderUnconfigured();
-  const accountService = new AccountService(accountRepo, fxProvider);
-  return { authService, accountService, fxRateProvider: fxProvider };
+  return { authService, fxRateProvider: fxProvider };
 }
 
 /**

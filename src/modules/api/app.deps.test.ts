@@ -1,10 +1,14 @@
 /**
- * Tests for HonoAppDeps extension + buildDefaultDeps wiring.
+ * Tests for HonoAppDeps wiring (F-05: `fxRateProvider` is
+ * the real seam; `createHonoApp` builds `AccountService`
+ * from it when one is not injected).
  *
- * 3 cases:
- * (1) the HonoAppDeps interface requires `accountService` and `fxRateProvider` (compile-time)
- * (2) `createHonoApp` accepts the extended deps and routes dispatch through them
- * (3) the default `honoApp` uses the unconfigured FX stub
+ * Cases:
+ * (1) `createHonoApp` accepts the deps with `fxRateProvider`
+ *     and the accounts routes dispatch through the built
+ *     `AccountService`.
+ * (2) the default `honoApp` is wired with the unconfigured
+ *     FX stub.
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -13,8 +17,10 @@ import { AuthService } from '@/modules/auth/domain/services/auth.service';
 import type { UserRepositoryPort } from '@/modules/auth/domain/interfaces/user.repository.port';
 import type { PasswordHasherPort } from '@/modules/auth/domain/interfaces/password-hasher.port';
 import { EventDispatcher } from '@/shared/events/event-dispatcher';
+import { systemClock } from '@/shared/clock/system-clock';
 import { AccountService } from '@/modules/accounts';
-import { FxRateProviderUnconfigured, FxRateProviderStub } from '@/modules/accounts';
+import { FxRateProviderUnconfigured } from '@/modules/accounts/infrastructure/external/fx-rate-provider.unconfigured';
+import { FxRateProviderStub } from '@/modules/accounts/infrastructure/external/fx-rate-provider.stub';
 import {
   AccountCurrency,
   AccountKind,
@@ -37,7 +43,7 @@ function buildAuthSvc(): AuthService {
     hash: vi.fn(),
     verify: vi.fn(),
   };
-  return new AuthService(users, hasher, new EventDispatcher());
+  return new AuthService(users, hasher, new EventDispatcher(), systemClock);
 }
 
 function makeRow(): FinancialAccount {
@@ -74,10 +80,11 @@ function buildDeps(svc: AccountService, fx = new FxRateProviderStub()): HonoAppD
   };
 }
 
-describe('HonoAppDeps extension + buildDefaultDeps wiring', () => {
-  it('routes dispatch to the injected accountService', async () => {
+describe('HonoAppDeps wiring (F-05)', () => {
+  it('routes dispatch through the injected accountService', async () => {
     const svc: AccountService = {
       list: vi.fn(async () => ({ data: [makeRow()], nextCursor: null })),
+      count: vi.fn(async () => 1),
       getById: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
@@ -92,17 +99,14 @@ describe('HonoAppDeps extension + buildDefaultDeps wiring', () => {
   });
 
   it('the default honoApp uses the unconfigured FX stub (returns 503)', async () => {
-    // The default honoApp has a null session resolver; we override it
-    // to inject a session so the route runs.
-    const defaultSvc = (honoApp as unknown as { _def?: { accountService: AccountService } });
-    void defaultSvc;
     const res = await honoApp.request('/api/accounts/fa-1/balance?displayCurrency=EUR', {
       headers: { cookie: 'authjs.session-token=test' },
     });
-    // The default authjsAuth is `async () => null`, so requireSession
-    // returns 401. The 401 short-circuit fires before the FX stub is
-    // exercised. The relevant assertion is: the dep is wired (the
-    // route exists; the FX provider type is correct).
+    // The default authjsAuth is `async () => null`, so
+    // requireSession returns 401. The 401 short-circuit
+    // fires before the FX stub is exercised. The relevant
+    // assertion is: the dep is wired (the route exists;
+    // the FX provider type is correct).
     expect(res.status).toBe(401);
   });
 
@@ -122,6 +126,7 @@ describe('HonoAppDeps extension + buildDefaultDeps wiring', () => {
     fx.setMode('not-supported');
     const svc: AccountService = {
       list: vi.fn(),
+      count: vi.fn(),
       getById: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
