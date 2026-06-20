@@ -25,6 +25,7 @@
 
 import { AppError } from '@/shared/errors/app-error';
 import { ErrorCode } from '@/shared/errors/error-codes';
+import type { Clock } from '@/shared/clock/clock.port';
 import type {
   AccountRepositoryPort,
   CreateFinancialAccountInput,
@@ -43,10 +44,21 @@ export class AccountService {
   constructor(
     private readonly repo: AccountRepositoryPort,
     private readonly fx: FxRateProvider,
+    private readonly clock: Clock,
   ) {}
 
   async list(userId: string, opts: ListAccountsOptions): Promise<ListAccountsPage> {
     return this.repo.list(userId, opts);
+  }
+
+  // F-12: accept the same `ListAccountsOptions` shape as
+  // `list` so callers can build the filter once and pass
+  // it to both. `limit` and `cursor` are ignored by the
+  // repository's count query (count has no pagination);
+  // `archivedAt` is the only meaningful filter for count.
+  async count(userId: string, opts: ListAccountsOptions = { limit: 0 }): Promise<number> {
+    const { archivedAt } = opts;
+    return this.repo.count(userId, archivedAt !== undefined ? { archivedAt } : {});
   }
 
   async getById(userId: string, id: string): Promise<FinancialAccount> {
@@ -123,7 +135,7 @@ export class AccountService {
         currency: account.currency,
       },
       displayCurrency,
-      asOf: new Date(),
+      asOf: this.clock.now(),
     };
     return this.fx.getDisplayAmount(req);
   }

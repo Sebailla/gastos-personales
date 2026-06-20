@@ -63,6 +63,12 @@ export type {
   FxConversionResult,
 } from './domain/interfaces/fx-rate-provider.port';
 
-export { FxRateProviderUnconfigured } from './infrastructure/external/fx-rate-provider.unconfigured';
-export { FxRateProviderStub } from './infrastructure/external/fx-rate-provider.stub';
-export { AccountRepositoryPrisma } from './infrastructure/repositories/account.repository.prisma';
+// F-09: infrastructure classes (the Prisma adapter and the
+// FX provider implementations) are NOT re-exported from
+// this barrel. Ports & Adapters — the domain ports above
+// are the contract; the infrastructure adapters are
+// implementations wired by the composition root
+// (`src/modules/api/app.ts` and `src/lib/server-hono.ts`).
+// Consumers that need a specific implementation import it
+// from the deep path
+// (`@/modules/accounts/infrastructure/...`).
