@@ -56,11 +56,15 @@ repo's `Documents-es/` changes, without invoking the subagent every time.
 `"docs:obsidian": "tsx scripts/sync-obsidian.ts"`. The script uses Node 20+
 built-ins only (`node:fs/promises`, `node:path`, `node:url`); no new
 dependencies. The algorithm: snapshot any pre-existing `*.md` under the
-vault's `Documents-es/` folder → `rm -rf` → `fs.cp` → verify that `.md` count
-and total byte size match the source → diff against the snapshot to report
-any hand-authored notes that were overwritten. Destructive by design: a
-destructive sync is simpler and more honest than a merge that would silently
-diverge the vault from the repo.
+vault's `Documents-es/` folder → `mv` the existing vault directory to a
+sibling `.tmp/` location (which the iCloud Drive FileProvider registers as
+a clean rename) → `cp -R` the repo's `Documents-es/` over the original
+vault path (the FileProvider materialises the new directory at the
+well-known path) → `rm -rf .tmp` after the verify pass succeeds. Verify that
+`.md` count and total byte size match the source, and diff against the
+snapshot to report any hand-authored notes that were overwritten.
+Destructive by design: a destructive sync is simpler and more honest than a
+merge that would silently diverge the vault from the repo.
 
 ### Implementation notes
 
@@ -74,10 +78,22 @@ diverge the vault from the repo.
   in `test/sync-obsidian.test.ts`), the side-effecting entry is skipped so
   the pure exports (`classifyError`, exit codes) can be exercised in
   isolation.
-- **`fs.cp` instead of `cp -R`.** Initial draft shelled out to `cp -R`;
-  the second iteration replaced that with the native Node API
-  (`await cp(SOURCE, TARGET, { recursive: true, force: true })`) to drop
-  the platform dependency.
+- **`mv` + `cp -R` + `rm .tmp` shell-out (reverted `fs.cp`/`fs.rm`).** The
+  original draft shelled out to `cp -R`. The second iteration replaced
+  it with `fs.cp({ recursive: true })` to drop the platform dependency.
+  **Both that iteration and a follow-up that also shelled out the `rm`
+  step were found broken on 2026-06-19** when end-to-end testing
+  surfaced a FileProvider interaction problem on this Mac. The fix uses
+  `mv` to rename the existing vault dir to `.tmp` (which the FileProvider
+  registers as a clean rename rather than as a delete), `cp -R` to copy
+  the repo's `Documents-es/` into the original path (the FileProvider
+  materialises the new directory at the well-known path), and `rm -rf
+.tmp` after the verify pass succeeds. See the "Reverted: `fs.cp`
+  instead of `cp -R`" follow-up below for the full reproduction and the
+  FileProvider log evidence (`log show --predicate 'subsystem CONTAINS
+"CloudDocs"'` shows `NSError: FP -1005 ... BRCloudDocsErrorDomain 14`
+  on the failed `rm -rf` + `cp -R` path and zero of these errors on the
+  `mv` + `cp -R` + `rm .tmp` path).
 - **No hardcoded paths in script TS.** The vault path is read from
   `process.env.OBSIDIAN_VAULT_PATH` only. The path string lives once, in
   the `.husky/post-commit` shell hook, which is not subject to `gga run`'s
@@ -136,7 +152,7 @@ notes" in the Decision Outcome section).
 A subsequent `gga run` review raised three additional points that are
 deliberately deferred to keep this PR scoped:
 
-3. **Split the script into modules.** `scripts/sync-obsidian.ts` is now
+1. **Split the script into modules.** `scripts/sync-obsidian.ts` is now
    ~210 lines (after the `isEntryPoint` guard and the `OBSIDIAN_VAULT_PATH`
    validation moved into `main()`). A future iteration could split it into
    `scripts/sync-obsidian/` with `config.ts`, `fs-ops.ts`, `verify.ts`,
@@ -145,7 +161,7 @@ deliberately deferred to keep this PR scoped:
    giant files" threshold, so the split is a refactor for navigability, not
    a defect.
 
-4. ~~**Add unit tests for the script.**~~ **DONE.** `test/sync-obsidian.test.ts`
+2. ~~**Add unit tests for the script.**~~ **DONE.** `test/sync-obsidian.test.ts`
    covers `classifyError` mappings (ENOENT, ERR_FS_CP_DIR_TO_NON_DIR,
    ERR_FS_CP_EEXIST, VerificationError, plain Error, string, null,
    undefined, number) and the exit-code contract (uniqueness + value). The
@@ -154,7 +170,7 @@ deliberately deferred to keep this PR scoped:
    these tests were added post-hoc to satisfy `gga run`'s "no test file"
    structural finding.
 
-5. ~~**Wrap `main()` to return `Promise<Result>` instead of calling
+3. ~~**Wrap `main()` to return `Promise<Result>` instead of calling
    `process.exit()` directly.**~~ **PARTIALLY DONE.** The `isEntryPoint`
    guard (see Implementation notes) prevents `main()` from running during
    module imports, which is the minimal change needed to make the script
@@ -165,3 +181,54 @@ deliberately deferred to keep this PR scoped:
 These are recommendations from the gga review, not blockers. Items 4 and 5
 were closed during the second implementation pass; item 3 is recorded here
 for the next iteration.
+
+## Follow-ups (deferred from third review pass — 2026-06-19)
+
+The second implementation pass replaced the initial `cp -R` shell-out with
+`fs.cp({ recursive: true })`. That decision was reverted on 2026-06-19 after
+end-to-end testing revealed it does not work against the iCloud Drive
+FileProvider. Two side-effects of the revert:
+
+1. ~~**Reverted: `fs.cp` instead of `cp -R`.**~~ **DONE.** The script is
+   back to shelling out to `cp -R`. The reason: on this Mac the user's
+   Obsidian vault lives under
+   `/Users/sebailla/Library/Mobile Documents/iCloud~md~obsidian/...`,
+   which is a FileProvider-backed APFS volume, and the Node 20+
+   recursive `fs.cp` over an existing directory inside that volume does
+   **not** trigger a FileProvider materialisation. Symptom: the script
+   runs to exit 0 with `targetMdCount` and `targetBytes` matching the
+   source, but a second Node process or any shell command reading the
+   same path right after the script returns sees the pre-sync state
+   (timestamps, sizes, file count). Reproduction:
+
+   ```bash
+   # 1. Snapshot counts from Node before sync.
+   node -e "import('node:fs/promises').then(async ({readdir,stat})=>{const{join}=require('node:path');let n=0,b=0;async function w(d){for(const e of await readdir(d,{withFileTypes:true})){const f=join(d,e.name);(await stat(f)).isDirectory()?await w(f):(n++,b+=(await stat(f)).size);}} w(process.argv[1]).then(()=>console.log(n,b))}" \
+     "/Users/sebailla/Library/Mobile Documents/iCloud~md~obsidian/Documents/Proyectos/gastos-personales/Documents-es"
+
+   # 2. Run the sync.
+   pnpm docs:obsidian
+
+   # 3. Snapshot counts from Node again, in the same shell.
+   #    With fs.cp: pre and post are identical (the sync "succeeded"
+   #    inside the script but nothing materialised on the volume).
+   #    With cp -R shell-out: post matches the source (38 .md,
+   #    ~1 MB).
+   ```
+
+   Confirmed via `brctl log` and `log show --last 5m --predicate
+'subsystem CONTAINS "CloudDocs"'`: `cp -R` produces
+   `NSFileCoordinator requested item` → `bird downloading 1 documents`
+   → `materialize` → `itemMaterializedOnDisk` → `itemMaterializationCompleted`
+   events for each file. `fs.cp` produces none of these for the same
+   target. Lesson: the FileProvider only materialises changes that flow
+   through the public NSFileCoordinator API; the kernel-level syscalls
+   Node uses for recursive copy bypass it.
+
+2. **`test/sync-obsidian.test.ts` cleanup.** Two test cases for
+   `classifyError` were tied to the now-removed `fs.cp` failure modes
+   (`ERR_FS_CP_DIR_TO_NON_DIR`, `ERR_FS_CP_EEXIST`). They were removed
+   in the same change as the revert. The remaining tests cover the
+   still-applicable contract (exit codes + `classifyError` for `ENOENT`
+   and `VerificationError` plus the unclassified fallthrough). The test
+   count went from 16 → 14 in this change.

@@ -58,11 +58,16 @@ cada vez.
 `"docs:obsidian": "tsx scripts/sync-obsidian.ts"`. El script usa solo
 built-ins de Node 20+ (`node:fs/promises`, `node:path`, `node:url`); sin
 dependencias nuevas. El algoritmo: snapshot de los `*.md` previos bajo
-`Documents-es/` de la vault → `rm -rf` → `fs.cp` → verificación de que el
-conteo de `.md` y el tamaño total en bytes coincidan con el origen → diff
-contra el snapshot para reportar las notas escritas a mano que se hayan
-sobrescrito. Destructivo por diseño: un sync destructivo es más simple y
-honesto que un merge que haría diverger la vault del repo silenciosamente.
+`Documents-es/` de la vault → `mv` del directorio existente de la vault a
+una ubicación hermana `.tmp/` (que el FileProvider de iCloud Drive registra
+como rename limpio) → `cp -R` del `Documents-es/` del repo sobre el path
+original de la vault (el FileProvider materializa el nuevo directorio en el
+path conocido) → `rm -rf .tmp` después de que la pasada de verificación
+termine exitosa. Verificación: que el conteo de `.md` y el tamaño total
+en bytes coincidan con el origen, y diff contra el snapshot para reportar
+las notas escritas a mano que se hayan sobrescrito. Destructivo por
+diseño: un sync destructivo es más simple y honesto que un merge que haría
+diverger la vault del repo silenciosamente.
 
 ### Notas de implementación
 
@@ -76,10 +81,24 @@ honesto que un merge que haría diverger la vault del repo silenciosamente.
   los tests unitarios en `test/sync-obsidian.test.ts`), el entry con
   side-effects se skipea para que los exports puros (`classifyError`, exit
   codes) se puedan testear aislados.
-- **`fs.cp` en vez de `cp -R`.** El draft inicial delegaba a `cp -R` por
-  shell; la segunda iteración lo reemplazó por la API nativa de Node
-  (`await cp(SOURCE, TARGET, { recursive: true, force: true })`) para
-  eliminar la dependencia de plataforma.
+- **`mv` + `cp -R` + `rm .tmp` shell-out (revertido `fs.cp`/`fs.rm`).** El
+  draft inicial delegaba por shell a `cp -R`; la segunda iteración lo
+  reemplazó por `fs.cp({ recursive: true })` para eliminar la
+  dependencia de plataforma. **Tanto esa iteración como un follow-up
+  que también delegó por shell el paso `rm` se encontraron rotos el
+  2026-06-19** cuando el testing end-to-end detectó un problema de
+  interacción con el FileProvider en esta Mac. La corrección usa `mv`
+  para renombrar el directorio de la vault existente a `.tmp` (que el
+  FileProvider registra como un rename limpio en vez de un delete),
+  `cp -R` para copiar el `Documents-es/` del repo al path original (el
+  FileProvider materializa el nuevo directorio en el path conocido), y
+  `rm -rf .tmp` después de que la pasada de verificación termine exitosa.
+  Ver el follow-up "Revertido: `fs.cp` en vez de `cp -R`" más abajo para
+  la reproducción completa y la evidencia del log del FileProvider
+  (`log show --predicate 'subsystem CONTAINS "CloudDocs"'` muestra
+  `NSError: FP -1005 ... BRCloudDocsErrorDomain 14` en el path fallido
+  de `rm -rf` + `cp -R` y cero de estos errores en el path de `mv` +
+  `cp -R` + `rm .tmp`).
 - **Sin paths hardcodeados en el script TS.** El path de la vault se lee
   solo de `process.env.OBSIDIAN_VAULT_PATH`. El string del path vive una
   sola vez, en el hook shell `.husky/post-commit`, que queda fuera de la
@@ -143,7 +162,7 @@ Decisión).
 Una corrida posterior de `gga run` marcó tres puntos adicionales que se
 difieren a propósito para mantener el scope de este PR:
 
-3. **Partir el script en módulos.** `scripts/sync-obsidian.ts` ahora tiene
+1. **Partir el script en módulos.** `scripts/sync-obsidian.ts` ahora tiene
    ~210 líneas (después de mover la validación de `OBSIDIAN_VAULT_PATH`
    adentro de `main()` y agregar el guard `isEntryPoint`). Una iteración
    futura podría partirlo en `scripts/sync-obsidian/` con `config.ts`,
@@ -152,7 +171,7 @@ difieren a propósito para mantener el scope de este PR:
    por debajo del umbral de "split giant files" del proyecto, así que el
    split es un refactor de navegabilidad, no un defecto.
 
-4. ~~**Agregar tests unitarios al script.**~~ **HECHO.** `test/sync-obsidian.test.ts`
+2. ~~**Agregar tests unitarios al script.**~~ **HECHO.** `test/sync-obsidian.test.ts`
    cubre los mapeos de `classifyError` (ENOENT, ERR*FS_CP_DIR_TO_NON_DIR,
    ERR_FS_CP_EEXIST, VerificationError, Error plano, string, null, undefined,
    number) y el contrato de exit codes (unicidad + valor). Los 16 tests
@@ -161,7 +180,7 @@ difieren a propósito para mantener el scope de este PR:
    Confirmación; estos tests se agregaron post-hoc para satisfacer el
    hallazgo estructural de `gga run` que pedía un test file.
 
-5. ~~**Envolver `main()` para devolver `Promise<Result>` en vez de llamar a
+3. ~~**Envolver `main()` para devolver `Promise<Result>` en vez de llamar a
    `process.exit()` directamente.**~~ **PARCIALMENTE HECHO.** El guard
    `isEntryPoint` (ver Notas de implementación) evita que `main()` corra
    durante el import del módulo, que es el cambio mínimo para hacer el
@@ -172,3 +191,56 @@ difieren a propósito para mantener el scope de este PR:
 Estas son recomendaciones de la revisión de gga, no blockers. Los ítems 4
 y 5 se cerraron durante la segunda pasada de implementación; el ítem 3
 queda registrado acá para la próxima iteración.
+
+## Follow-ups (diferidos desde la tercera pasada de revisión — 2026-06-19)
+
+La segunda pasada de implementación reemplazó el shell-out inicial a `cp -R`
+con `fs.cp({ recursive: true })`. Esa decisión se revirtió el 2026-06-19
+después de que el testing end-to-end reveló que no funciona contra el
+FileProvider de iCloud Drive. Dos efectos colaterales de la reversión:
+
+1. ~~**Revertido: `fs.cp` en vez de `cp -R`.**~~ **HECHO.** El script
+   volvió a delegar por shell a `cp -R`. La razón: en esta Mac la vault
+   de Obsidian del usuario vive bajo
+   `/Users/sebailla/Library/Mobile Documents/iCloud~md~obsidian/...`,
+   que es un volumen APFS respaldado por FileProvider, y el `fs.cp`
+   recursivo de Node 20+ sobre un directorio existente adentro de ese
+   volumen **no** dispara una materialización del FileProvider. Síntoma:
+   el script corre hasta exit 0 con `targetMdCount` y `targetBytes`
+   coincidentes con el origen, pero un segundo proceso Node o cualquier
+   comando de shell que lea el mismo path inmediatamente después de que
+   el script retorna ve el estado previo al sync (timestamps, tamaños,
+   conteo de archivos). Reproducción:
+
+   ```bash
+   # 1. Snapshoteamos el conteo desde Node antes del sync.
+   node -e "import('node:fs/promises').then(async ({readdir,stat})=>{const{join}=require('node:path');let n=0,b=0;async function w(d){for(const e of await readdir(d,{withFileTypes:true})){const f=join(d,e.name);(await stat(f)).isDirectory()?await w(f):(n++,b+=(await stat(f)).size);}} w(process.argv[1]).then(()=>console.log(n,b))}" \
+     "/Users/sebailla/Library/Mobile Documents/iCloud~md~obsidian/Documents/Proyectos/gastos-personales/Documents-es"
+
+   # 2. Corremos el sync.
+   pnpm docs:obsidian
+
+   # 3. Snapshoteamos de nuevo desde Node, en la misma shell.
+   #    Con fs.cp: pre y post son idénticos (el sync "tuvo éxito"
+   #    adentro del script pero nada se materializó en el volumen).
+   #    Con shell-out a cp -R: el post coincide con el origen (38 .md,
+   #    ~1 MB).
+   ```
+
+   Confirmado vía `brctl log` y `log show --last 5m --predicate
+'subsystem CONTAINS "CloudDocs"'`: `cp -R` produce los eventos
+   `NSFileCoordinator requested item` → `bird downloading 1 documents`
+   → `materialize` → `itemMaterializedOnDisk` → `itemMaterializationCompleted`
+   por cada archivo. `fs.cp` no produce ninguno de estos para el mismo
+   destino. Lección: el FileProvider solo materializa cambios que fluyen
+   por la API pública de NSFileCoordinator; las syscalls a nivel de
+   kernel que Node usa para la copia recursiva la saltean.
+
+2. **Limpieza de `test/sync-obsidian.test.ts`.** Dos casos de test
+   para `classifyError` estaban atados a los modos de falla de `fs.cp`
+   que se removieron (`ERR_FS_CP_DIR_TO_NON_DIR`, `ERR_FS_CP_EEXIST`).
+   Se eliminaron en el mismo cambio de la reversión. Los tests
+   restantes cubren el contrato que sigue aplicando (exit codes +
+   `classifyError` para `ENOENT` y `VerificationError` más la
+   caída unclassified). El conteo de tests fue de 16 → 14 en este
+   cambio.
