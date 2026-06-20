@@ -45,6 +45,15 @@ describe('listAccountsSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('rejects the legacy archivedAt values (N2 trim to "null" only)', () => {
+    // The Zod enum was trimmed to `['null']` because the
+    // repository only handles that case. The legacy `live`
+    // and `archived` values were a maintenance trap; the
+    // schema must now reject them explicitly.
+    expect(listAccountsSchema.safeParse({ archivedAt: 'live' }).success).toBe(false);
+    expect(listAccountsSchema.safeParse({ archivedAt: 'archived' }).success).toBe(false);
+  });
+
   it('rejects unknown query keys', () => {
     const result = listAccountsSchema.safeParse({ evil: '1' });
     expect(result.success).toBe(false);

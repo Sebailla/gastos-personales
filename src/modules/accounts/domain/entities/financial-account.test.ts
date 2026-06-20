@@ -78,4 +78,49 @@ describe('isFinancialAccount type-guard', () => {
     };
     expect(isFinancialAccount(malformed)).toBe(false);
   });
+
+  // F8: table-driven coverage for the 11 type-guard branches
+  // in `isFinancialAccount`. The first arg is a label; the
+  // second is a partial override that turns the base row
+  // into a malformed one. Each branch has at least one
+  // negative (null, undefined, wrong type, invalid enum
+  // value, non-Date timestamps). Note: the guard checks
+  // TYPES, not content — an empty string for `name` or
+  // `userId` is still a string and is therefore accepted;
+  // the per-type-field content validation is the Zod
+  // schema's job (PR-B), not this guard.
+  it.each([
+    ['id is undefined', { id: undefined as unknown }],
+    ['id is null', { id: null as unknown }],
+    ['id is a number', { id: 42 as unknown }],
+    ['userId is undefined', { userId: undefined as unknown }],
+    ['userId is a number', { userId: 1 as unknown }],
+    ['type is an invalid enum value', { type: 'BANKRUPTED' as unknown }],
+    ['type is a number', { type: 1 as unknown }],
+    ['name is undefined', { name: undefined as unknown }],
+    ['name is a number', { name: 1 as unknown }],
+    ['currency is an invalid enum value', { currency: 'GBP' as unknown }],
+    ['currency is undefined', { currency: undefined as unknown }],
+    ['openingBalanceMinor is a string', { openingBalanceMinor: '100' as unknown }],
+    ['openingBalanceMinor is null', { openingBalanceMinor: null as unknown }],
+    ['openingBalanceMode is an invalid enum value', { openingBalanceMode: 'YESTERDAY' as unknown }],
+    ['openingBalanceMode is null', { openingBalanceMode: null as unknown }],
+    ['openingBalanceDate is a string', { openingBalanceDate: '2026-06-18' as unknown }],
+    ['openingBalanceDate is undefined (must be null or Date)', { openingBalanceDate: undefined as unknown }],
+    ['archivedAt is a number', { archivedAt: 12345 as unknown }],
+    ['createdAt is a string', { createdAt: '2026-06-18T00:00:00.000Z' as unknown }],
+    ['createdAt is null (must be Date)', { createdAt: null as unknown }],
+    ['updatedAt is undefined (must be Date)', { updatedAt: undefined as unknown }],
+    ['updatedAt is a number', { updatedAt: 1719000000000 as unknown }],
+  ])('rejects malformed row (%s)', (_label, override) => {
+    const malformed = { ...baseRow, ...override };
+    expect(isFinancialAccount(malformed)).toBe(false);
+  });
+
+  it('rejects null and non-objects outright', () => {
+    expect(isFinancialAccount(null)).toBe(false);
+    expect(isFinancialAccount(undefined)).toBe(false);
+    expect(isFinancialAccount('not a row')).toBe(false);
+    expect(isFinancialAccount(42)).toBe(false);
+  });
 });
