@@ -20,7 +20,9 @@
  *   4 — Verification mismatch after copy (counts or bytes don't match source).
  */
 
-import { access, cp, readdir, rm, stat } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { access, readdir, stat } from 'node:fs/promises';
 import { constants as F } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -161,12 +163,6 @@ function classifyError(err: unknown): ClassifiedError {
         message: `ENOENT during copy: ${(err as { path?: string }).path ?? 'unknown path'}`,
       };
     }
-    if (code === 'ERR_FS_CP_DIR_TO_NON_DIR' || code === 'ERR_FS_CP_EEXIST') {
-      return {
-        code: EXIT_UNEXPECTED,
-        message: `fs.cp failed (${code}): ${(err as { message?: string }).message ?? 'no detail'}`,
-      };
-    }
   }
   // Verification mismatch comes through as a thrown Error with .name='VerificationError'.
   if (err instanceof Error && err.name === 'VerificationError') {
@@ -213,12 +209,26 @@ async function main(): Promise<void> {
   const sourceMdCount = await countMd(SOURCE);
   const sourceBytes = await bytesUsed(SOURCE);
 
-  // 4. Delete and re-copy. fs.cp is available on Node 16.7+; the project
-  //    pins Node >=20, so no platform shim is needed. The previous
-  //    shell-out to `cp -R` was removed to drop the platform dependency
-  //    (gga finding #2).
-  await rm(VAULT_DOCUMENTS_ES, { recursive: true, force: true });
-  await cp(SOURCE, VAULT_DOCUMENTS_ES, { recursive: true, force: true });
+  // 4. Re-copy via `mv` + `cp -R` shell-out, then cleanup of the moved-
+  //    aside copy. The `mv` step is critical on iCloud Drive: the
+  //    FileProvider treats a delete+create of the same path (which is what
+  //    `rm -rf` + `cp -R` over the same target looks like) as an orphan
+  //    item and discards the subsequent create — the script then sees the
+  //    new files during its own verify pass but every other process
+  //    sees the pre-sync state, and the directory eventually disappears
+  //    from the FS (FP -1005 NSFileProviderErrorNonExistentItemIdentifier
+  //    in `log show --predicate 'subsystem CONTAINS "CloudDocs"'`).
+  //    `mv` registers as a rename: the original inode is moved aside, the
+  //    FileProvider records the rename cleanly, and the subsequent
+  //    `cp -R` creates a fresh directory at the original path that the
+  //    FileProvider accepts as a new materialisation. If `cp` fails the
+  //    `.tmp` copy stays on disk as a fallback; the post-verify cleanup
+  //    removes it only after the verify pass succeeds. See ADR-0007
+  //    follow-up "Reverted: `fs.cp`/`fs.rm` → shell-out `mv` + `cp -R`".
+  if (existsSync(VAULT_DOCUMENTS_ES)) {
+    execFileSync('mv', [VAULT_DOCUMENTS_ES, `${VAULT_DOCUMENTS_ES}.tmp`], { stdio: 'pipe' });
+  }
+  execFileSync('cp', ['-R', SOURCE, VAULT_DOCUMENTS_ES], { stdio: 'pipe' });
 
   // 5. Verify counts and byte totals match.
   const targetMdCount = await countMd(VAULT_DOCUMENTS_ES);
@@ -261,6 +271,14 @@ async function main(): Promise<void> {
         lostManualNotes.map((p) => `  - ${p}`).join('\n') +
         '\n',
     );
+  }
+
+  // 8. Cleanup the .tmp copy that was moved aside before the re-copy.
+  //    Only run after a successful verify so a failed sync leaves the
+  //    .tmp on disk as a recovery point.
+  const tmpPath = `${VAULT_DOCUMENTS_ES}.tmp`;
+  if (existsSync(tmpPath)) {
+    execFileSync('rm', ['-rf', tmpPath], { stdio: 'pipe' });
   }
 }
 

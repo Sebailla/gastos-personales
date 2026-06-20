@@ -72,25 +72,12 @@ describe('classifyError — known fs errors', () => {
     expect(result.message).toContain('unknown path');
   });
 
-  it('maps ERR_FS_CP_DIR_TO_NON_DIR to EXIT_UNEXPECTED', () => {
-    const err = Object.assign(new Error('cannot overwrite'), {
-      code: 'ERR_FS_CP_DIR_TO_NON_DIR',
-    });
-    const result = classifyError(err);
-
-    expect(result.code).toBe(EXIT_UNEXPECTED);
-    expect(result.message).toContain('ERR_FS_CP_DIR_TO_NON_DIR');
-  });
-
-  it('maps ERR_FS_CP_EEXIST to EXIT_UNEXPECTED', () => {
-    const err = Object.assign(new Error('target exists'), {
-      code: 'ERR_FS_CP_EEXIST',
-    });
-    const result = classifyError(err);
-
-    expect(result.code).toBe(EXIT_UNEXPECTED);
-    expect(result.message).toContain('ERR_FS_CP_EEXIST');
-  });
+  // Note: previous `fs.cp` specific branches (ERR_FS_CP_DIR_TO_NON_DIR,
+  // ERR_FS_CP_EEXIST) were removed when the script reverted to `cp -R`
+  // shell-out. With `cp -R` the failure surface is the standard child-
+  // process error (non-zero exit, status, signal) which falls through
+  // to the unclassified branch and yields EXIT_UNEXPECTED with the
+  // underlying message preserved.
 });
 
 describe('classifyError — verification errors', () => {
