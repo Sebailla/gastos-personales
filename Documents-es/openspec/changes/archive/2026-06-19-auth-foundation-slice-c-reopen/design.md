@@ -70,7 +70,11 @@ export class NextResponse extends Response {
   }
 
   static redirect(url: string, init?: ResponseInit): NextResponse {
-    return new NextResponse(null, { ...init, status: 302, headers: { location: url, ...(init?.headers || {}) } });
+    return new NextResponse(null, {
+      ...init,
+      status: 302,
+      headers: { location: url, ...(init?.headers || {}) },
+    });
   }
 }
 
@@ -209,14 +213,14 @@ src/modules/auth/__tests__/security/
 
 ### 4.2 Los 6 tests
 
-| # | Archivo | Requirement | Método de test |
-|---|---------|-------------|----------------|
-| 1 | `login.timing.test.ts` | Welch's t-test, p > 0.01 sobre 30 paired samples | Test estadístico con Argon2id real |
-| 2 | `oauth.state-csrf.test.ts` | `state` tampering rechazado, no `User`/`Account` rows insertadas | Mock Auth.js callback, assert row counts |
-| 3 | `secrets.in-logs.test.ts` | 4 tipos de secrets no aparecen en el log output | Capturar log output durante register/callback/session |
-| 4 | `origin-check.test.ts` | Cross-origin POST → 403 `FORBIDDEN` | Assert 403 status |
-| 5 | `argon2.parameters.test.ts` | Hash median en [50, 100] ms en CI runner | 30 hashes, tomar median |
-| 6 | `cookie.attributes.test.ts` | `HttpOnly` + `SameSite=Lax` siempre; `Secure` en producción | Capturar `Set-Cookie` header |
+| #   | Archivo                     | Requirement                                                      | Método de test                                        |
+| --- | --------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------- |
+| 1   | `login.timing.test.ts`      | Welch's t-test, p > 0.01 sobre 30 paired samples                 | Test estadístico con Argon2id real                    |
+| 2   | `oauth.state-csrf.test.ts`  | `state` tampering rechazado, no `User`/`Account` rows insertadas | Mock Auth.js callback, assert row counts              |
+| 3   | `secrets.in-logs.test.ts`   | 4 tipos de secrets no aparecen en el log output                  | Capturar log output durante register/callback/session |
+| 4   | `origin-check.test.ts`      | Cross-origin POST → 403 `FORBIDDEN`                              | Assert 403 status                                     |
+| 5   | `argon2.parameters.test.ts` | Hash median en [50, 100] ms en CI runner                         | 30 hashes, tomar median                               |
+| 6   | `cookie.attributes.test.ts` | `HttpOnly` + `SameSite=Lax` siempre; `Secure` en producción      | Capturar `Set-Cookie` header                          |
 
 ### 4.3 Decisión testcontainers-vs-fakes
 
@@ -429,12 +433,12 @@ Tabla con 14 filas: T-025, T-026, T-027.1..6, T-028, T-029, T-030, T-031, T-032,
 
 ## 9. Forecast de review workload
 
-| Sub-slice | Tasks | Líneas estimadas | Overage vs 400 |
-|-----------|-------|------------------|----------------|
-| C-1 (module-resolution + catch-all + middleware + public API) | DELTA-C1.1, T-025, T-026 | ~200 | 0.5× (¡bajo budget!) |
-| C-2 (security tests + CI + branch protection) | T-027, T-028, T-029 | ~700 | 1.75× |
-| C-3 (ADRs + architecture.md + README + handoff) | T-030, T-031, T-032, T-033 | ~600 | 1.5× |
-| **Total** | 9 tasks + module-resolution fix | ~1,500 | — |
+| Sub-slice                                                     | Tasks                           | Líneas estimadas | Overage vs 400       |
+| ------------------------------------------------------------- | ------------------------------- | ---------------- | -------------------- |
+| C-1 (module-resolution + catch-all + middleware + public API) | DELTA-C1.1, T-025, T-026        | ~200             | 0.5× (¡bajo budget!) |
+| C-2 (security tests + CI + branch protection)                 | T-027, T-028, T-029             | ~700             | 1.75×                |
+| C-3 (ADRs + architecture.md + README + handoff)               | T-030, T-031, T-032, T-033      | ~600             | 1.5×                 |
+| **Total**                                                     | 9 tasks + module-resolution fix | ~1,500           | —                    |
 
 C-1 está bajo el budget de 400. C-2 y C-3 lo exceden pero el user ya aceptó el overage para el change padre. Los 3 PRs chained van en orden C-1 → C-2 → C-3.
 
