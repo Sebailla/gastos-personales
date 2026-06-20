@@ -15,8 +15,9 @@
  * failure carries `status` + `error`. Narrowing is `if (res.ok)`.
  */
 
+import { AppError } from '@/shared/errors/app-error';
+import { ErrorStatus, type ErrorCode as ErrorCodeType } from '@/shared/errors/error-codes';
 import type { AccountService } from '../../domain/services/account.service';
-import type { ErrorCode as ErrorCodeType } from '@/shared/errors/error-codes';
 
 export interface AccountActionDeps {
   accountService: AccountService;
@@ -47,6 +48,27 @@ export function zodErrorToActionError(
       code: 'VALIDATION_ERROR' as ErrorCodeType,
       message: 'Datos de entrada inválidos.',
       details: err.issues,
+    },
+  };
+}
+
+/**
+ * Translates a domain `AppError` thrown by a service into the
+ * standard `ActionFailure` envelope. The `status` is read from
+ * the centralised `ErrorStatus` map so a single source of truth
+ * governs the code ↔ status pair. Use this in every action's
+ * `catch` block; the only place that needs special-case code
+ * mapping is `registerAction` (which collapses unexpected
+ * domain codes to 500 INTERNAL_ERROR per the auth skill).
+ */
+export function appErrorToActionError(err: AppError): ActionFailure {
+  return {
+    ok: false,
+    status: ErrorStatus[err.code],
+    error: {
+      code: err.code,
+      message: err.message,
+      ...(err.details !== undefined ? { details: err.details } : {}),
     },
   };
 }

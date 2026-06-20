@@ -8,7 +8,7 @@
 import type { AccountActionDeps, ActionResult } from './_shared';
 import type { FinancialAccount } from '../../domain/entities/financial-account';
 import { AppError } from '@/shared/errors/app-error';
-import { ErrorCode } from '@/shared/errors/error-codes';
+import { appErrorToActionError } from './_shared';
 
 export async function archiveAccountAction(
   deps: AccountActionDeps,
@@ -19,13 +19,7 @@ export async function archiveAccountAction(
     const row = await deps.accountService.archive(userId, id);
     return { ok: true, data: row };
   } catch (err) {
-    if (err instanceof AppError && err.code === ErrorCode.NOT_FOUND) {
-      return {
-        ok: false,
-        status: 404,
-        error: { code: ErrorCode.NOT_FOUND, message: err.message },
-      };
-    }
+    if (err instanceof AppError) return appErrorToActionError(err);
     throw err;
   }
 }

@@ -18,9 +18,8 @@
 import type { AccountActionDeps, ActionResult } from './_shared';
 import type { FxConversionResult } from '../../domain/interfaces/fx-rate-provider.port';
 import { accountBalanceSchema } from '../validation/account-balance.schema';
-import { zodErrorToActionError } from './_shared';
+import { zodErrorToActionError, appErrorToActionError } from './_shared';
 import { AppError } from '@/shared/errors/app-error';
-import { ErrorCode } from '@/shared/errors/error-codes';
 
 export async function getAccountBalanceAction(
   deps: AccountActionDeps,
@@ -39,17 +38,7 @@ export async function getAccountBalanceAction(
     );
     return { ok: true, data: result };
   } catch (err) {
-    if (err instanceof AppError) {
-      if (err.code === ErrorCode.NOT_FOUND) {
-        return { ok: false, status: 404, error: { code: ErrorCode.NOT_FOUND, message: err.message } };
-      }
-      if (err.code === ErrorCode.FX_NOT_SUPPORTED) {
-        return { ok: false, status: 409, error: { code: ErrorCode.FX_NOT_SUPPORTED, message: err.message } };
-      }
-      if (err.code === ErrorCode.FX_UNAVAILABLE) {
-        return { ok: false, status: 503, error: { code: ErrorCode.FX_UNAVAILABLE, message: err.message } };
-      }
-    }
+    if (err instanceof AppError) return appErrorToActionError(err);
     throw err;
   }
 }

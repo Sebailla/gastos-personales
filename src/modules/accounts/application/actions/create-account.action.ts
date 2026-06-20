@@ -16,9 +16,8 @@ import type { AccountActionDeps, ActionResult } from './_shared';
 import type { CreateFinancialAccountInput } from '../../domain/interfaces/account.repository.port';
 import type { FinancialAccount } from '../../domain/entities/financial-account';
 import { accountCreateSchema } from '../validation/account-create.schema';
-import { zodErrorToActionError } from './_shared';
+import { zodErrorToActionError, appErrorToActionError } from './_shared';
 import { AppError } from '@/shared/errors/app-error';
-import { ErrorCode } from '@/shared/errors/error-codes';
 
 export async function createAccountAction(
   deps: AccountActionDeps,
@@ -33,13 +32,7 @@ export async function createAccountAction(
     const row = await deps.accountService.create(userId, input);
     return { ok: true, data: row };
   } catch (err) {
-    if (err instanceof AppError && err.code === ErrorCode.NAME_TAKEN) {
-      return {
-        ok: false,
-        status: 409,
-        error: { code: ErrorCode.NAME_TAKEN, message: err.message },
-      };
-    }
+    if (err instanceof AppError) return appErrorToActionError(err);
     throw err;
   }
 }

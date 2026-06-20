@@ -10,9 +10,8 @@ import type { AccountActionDeps, ActionResult } from './_shared';
 import type { FinancialAccount } from '../../domain/entities/financial-account';
 import type { UpdateFinancialAccountPatch } from '../../domain/interfaces/account.repository.port';
 import { accountUpdateSchema } from '../validation/account-update.schema';
-import { zodErrorToActionError } from './_shared';
+import { zodErrorToActionError, appErrorToActionError } from './_shared';
 import { AppError } from '@/shared/errors/app-error';
-import { ErrorCode } from '@/shared/errors/error-codes';
 
 export async function updateAccountAction(
   deps: AccountActionDeps,
@@ -27,13 +26,7 @@ export async function updateAccountAction(
     const row = await deps.accountService.update(userId, id, patch);
     return { ok: true, data: row };
   } catch (err) {
-    if (err instanceof AppError && err.code === ErrorCode.NOT_FOUND) {
-      return {
-        ok: false,
-        status: 404,
-        error: { code: ErrorCode.NOT_FOUND, message: err.message },
-      };
-    }
+    if (err instanceof AppError) return appErrorToActionError(err);
     throw err;
   }
 }
