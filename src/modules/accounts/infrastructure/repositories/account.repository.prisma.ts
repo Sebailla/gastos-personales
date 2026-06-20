@@ -17,11 +17,22 @@
  * `AppError(NAME_TAKEN)`. The application action surfaces
  * this as `409 NAME_TAKEN` without leaking the Prisma error
  * code.
+ *
+ * Write-path shape: `update` / `archive` / `unarchive` issue
+ * a single `updateMany` with the state filter in the WHERE
+ * (cross-user guard + idempotency guard), then a `findMany`
+ * with `where: { id, userId }` limited to one row to read
+ * the post-write state. This keeps the round-trip count at
+ * 2 (one write, one read) without exposing a TOCTOU window
+ * between the decision and the persistence: the state
+ * filter in the WHERE guarantees the write happens iff the
+ * preconditions hold.
  */
 
 import { Prisma } from '@prisma/client';
 import { AppError } from '@/shared/errors/app-error';
 import { ErrorCode } from '@/shared/errors/error-codes';
+import type { PrismaFinancialAccountDelegate } from '@/shared/db/prisma-types';
 import {
   AccountCurrency,
   AccountKind,
@@ -32,37 +43,19 @@ import {
 } from '../../domain/entities/financial-account';
 import type {
   AccountRepositoryPort,
+  CountAccountsOptions,
   CreateFinancialAccountInput,
   ListAccountsOptions,
   ListAccountsPage,
   UpdateFinancialAccountPatch,
 } from '../../domain/interfaces/account.repository.port';
 
-// Narrow Prisma delegate shape we use. Keeps the adapter
-// testable with a fake (see `.test.ts`). The real
-// `PrismaClient` is structurally compatible.
-interface PrismaFinancialAccountDelegate {
-  create: (args: {
-    data: Prisma.FinancialAccountUncheckedCreateInput;
-  }) => Promise<PrismaFinancialAccountRow>;
-  findUnique: (args: { where: { id: string } }) => Promise<PrismaFinancialAccountRow | null>;
-  findMany: (args: {
-    where: Prisma.FinancialAccountWhereInput;
-    orderBy?: Prisma.FinancialAccountOrderByWithRelationInput;
-    take?: number;
-    cursor?: { id: string };
-    skip?: number;
-  }) => Promise<PrismaFinancialAccountRow[]>;
-  update: (args: {
-    where: { id: string };
-    data: Prisma.FinancialAccountUncheckedUpdateInput;
-  }) => Promise<PrismaFinancialAccountRow>;
-  updateMany: (args: {
-    where: Prisma.FinancialAccountWhereInput;
-    data: Prisma.FinancialAccountUncheckedUpdateInput;
-  }) => Promise<{ count: number }>;
-}
-
+// Row shape produced by the narrow delegate. The shared
+// `PrismaFinancialAccountDelegate` (see `@/shared/db/prisma-types`)
+// is `any`-typed on purpose so the composition root's
+// `asPrismaDelegateView` cast works; the row type alias
+// here re-introduces the minimum structural shape the
+// mapper needs.
 type PrismaFinancialAccountRow = Record<string, unknown> & { userId: string };
 
 export class AccountRepositoryPrisma implements AccountRepositoryPort {
@@ -77,21 +70,31 @@ export class AccountRepositoryPrisma implements AccountRepositoryPort {
       where,
       orderBy: { createdAt: 'desc' },
       take: opts.limit + 1, // +1 to detect a nextCursor
+      ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
     });
     const data = rows.slice(0, opts.limit).map(mapRow);
     const nextCursor = rows.length > opts.limit ? (data[data.length - 1]?.id ?? null) : null;
     return { data, nextCursor };
   }
 
+  async count(userId: string, opts: CountAccountsOptions = {}): Promise<number> {
+    const where: Prisma.FinancialAccountWhereInput = { userId };
+    if (opts.archivedAt === null) {
+      where.archivedAt = null;
+    } else if (opts.archivedAt && 'not' in opts.archivedAt) {
+      where.archivedAt = { not: null };
+    }
+    return this.prisma.financialAccount.count({ where });
+  }
+
   async findById(userId: string, id: string): Promise<FinancialAccount | null> {
     // Cross-user guard: include userId in the WHERE so a row
     // owned by another user is invisible to this query. The
     // type signature forces the caller to pass userId.
-    const row = await this.prisma.financialAccount.findUnique({
-      where: { id },
+    const row = await this.prisma.financialAccount.findFirst({
+      where: { id, userId },
     });
     if (!row) return null;
-    if (row.userId !== userId) return null; // existence not leaked
     return mapRow(row);
   }
 
@@ -134,7 +137,7 @@ export class AccountRepositoryPrisma implements AccountRepositoryPort {
     id: string,
     patch: UpdateFinancialAccountPatch,
   ): Promise<FinancialAccount | null> {
-    // Cross-user guard via WHERE userId = ?
+    // Cross-user guard via WHERE userId = ? + id = ?
     const result = await this.prisma.financialAccount.updateMany({
       where: { id, userId },
       data: patch as Prisma.FinancialAccountUncheckedUpdateInput,
@@ -144,20 +147,43 @@ export class AccountRepositoryPrisma implements AccountRepositoryPort {
   }
 
   async archive(userId: string, id: string): Promise<FinancialAccount | null> {
+    // Idempotency guard: the WHERE includes `archivedAt: null`
+    // so the write is a no-op when the row is already archived.
+    // This makes a double-archive request a safe idempotent call
+    // and keeps the post-state observable through `findById`.
     const result = await this.prisma.financialAccount.updateMany({
-      where: { id, userId },
+      where: { id, userId, archivedAt: null },
       data: { archivedAt: new Date() },
     });
-    if (result.count === 0) return null;
+    if (result.count === 0) {
+      // Either the row does not exist, is owned by another user,
+      // or it was already archived. Distinguish: re-read with the
+      // full guard. If the row is found AND already archived,
+      // return its current state (idempotent success). Otherwise
+      // it is a miss / cross-user.
+      const current = await this.findById(userId, id);
+      if (current && current.archivedAt !== null) {
+        return current;
+      }
+      return null;
+    }
     return this.findById(userId, id);
   }
 
   async unarchive(userId: string, id: string): Promise<FinancialAccount | null> {
+    // Idempotency guard: the WHERE requires `archivedAt: { not: null }`
+    // so the write is a no-op when the row is already live.
     const result = await this.prisma.financialAccount.updateMany({
-      where: { id, userId },
+      where: { id, userId, archivedAt: { not: null } },
       data: { archivedAt: null },
     });
-    if (result.count === 0) return null;
+    if (result.count === 0) {
+      const current = await this.findById(userId, id);
+      if (current && current.archivedAt === null) {
+        return current;
+      }
+      return null;
+    }
     return this.findById(userId, id);
   }
 }

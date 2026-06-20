@@ -8,17 +8,21 @@
  * of the codebase never sees a Prisma row.
  */
 
-import { normalizeEmail, type Email, type NewUser, type User, type DefaultProvider } from '../../domain/entities/user';
+import {
+  normalizeEmail,
+  type Email,
+  type NewUser,
+  type User,
+  type DefaultProvider,
+} from '../../domain/entities/user';
 import type { UserRepositoryPort } from '../../domain/interfaces/user.repository.port';
+import type { PrismaUserDelegate } from '@/shared/db/prisma-types';
 
-// Minimal Prisma shape we use. The real PrismaClient is structurally
-// compatible; we type the constructor argument as a narrow view to
-// keep the adapter testable with a fake.
-interface PrismaUserDelegate {
-  create: (args: { data: Record<string, unknown> }) => Promise<Record<string, unknown>>;
-  findUnique: (args: { where: { id?: string; email?: string } }) => Promise<Record<string, unknown> | null>;
-  update: (args: { where: { id: string }; data: Record<string, unknown> }) => Promise<Record<string, unknown>>;
-}
+// The narrow `PrismaUserDelegate` view comes from
+// `@/shared/db/prisma-types` (F-14). The composition root
+// passes the real `PrismaClient` cast through
+// `asPrismaDelegateView`; the test substitutes a fake that
+// satisfies the same shared interface.
 
 export class UserRepository implements UserRepositoryPort {
   constructor(private readonly prisma: { user: PrismaUserDelegate }) {}

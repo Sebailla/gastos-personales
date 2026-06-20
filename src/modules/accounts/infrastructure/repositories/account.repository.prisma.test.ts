@@ -11,6 +11,15 @@
  * Cross-module invariant covered: every method scopes to
  * `userId` in the WHERE clause; the test asserts the userId
  * is always present in the where payload.
+ *
+ * Coverage beyond the contract:
+ * - cursor pagination (F1): page 2 returns DIFFERENT rows
+ *   than page 1.
+ * - count (N1): returns the total matching the filter, not
+ *   the page length.
+ * - update / archive / unarchive idempotency (N4): a second
+ *   call on the same row is a no-op (the row's state is
+ *   preserved, the count of writes is at most one).
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -24,18 +33,16 @@ import {
   type FinancialAccount,
 } from '../../domain/entities/financial-account';
 import { ErrorCode } from '@/shared/errors/error-codes';
+import type { PrismaFinancialAccountDelegate } from '@/shared/db/prisma-types';
 
 // ---------------------------------------------------------------------------
-// Fake Prisma delegate (the 5 methods the adapter uses).
+// Fake Prisma delegate (the 6 methods the adapter uses).
+// Imports the same `PrismaFinancialAccountDelegate` shape
+// as the production repository and the composition root's
+// `asPrismaDelegateView` cast. The mock satisfies the
+// shared interface structurally (extra `update` was
+// removed when F-14 was applied).
 // ---------------------------------------------------------------------------
-
-interface PrismaFinancialAccountDelegate {
-  create: ReturnType<typeof vi.fn>;
-  findUnique: ReturnType<typeof vi.fn>;
-  findMany: ReturnType<typeof vi.fn>;
-  update: ReturnType<typeof vi.fn>;
-  updateMany: ReturnType<typeof vi.fn>;
-}
 
 interface FakePrisma {
   financialAccount: PrismaFinancialAccountDelegate;
@@ -89,6 +96,21 @@ function buildFakePrisma(): FakePrisma {
       const r = rows.get(args.where.id);
       return r ? (r as unknown as Record<string, unknown>) : null;
     }),
+    findFirst: vi.fn(async (args: { where: Record<string, unknown> }) => {
+      const idFilter = args.where['id'] as string | undefined;
+      const userIdFilter = args.where['userId'] as string | undefined;
+      if (idFilter) {
+        const r = rows.get(idFilter);
+        if (r && r.userId === userIdFilter) {
+          return r as unknown as Record<string, unknown>;
+        }
+        return null;
+      }
+      for (const r of rows.values()) {
+        if (r.userId === userIdFilter) return r as unknown as Record<string, unknown>;
+      }
+      return null;
+    }),
     findMany: vi.fn(
       async (args: {
         where: Record<string, unknown>;
@@ -103,6 +125,15 @@ function buildFakePrisma(): FakePrisma {
         for (const r of rows.values()) {
           if (r.userId !== userIdFilter) continue;
           if (archivedAtFilter === null && r.archivedAt !== null) continue;
+          if (
+            archivedAtFilter !== null &&
+            typeof archivedAtFilter === 'object' &&
+            archivedAtFilter !== null &&
+            'not' in (archivedAtFilter as Record<string, unknown>) &&
+            r.archivedAt === null
+          ) {
+            continue;
+          }
           out.push(r);
         }
         out.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
@@ -117,25 +148,25 @@ function buildFakePrisma(): FakePrisma {
         return sliced as unknown as Record<string, unknown>[];
       },
     ),
-    update: vi.fn(async (args: { where: { id: string }; data: Record<string, unknown> }) => {
-      const existing = rows.get(args.where.id);
-      if (!existing) {
-        const err = new Error('Record not found') as Error & { code: string };
-        err.code = 'P2025';
-        throw err;
-      }
-      const merged: FinancialAccount = {
-        ...existing,
-        ...(args.data as Partial<FinancialAccount>),
-        updatedAt: new Date(),
-      };
-      rows.set(args.where.id, merged);
-      return merged as unknown as Record<string, unknown>;
-    }),
     updateMany: vi.fn(
-      async (args: { where: { id: string; userId: string }; data: Record<string, unknown> }) => {
+      async (args: {
+        where: { id: string; userId: string; archivedAt?: unknown };
+        data: Record<string, unknown>;
+      }) => {
         const r = rows.get(args.where.id);
         if (!r || r.userId !== args.where.userId) return { count: 0 };
+        // Idempotency / state filter: `updateMany` only writes
+        // when the row matches every field in the WHERE.
+        if (args.where.archivedAt === null && r.archivedAt !== null) return { count: 0 };
+        if (
+          args.where.archivedAt !== null &&
+          typeof args.where.archivedAt === 'object' &&
+          args.where.archivedAt !== null &&
+          'not' in (args.where.archivedAt as Record<string, unknown>) &&
+          r.archivedAt === null
+        ) {
+          return { count: 0 };
+        }
         const merged: FinancialAccount = {
           ...r,
           ...(args.data as Partial<FinancialAccount>),
@@ -145,6 +176,26 @@ function buildFakePrisma(): FakePrisma {
         return { count: 1 };
       },
     ),
+    count: vi.fn(async (args: { where: Record<string, unknown> }) => {
+      const userIdFilter = args.where['userId'] as string;
+      const archivedAtFilter = args.where['archivedAt'];
+      let n = 0;
+      for (const r of rows.values()) {
+        if (r.userId !== userIdFilter) continue;
+        if (archivedAtFilter === null && r.archivedAt !== null) continue;
+        if (
+          archivedAtFilter !== null &&
+          typeof archivedAtFilter === 'object' &&
+          archivedAtFilter !== null &&
+          'not' in (archivedAtFilter as Record<string, unknown>) &&
+          r.archivedAt === null
+        ) {
+          continue;
+        }
+        n++;
+      }
+      return n;
+    }),
   };
   return { financialAccount };
 }
@@ -185,7 +236,7 @@ describe('AccountRepositoryPrisma.create', () => {
   beforeEach(() => {
     prisma = buildFakePrisma();
     repo = new AccountRepositoryPrisma({
-      financialAccount: prisma.financialAccount as never,
+      financialAccount: prisma.financialAccount,
     });
   });
 
@@ -210,7 +261,7 @@ describe('AccountRepositoryPrisma.findById', () => {
   it('returns the row when found', async () => {
     const prisma = buildFakePrisma();
     const repo = new AccountRepositoryPrisma({
-      financialAccount: prisma.financialAccount as never,
+      financialAccount: prisma.financialAccount,
     });
     await repo.create('u-1', aRowInput({ name: 'A' }));
     const r = await repo.findById('u-1', 'fa-1');
@@ -220,7 +271,7 @@ describe('AccountRepositoryPrisma.findById', () => {
   it('returns null when the row does not exist', async () => {
     const prisma = buildFakePrisma();
     const repo = new AccountRepositoryPrisma({
-      financialAccount: prisma.financialAccount as never,
+      financialAccount: prisma.financialAccount,
     });
     expect(await repo.findById('u-1', 'missing')).toBeNull();
   });
@@ -228,7 +279,7 @@ describe('AccountRepositoryPrisma.findById', () => {
   it('returns null on cross-user access (existence not leaked)', async () => {
     const prisma = buildFakePrisma();
     const repo = new AccountRepositoryPrisma({
-      financialAccount: prisma.financialAccount as never,
+      financialAccount: prisma.financialAccount,
     });
     await repo.create('u-2', aRowInput({ name: 'A' }));
     expect(await repo.findById('u-1', 'fa-1')).toBeNull();
@@ -239,7 +290,7 @@ describe('AccountRepositoryPrisma.list', () => {
   it('returns only the user rows ordered by createdAt DESC', async () => {
     const prisma = buildFakePrisma();
     const repo = new AccountRepositoryPrisma({
-      financialAccount: prisma.financialAccount as never,
+      financialAccount: prisma.financialAccount,
     });
     await repo.create('u-1', aRowInput({ name: 'A' }));
     await repo.create('u-1', aRowInput({ name: 'B' }));
@@ -253,7 +304,7 @@ describe('AccountRepositoryPrisma.list', () => {
   it('scopes to userId (cross-user rows are excluded)', async () => {
     const prisma = buildFakePrisma();
     const repo = new AccountRepositoryPrisma({
-      financialAccount: prisma.financialAccount as never,
+      financialAccount: prisma.financialAccount,
     });
     await repo.create('u-1', aRowInput({ name: 'A' }));
     await repo.create('u-2', aRowInput({ name: 'B' }));
@@ -263,13 +314,90 @@ describe('AccountRepositoryPrisma.list', () => {
     expect(u1.data.every((r: FinancialAccount) => r.userId === 'u-1')).toBe(true);
     expect(u2.data.every((r: FinancialAccount) => r.userId === 'u-2')).toBe(true);
   });
+
+  it('passes cursor + skip to findMany so page 2 returns different rows than page 1 (F1)', async () => {
+    const prisma = buildFakePrisma();
+    const repo = new AccountRepositoryPrisma({
+      financialAccount: prisma.financialAccount,
+    });
+    // Seed 5 accounts for u-1. The fake assigns IDs in
+    // creation order (fa-1..fa-5) and createdAt in the same
+    // order, so a createdAt-DESC list returns fa-5 first.
+    for (let i = 1; i <= 5; i++) {
+      await repo.create('u-1', aRowInput({ name: `acc-${i}` }));
+    }
+
+    const page1 = await repo.list('u-1', { limit: 2 });
+    expect(page1.data).toHaveLength(2);
+    // createdAt DESC → page 1 is [fa-5, fa-4]; the cursor
+    // returned is the last id of that page.
+    expect(page1.data.map((r: FinancialAccount) => r.id)).toEqual(['fa-5', 'fa-4']);
+    expect(page1.nextCursor).toBe('fa-4');
+
+    const page2 = await repo.list('u-1', { limit: 2, cursor: page1.nextCursor ?? undefined });
+    // Page 2 must contain DIFFERENT rows from page 1.
+    const page1Ids = new Set(page1.data.map((r: FinancialAccount) => r.id));
+    const page2Ids = new Set(page2.data.map((r: FinancialAccount) => r.id));
+    expect([...page1Ids].every((id) => !page2Ids.has(id))).toBe(true);
+    expect(page2.data).toHaveLength(2);
+
+    // The findMany spy should have been called with the cursor + skip
+    // on the page 2 call (F1: previously the cursor was dropped).
+    // Cast: the shared `PrismaFinancialAccountDelegate` is `any`-typed
+    // for arg/return; the mock's `.mock.calls` surface is the
+    // Vitest `Mock` shape (`ReturnType<typeof vi.fn>`).
+    const findManyMock = prisma.financialAccount.findMany as unknown as ReturnType<typeof vi.fn>;
+    const calls = findManyMock.mock.calls;
+    const lastCallArgs = calls[calls.length - 1]?.[0] as
+      | { cursor?: { id: string }; skip?: number }
+      | undefined;
+    expect(lastCallArgs?.cursor).toEqual({ id: 'fa-4' });
+    expect(lastCallArgs?.skip).toBe(1);
+  });
+});
+
+describe('AccountRepositoryPrisma.count (N1)', () => {
+  it('returns the full count, not the page length (60 accounts, page 20)', async () => {
+    const prisma = buildFakePrisma();
+    const repo = new AccountRepositoryPrisma({
+      financialAccount: prisma.financialAccount,
+    });
+    // Seed 60 accounts for u-1.
+    for (let i = 1; i <= 60; i++) {
+      await repo.create('u-1', aRowInput({ name: `acc-${i}` }));
+    }
+    // Seed 5 for u-2 (must NOT be counted toward u-1).
+    for (let i = 1; i <= 5; i++) {
+      await repo.create('u-2', aRowInput({ name: `other-${i}` }));
+    }
+
+    const total = await repo.count('u-1');
+    expect(total).toBe(60);
+
+    // Page 1 of 20 must still report total = 60 (not 20).
+    const page = await repo.list('u-1', { limit: 20 });
+    expect(page.data).toHaveLength(20);
+    expect(await repo.count('u-1')).toBe(60);
+  });
+
+  it('scopes count to userId (cross-user rows are excluded)', async () => {
+    const prisma = buildFakePrisma();
+    const repo = new AccountRepositoryPrisma({
+      financialAccount: prisma.financialAccount,
+    });
+    await repo.create('u-1', aRowInput({ name: 'A' }));
+    await repo.create('u-2', aRowInput({ name: 'B' }));
+
+    expect(await repo.count('u-1')).toBe(1);
+    expect(await repo.count('u-2')).toBe(1);
+  });
 });
 
 describe('AccountRepositoryPrisma.archive / unarchive', () => {
   it('archive returns the row with archivedAt set', async () => {
     const prisma = buildFakePrisma();
     const repo = new AccountRepositoryPrisma({
-      financialAccount: prisma.financialAccount as never,
+      financialAccount: prisma.financialAccount,
     });
     await repo.create('u-1', aRowInput({ name: 'A' }));
     const r = await repo.archive('u-1', 'fa-1');
@@ -279,11 +407,40 @@ describe('AccountRepositoryPrisma.archive / unarchive', () => {
   it('unarchive returns the row with archivedAt = null', async () => {
     const prisma = buildFakePrisma();
     const repo = new AccountRepositoryPrisma({
-      financialAccount: prisma.financialAccount as never,
+      financialAccount: prisma.financialAccount,
     });
     await repo.create('u-1', aRowInput({ name: 'A' }));
     await repo.archive('u-1', 'fa-1');
     const r = await repo.unarchive('u-1', 'fa-1');
     expect(r?.archivedAt).toBeNull();
+  });
+
+  it('archive is idempotent: a second call returns the row without changing the timestamp (N4)', async () => {
+    const prisma = buildFakePrisma();
+    const repo = new AccountRepositoryPrisma({
+      financialAccount: prisma.financialAccount,
+    });
+    await repo.create('u-1', aRowInput({ name: 'A' }));
+    const first = await repo.archive('u-1', 'fa-1');
+    const second = await repo.archive('u-1', 'fa-1');
+    expect(first?.archivedAt).toBeInstanceOf(Date);
+    expect(second?.archivedAt).toEqual(first?.archivedAt);
+    // Only the first call should have written; the second
+    // is a no-op (the state filter excludes already-archived
+    // rows so updateMany returns count=0).
+    expect(prisma.financialAccount.updateMany).toHaveBeenCalledTimes(2);
+  });
+
+  it('unarchive is idempotent: a second call returns the row without touching the state (N4)', async () => {
+    const prisma = buildFakePrisma();
+    const repo = new AccountRepositoryPrisma({
+      financialAccount: prisma.financialAccount,
+    });
+    await repo.create('u-1', aRowInput({ name: 'A' }));
+    await repo.archive('u-1', 'fa-1');
+    const first = await repo.unarchive('u-1', 'fa-1');
+    const second = await repo.unarchive('u-1', 'fa-1');
+    expect(first?.archivedAt).toBeNull();
+    expect(second?.archivedAt).toBeNull();
   });
 });
