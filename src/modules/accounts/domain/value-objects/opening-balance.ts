@@ -31,6 +31,7 @@
 
 import { AppError } from '@/shared/errors/app-error';
 import { ErrorCode } from '@/shared/errors/error-codes';
+import type { Clock } from '@/shared/clock/clock.port';
 import { OpeningBalanceMode } from '../entities/financial-account';
 
 export interface FreshOpeningBalance {
@@ -67,7 +68,7 @@ function validateAmount(amountMinor: number): void {
   }
 }
 
-function validateNotFuture(date: Date, now: Date = new Date()): void {
+function validateNotFuture(date: Date, now: Date): void {
   if (date.getTime() > now.getTime()) {
     throw new AppError({
       code: ErrorCode.VALIDATION_ERROR,
@@ -92,9 +93,15 @@ export const OpeningBalance = {
 
   /**
    * Factory for HISTORICAL mode. The `date` must be a valid
-   * `Date` in the past or today. The amount must be `>= 0`.
+   * `Date` in the past or today (relative to the supplied
+   * `clock`). The amount must be `>= 0`.
+   *
+   * The `clock` is required so the "past or today" check is
+   * deterministic and the time source is the same one the
+   * rest of the domain uses (per `clock.port.ts`). No
+   * `new Date()` leak in the value object.
    */
-  historical(date: Date, amountMinor: number): HistoricalOpeningBalance {
+  historical(date: Date, amountMinor: number, clock: Clock): HistoricalOpeningBalance {
     if (!isValidDate(date)) {
       throw new AppError({
         code: ErrorCode.VALIDATION_ERROR,
@@ -102,7 +109,7 @@ export const OpeningBalance = {
       });
     }
     validateAmount(amountMinor);
-    validateNotFuture(date);
+    validateNotFuture(date, clock.now());
     return {
       mode: OpeningBalanceMode.HISTORICAL,
       amountMinor,
