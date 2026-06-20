@@ -5,6 +5,7 @@ import type { UserRepositoryPort } from '@/modules/auth/domain/interfaces/user.r
 import type { PasswordHasherPort } from '@/modules/auth/domain/interfaces/password-hasher.port';
 import type { User, NewUser, DefaultProvider } from '@/modules/auth/domain/entities/user';
 import { EventDispatcher } from '@/shared/events/event-dispatcher';
+import { systemClock } from '@/shared/clock/system-clock';
 import { AppError } from '@/shared/errors/app-error';
 import { ErrorCode } from '@/shared/errors/error-codes';
 
@@ -53,7 +54,12 @@ const buildSvc = (opts: {
     verify: vi.fn(async () => true),
   };
   const dispatcher = new EventDispatcher();
-  return { svc: new AuthService(users, hasher, dispatcher), users, hasher, dispatcher };
+  return {
+    svc: new AuthService(users, hasher, dispatcher, systemClock),
+    users,
+    hasher,
+    dispatcher,
+  };
 };
 
 describe('registerAction', () => {
@@ -111,7 +117,6 @@ describe('registerAction', () => {
     });
     const hashSpy = hasher.hash as unknown as ReturnType<typeof vi.fn>;
     const createSpy = users.create as unknown as ReturnType<typeof vi.fn>;
-    const callsBefore = hashSpy.mock.calls.length;
 
     const res = await registerAction(svc, { email: 'a@b.com', password: 'a-strong-password-1234' });
 
@@ -119,9 +124,10 @@ describe('registerAction', () => {
     if (res.status === 409) {
       expect(res.error.code).toBe(ErrorCode.EMAIL_TAKEN);
     }
-    // BR-AUTH-4: the hasher ran at least once on the duplicate path
-    // (timing equalization). The repo never created the user.
-    expect(hashSpy.mock.calls.length).toBeGreaterThan(callsBefore);
+    // F-06 / BR-AUTH-4: the hasher ran exactly once on the
+    // duplicate path (timing equalization). The repo
+    // never created the user.
+    expect(hashSpy).toHaveBeenCalledTimes(1);
     expect(createSpy).not.toHaveBeenCalled();
   });
 
@@ -152,7 +158,7 @@ describe('registerAction', () => {
       verify: vi.fn(async () => false),
     };
     const dispatcher = new EventDispatcher();
-    const svc = new AuthService(users, hasher, dispatcher);
+    const svc = new AuthService(users, hasher, dispatcher, systemClock);
     const res = await registerAction(svc, { email: 'a@b.com', password: 'a-strong-password-1234' });
     expect(res.status).toBe(500);
     if (res.status === 500) {
