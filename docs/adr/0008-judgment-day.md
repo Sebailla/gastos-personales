@@ -121,31 +121,31 @@ new MED. The mini-fix closed 4 of those. The full table is in
 `openspec/changes/judgment-day-2026-06-20/` (the SDD change proposal
 that accompanies this ADR; see Follow-ups).
 
-| # | Finding | Sev | Status | Commit(s) |
-|---|---|---|---|---|
-| F-01 | Hono route paths missing `/api` prefix (production-breaking) | CRITICAL | Fixed | `9ca3bf6` |
-| F-02 | Upstash `reset` is Unix-timestamp-ms, not duration | HIGH | Fixed | `ecea507` |
-| F-03 | `authMiddleware` runs on `/health` (DB I/O on liveness) | HIGH | Fixed | `9ca3bf6` + `b233ad2` |
-| F-04 | Rate-limit identifier is shared bucket when proxy missing | HIGH | Fixed | `b233ad2` |
-| F-05 | `fxRateProvider` in `HonoAppDeps` is dead surface | HIGH | Fixed | `33220cd` |
-| F-06 | Duplicate `svc.register(...)` calls in tests (BR-AUTH-4) | HIGH | Fixed | `bd66da4` |
-| F-07 | `readyzAction` `setTimeout` not cleared on success | MED | Fixed | `ce9c102` |
-| F-08 | `error-handler.ts` does not log `err.cause` | MED | Fixed | `ff24b5d` |
-| F-09 | `accounts/index.ts` re-exports infrastructure classes | MED | Fixed | `3ab33d5` |
-| F-10 | ADR-0007 EN/ES drift on algorithm description | MED | Fixed (residual in mini-fix) | `c7880b8` |
-| F-11 | `requireSession` does redundant `c.set('user', user)` | MED | Fixed | `be891b5` |
-| F-12 | `AccountService.count` filter drift | MED | Fixed | `3ab33d5` |
-| F-13 | `list-accounts.action.ts` fails list view on count error | MED | Fixed | `3ab33d5` |
-| F-14 | `as any` cast on `prisma()` in wiring | MED | Fixed | `3c89e3d` |
-| F-15 | `getAccountBalance` route cast has unreachable `500` | LOW | Fixed | `9ca3bf6` |
-| F-16 | Dead test code (4 items) | LOW | Fixed | `708c63c` |
-| F-17 | `OpeningBalance` factory re-exported but never used | LOW | Skipped (deliberate) | — |
-| F-18 | ADR-0006 missing (gap 0005 -> 0007) | INFO | Skipped (deliberate) | — |
-| F-19 | `Sentry.captureConsoleIntegration?.()` is not a real API | LOW | Fixed | `335352b` |
-| F-20 | `error-handler` cast `as 400 | ... | 502` allows drift | LOW | Fixed | `ecea507` |
-| N-1 | Domain-time leaks: `new Date()` defaults in value objects | MED | Fixed (mini-fix) | `bfb4ce2` |
-| N-2 | F-14 partial: inline `Prisma*Delegate` not consolidated | MED | Fixed (mini-fix) | `3c89e3d` |
-| N-3 | No test for the F-14 structural cast | MED | Fixed (mini-fix) | `c8af939` |
+| #    | Finding                                                      | Sev      | Status                       | Commit(s)             |
+| ---- | ------------------------------------------------------------ | -------- | ---------------------------- | --------------------- | ----- | --------- |
+| F-01 | Hono route paths missing `/api` prefix (production-breaking) | CRITICAL | Fixed                        | `9ca3bf6`             |
+| F-02 | Upstash `reset` is Unix-timestamp-ms, not duration           | HIGH     | Fixed                        | `ecea507`             |
+| F-03 | `authMiddleware` runs on `/health` (DB I/O on liveness)      | HIGH     | Fixed                        | `9ca3bf6` + `b233ad2` |
+| F-04 | Rate-limit identifier is shared bucket when proxy missing    | HIGH     | Fixed                        | `b233ad2`             |
+| F-05 | `fxRateProvider` in `HonoAppDeps` is dead surface            | HIGH     | Fixed                        | `33220cd`             |
+| F-06 | Duplicate `svc.register(...)` calls in tests (BR-AUTH-4)     | HIGH     | Fixed                        | `bd66da4`             |
+| F-07 | `readyzAction` `setTimeout` not cleared on success           | MED      | Fixed                        | `ce9c102`             |
+| F-08 | `error-handler.ts` does not log `err.cause`                  | MED      | Fixed                        | `ff24b5d`             |
+| F-09 | `accounts/index.ts` re-exports infrastructure classes        | MED      | Fixed                        | `3ab33d5`             |
+| F-10 | ADR-0007 EN/ES drift on algorithm description                | MED      | Fixed (residual in mini-fix) | `c7880b8`             |
+| F-11 | `requireSession` does redundant `c.set('user', user)`        | MED      | Fixed                        | `be891b5`             |
+| F-12 | `AccountService.count` filter drift                          | MED      | Fixed                        | `3ab33d5`             |
+| F-13 | `list-accounts.action.ts` fails list view on count error     | MED      | Fixed                        | `3ab33d5`             |
+| F-14 | `as any` cast on `prisma()` in wiring                        | MED      | Fixed                        | `3c89e3d`             |
+| F-15 | `getAccountBalance` route cast has unreachable `500`         | LOW      | Fixed                        | `9ca3bf6`             |
+| F-16 | Dead test code (4 items)                                     | LOW      | Fixed                        | `708c63c`             |
+| F-17 | `OpeningBalance` factory re-exported but never used          | LOW      | Skipped (deliberate)         | —                     |
+| F-18 | ADR-0006 missing (gap 0005 -> 0007)                          | INFO     | Skipped (deliberate)         | —                     |
+| F-19 | `Sentry.captureConsoleIntegration?.()` is not a real API     | LOW      | Fixed                        | `335352b`             |
+| F-20 | `error-handler` cast `as 400                                 | ...      | 502` allows drift            | LOW                   | Fixed | `ecea507` |
+| N-1  | Domain-time leaks: `new Date()` defaults in value objects    | MED      | Fixed (mini-fix)             | `bfb4ce2`             |
+| N-2  | F-14 partial: inline `Prisma*Delegate` not consolidated      | MED      | Fixed (mini-fix)             | `3c89e3d`             |
+| N-3  | No test for the F-14 structural cast                         | MED      | Fixed (mini-fix)             | `c8af939`             |
 
 ### Verification
 
@@ -166,7 +166,7 @@ End-to-end verified on 2026-06-20 after the mini-fix:
 - **Good**: the working tree is now an APPROVED state. 22 of 20
   findings are addressed (the over-achievement is the 3 new MED
   the re-judge surfaced). The 16 commits are Conventional Commits
-  with imperative subjects, body explaining the *why*, and no AI
+  with imperative subjects, body explaining the _why_, and no AI
   attribution. Type safety is preserved (no `any` introduced;
   centralised narrow `any` view in `prisma-types.ts` is documented
   as a deliberate trade-off).
@@ -217,6 +217,7 @@ End-to-end verified on 2026-06-20 after the mini-fix:
    write, but is out of scope for judgment day).
 
 4. **Two LOW residuals for future tightening.**
+
    - IPv6 in `X-Forwarded-For` → multi-colon rate-limit key.
      Mitigation: hash the IP before using it as part of the key.
    - F-02 test slack too tight. Mitigation: `vi.useFakeTimers()`
