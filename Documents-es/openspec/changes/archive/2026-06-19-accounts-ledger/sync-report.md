@@ -29,22 +29,22 @@ actualización del header de metadata descrita en §4). Los 14
 Requirements + 24 Scenarios aterrizan en el spec canónico tal
 cual.
 
-| #    | Requirement                                                                                                            | Sección target en el spec canónico                            | Tipo                                                  |
-| ---- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ----------------------------------------------------- |
-| R-1  | `FinancialAccount persiste el modelo discriminated de 6 tipos`                                                         | `Requirements > Data model`                                   | conductual (data + invariante Zod)                    |
-| R-2  | `GET /api/accounts devuelve un listado cursor-paginado scoped al usuario autenticado`                                   | `Requirements > Endpoints`                                    | conductual (superficie de API)                        |
-| R-3  | `POST /api/accounts crea una cuenta type-driven`                                                                       | `Requirements > Endpoints`                                    | conductual (superficie de API + Zod)                  |
-| R-4  | `GET /api/accounts/:id devuelve una cuenta o 404 cross-user`                                                           | `Requirements > Endpoints`                                    | conductual (guard cross-module)                       |
-| R-5  | `PATCH /api/accounts/:id aplica un partial update`                                                                     | `Requirements > Endpoints`                                    | conductual (superficie de API + Zod)                  |
-| R-6  | `POST /api/accounts/:id/archive soft-archiva la cuenta`                                                                 | `Requirements > Endpoints`                                    | conductual (soft-archive)                             |
-| R-7  | `POST /api/accounts/:id/unarchive restaura la cuenta`                                                                  | `Requirements > Endpoints`                                    | conductual (soft-archive)                             |
-| R-8  | `GET /api/accounts/:id/balance devuelve la conversión FX display-only`                                                 | `Requirements > Endpoints`                                    | conductual (FX read-only)                             |
-| R-9  | `/accounts lista las cuentas vivas del usuario (Server Component)`                                                     | `Requirements > UI smoke slice`                               | conductual (smoke slice de UI)                        |
-| R-10 | `/accounts/new renderiza el form de create type-driven (Server shell + Client form)`                                   | `Requirements > UI smoke slice`                               | conductual (smoke slice de UI)                        |
-| R-11 | `/accounts/[id] muestra el detalle de la cuenta y el widget de balance (Server + Client widget)`                       | `Requirements > UI smoke slice`                               | conductual (smoke slice de UI)                        |
-| R-12 | `Todos los request bodies se validan con Zod schemas`                                                                  | `Requirements > Validación, errores, integración con auth`     | conductual (Zod)                                      |
-| R-13 | `Todos los endpoints requieren una sesión autenticada`                                                                 | `Requirements > Validación, errores, integración con auth`     | conductual (integración con auth)                     |
-| R-14 | `Los errores siguen el envelope de error estándar del proyecto`                                                        | `Requirements > Validación, errores, integración con auth`     | conductual (envelope de error)                        |
+| #    | Requirement                                                                                      | Sección target en el spec canónico                         | Tipo                                 |
+| ---- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- | ------------------------------------ |
+| R-1  | `FinancialAccount persiste el modelo discriminated de 6 tipos`                                   | `Requirements > Data model`                                | conductual (data + invariante Zod)   |
+| R-2  | `GET /api/accounts devuelve un listado cursor-paginado scoped al usuario autenticado`            | `Requirements > Endpoints`                                 | conductual (superficie de API)       |
+| R-3  | `POST /api/accounts crea una cuenta type-driven`                                                 | `Requirements > Endpoints`                                 | conductual (superficie de API + Zod) |
+| R-4  | `GET /api/accounts/:id devuelve una cuenta o 404 cross-user`                                     | `Requirements > Endpoints`                                 | conductual (guard cross-module)      |
+| R-5  | `PATCH /api/accounts/:id aplica un partial update`                                               | `Requirements > Endpoints`                                 | conductual (superficie de API + Zod) |
+| R-6  | `POST /api/accounts/:id/archive soft-archiva la cuenta`                                          | `Requirements > Endpoints`                                 | conductual (soft-archive)            |
+| R-7  | `POST /api/accounts/:id/unarchive restaura la cuenta`                                            | `Requirements > Endpoints`                                 | conductual (soft-archive)            |
+| R-8  | `GET /api/accounts/:id/balance devuelve la conversión FX display-only`                           | `Requirements > Endpoints`                                 | conductual (FX read-only)            |
+| R-9  | `/accounts lista las cuentas vivas del usuario (Server Component)`                               | `Requirements > UI smoke slice`                            | conductual (smoke slice de UI)       |
+| R-10 | `/accounts/new renderiza el form de create type-driven (Server shell + Client form)`             | `Requirements > UI smoke slice`                            | conductual (smoke slice de UI)       |
+| R-11 | `/accounts/[id] muestra el detalle de la cuenta y el widget de balance (Server + Client widget)` | `Requirements > UI smoke slice`                            | conductual (smoke slice de UI)       |
+| R-12 | `Todos los request bodies se validan con Zod schemas`                                            | `Requirements > Validación, errores, integración con auth` | conductual (Zod)                     |
+| R-13 | `Todos los endpoints requieren una sesión autenticada`                                           | `Requirements > Validación, errores, integración con auth` | conductual (integración con auth)    |
+| R-14 | `Los errores siguen el envelope de error estándar del proyecto`                                  | `Requirements > Validación, errores, integración con auth` | conductual (envelope de error)       |
 
 **14 de 14 Requirements promovidos.** El spec también incluye 8
 Business Rules (BR-ACC-12 a BR-ACC-19) y 5 enums
@@ -109,14 +109,14 @@ El `git diff --stat` entre el archivo de delta y el archivo canónico mostraría
 El header de metadata del spec se actualizó desde la forma
 delta (change-context) a la forma canónica activa:
 
-| Campo            | Delta spec (change context)                                                              | Spec canónico (activo)                                                          |
-| ---------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `**Capability**` | `accounts` (nueva — primera escritura de este spec)                                       | `accounts`                                                                       |
-| `**Source change**` | `accounts-ledger` (proposal v3, draft 2026-06-18)                                    | `accounts-ledger`                                                                |
-| `**Status**`     | `draft · **Created**: 2026-06-18`                                                        | `active · **Created**: 2026-06-18 · **Last sync**: 2026-06-19 (accounts-ledger)` |
-| `**Stack**`      | kept verbatim                                                                             | kept verbatim                                                                    |
-| `**Preflight**`  | kept (solo significativo en change context)                                              | **dropped** — solo significativo en change context; vive en `openspec/changes/<name>/proposal.md` |
-| `**Strict TDD**` | kept (solo significativo en change context)                                              | **dropped** — solo significativo en change context; vive en `openspec/config.yaml`  |
+| Campo               | Delta spec (change context)                         | Spec canónico (activo)                                                                            |
+| ------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `**Capability**`    | `accounts` (nueva — primera escritura de este spec) | `accounts`                                                                                        |
+| `**Source change**` | `accounts-ledger` (proposal v3, draft 2026-06-18)   | `accounts-ledger`                                                                                 |
+| `**Status**`        | `draft · **Created**: 2026-06-18`                   | `active · **Created**: 2026-06-18 · **Last sync**: 2026-06-19 (accounts-ledger)`                  |
+| `**Stack**`         | kept verbatim                                       | kept verbatim                                                                                     |
+| `**Preflight**`     | kept (solo significativo en change context)         | **dropped** — solo significativo en change context; vive en `openspec/changes/<name>/proposal.md` |
+| `**Strict TDD**`    | kept (solo significativo en change context)         | **dropped** — solo significativo en change context; vive en `openspec/config.yaml`                |
 
 El campo `Status` se mueve de `draft` a `active` porque el
 spec ahora es la fuente de verdad, no un borrador. Un cambio
@@ -131,13 +131,13 @@ es intencional, no un descuido).
 
 Equivalentes del header del mirror español:
 
-| Campo            | Mirror español (activo)                                                                                          |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `**Autor**`      | `Sebastián Illa`                                                                                                 |
-| `**Capability**` | `accounts`                                                                                                       |
-| `**Cambio fuente**` | `accounts-ledger`                                                                                            |
-| `**Estado**`     | `activo · **Creado**: 2026-06-18 · **Última sincronización**: 2026-06-19 (accounts-ledger)`                     |
-| `**Stack**`      | kept verbatim                                                                                                    |
+| Campo               | Mirror español (activo)                                                                     |
+| ------------------- | ------------------------------------------------------------------------------------------- |
+| `**Autor**`         | `Sebastián Illa`                                                                            |
+| `**Capability**`    | `accounts`                                                                                  |
+| `**Cambio fuente**` | `accounts-ledger`                                                                           |
+| `**Estado**`        | `activo · **Creado**: 2026-06-18 · **Última sincronización**: 2026-06-19 (accounts-ledger)` |
+| `**Stack**`         | kept verbatim                                                                               |
 
 ---
 
@@ -145,11 +145,11 @@ Equivalentes del header del mirror español:
 
 El sync es el **segundo de 3 commits atómicos** en este cierre de lifecycle:
 
-| #   | SHA (real, post-commit) | Tipo             | Descripción                                                                 |
-| --- | ----------------------- | ---------------- | --------------------------------------------------------------------------- |
-| 1   | `a66dc1b`               | docs(openspec)   | verify report for accounts-ledger (el commit de verify, ya mergeado)        |
-| 2   | `1e3ed4d` (este commit) | docs(openspec)   | sync accounts-ledger deltas to canonical accounts spec (este commit de sync)|
-| 3   | `<sha-3>` (próximo)     | chore(openspec)  | archive accounts-ledger (el commit de archive, aterriza en esta misma sesión)|
+| #   | SHA (real, post-commit) | Tipo            | Descripción                                                                |
+| --- | ----------------------- | --------------- | -------------------------------------------------------------------------- |
+| 1   | `a66dc1b`               | docs(openspec)  | verify report for accounts-ledger (el commit de verify, ya mergeado)       |
+| 2   | `fb59a72`               | docs(openspec)  | sync accounts-ledger deltas to canonical accounts spec (commit de sync)    |
+| 3   | `6f8b737`               | chore(openspec) | archive accounts-ledger (commit de archive, aterriza en esta misma sesión) |
 
 Los 3 SHAs son los reales, confirmados por `git log origin/develop -3 --format='%H %s'`. El SHA-2 fue amended tres veces después de su creación (solo fixes cosméticos — se removieron backticks sueltos alrededor de `§13.3` que se colaron por escape de shell, y se completó el placeholder del SHA dos veces a medida que el SHA cambió con cada amend); ningún contenido del spec cambió a lo largo de ningún amend.
 
@@ -163,32 +163,32 @@ verificación es por grep; cada Requirement / BR / enum se
 busca en el spec canónico y el hit count se asserta en
 exactamente 1 (para el heading matching o el stable ID).
 
-| Delta              | Sección del spec / stable ID                                                  | Verificado por (grep)                                                                       | Hit |
-| ------------------ | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | --- |
-| R-1                | `Requirement: FinancialAccount persiste el modelo discriminated de 6 tipos`   | `grep -c '^#### Requirement: FinancialAccount persiste el modelo discriminated de 6 tipos' openspec/specs/accounts/spec.md` | 1   |
-| R-2                | `Requirement: GET /api/accounts devuelve un listado cursor-paginado`         | `grep -c '^#### Requirement: GET /api/accounts devuelve un listado cursor-paginado' openspec/specs/accounts/spec.md`             | 1   |
-| R-3                | `Requirement: POST /api/accounts crea una cuenta type-driven`                 | `grep -c '^#### Requirement: POST /api/accounts crea una cuenta type-driven' openspec/specs/accounts/spec.md`                 | 1   |
-| R-4                | `Requirement: GET /api/accounts/:id devuelve una cuenta o 404 cross-user`    | `grep -c '^#### Requirement: GET /api/accounts/:id devuelve una cuenta o 404' openspec/specs/accounts/spec.md`                | 1   |
-| R-5                | `Requirement: PATCH /api/accounts/:id aplica un partial update`               | `grep -c '^#### Requirement: PATCH /api/accounts/:id aplica un partial update' openspec/specs/accounts/spec.md`               | 1   |
-| R-6                | `Requirement: POST /api/accounts/:id/archive soft-archiva la cuenta`          | `grep -c '^#### Requirement: POST /api/accounts/:id/archive soft-archiva la cuenta' openspec/specs/accounts/spec.md`          | 1   |
-| R-7                | `Requirement: POST /api/accounts/:id/unarchive restaura la cuenta`            | `grep -c '^#### Requirement: POST /api/accounts/:id/unarchive restaura la cuenta' openspec/specs/accounts/spec.md`            | 1   |
-| R-8                | `Requirement: GET /api/accounts/:id/balance devuelve la conversión FX`         | `grep -c '^#### Requirement: GET /api/accounts/:id/balance devuelve la conversión FX' openspec/specs/accounts/spec.md`        | 1   |
-| R-9                | `Requirement: /accounts lista las cuentas vivas del usuario`                  | `grep -c '^#### Requirement: /accounts lista' openspec/specs/accounts/spec.md`                                                  | 1   |
-| R-10               | `Requirement: /accounts/new renderiza el form de create type-driven`         | `grep -c '^#### Requirement: /accounts/new renderiza' openspec/specs/accounts/spec.md`                                         | 1   |
-| R-11               | `Requirement: /accounts/[id] muestra el detalle de la cuenta`                 | `grep -c '^#### Requirement: /accounts/\[id\] muestra' openspec/specs/accounts/spec.md`                                      | 1   |
-| R-12               | `Requirement: Todos los request bodies se validan con Zod schemas`            | `grep -c '^#### Requirement: Todos los request bodies se validan con Zod schemas' openspec/specs/accounts/spec.md`            | 1   |
-| R-13               | `Requirement: Todos los endpoints requieren una sesión autenticada`           | `grep -c '^#### Requirement: Todos los endpoints requieren una sesión autenticada' openspec/specs/accounts/spec.md`          | 1   |
-| R-14               | `Requirement: Los errores siguen el envelope de error estándar del proyecto`  | `grep -c '^#### Requirement: Los errores siguen el envelope' openspec/specs/accounts/spec.md`                                | 1   |
-| BR-ACC-12          | `BR-ACC-12`                                                                  | `grep -c 'BR-ACC-12' openspec/specs/accounts/spec.md`                                                                          | 1+  |
-| BR-ACC-13          | `BR-ACC-13`                                                                  | `grep -c 'BR-ACC-13' openspec/specs/accounts/spec.md`                                                                          | 1+  |
-| BR-ACC-14          | `BR-ACC-14`                                                                  | `grep -c 'BR-ACC-14' openspec/specs/accounts/spec.md`                                                                          | 1+  |
-| BR-ACC-15          | `BR-ACC-15`                                                                  | `grep -c 'BR-ACC-15' openspec/specs/accounts/spec.md`                                                                          | 1+  |
-| BR-ACC-16          | `BR-ACC-16`                                                                  | `grep -c 'BR-ACC-16' openspec/specs/accounts/spec.md`                                                                          | 1+  |
-| BR-ACC-17          | `BR-ACC-17`                                                                  | `grep -c 'BR-ACC-17' openspec/specs/accounts/spec.md`                                                                          | 1+  |
-| BR-ACC-18          | `BR-ACC-18`                                                                  | `grep -c 'BR-ACC-18' openspec/specs/accounts/spec.md`                                                                          | 1+  |
-| BR-ACC-19          | `BR-ACC-19`                                                                  | `grep -c 'BR-ACC-19' openspec/specs/accounts/spec.md`                                                                          | 1+  |
-| Enum `AccountType` | (sección de entities)                                                        | `grep -c 'AccountType.*BANK | CREDIT | INVESTMENT | CRYPTO | CASH | OTHER' openspec/specs/accounts/spec.md`               | 1   |
-| Enum `AccountKind` | (sección de entities)                                                        | `grep -c 'AccountKind.*SAVINGS | CHECKING' openspec/specs/accounts/spec.md`                                                | 1   |
+| Delta              | Sección del spec / stable ID                                                 | Verificado por (grep)                                                                                                       | Hit                                        |
+| ------------------ | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | ---------- | ------ | ---- | --------------------------------------- | --- |
+| R-1                | `Requirement: FinancialAccount persiste el modelo discriminated de 6 tipos`  | `grep -c '^#### Requirement: FinancialAccount persiste el modelo discriminated de 6 tipos' openspec/specs/accounts/spec.md` | 1                                          |
+| R-2                | `Requirement: GET /api/accounts devuelve un listado cursor-paginado`         | `grep -c '^#### Requirement: GET /api/accounts devuelve un listado cursor-paginado' openspec/specs/accounts/spec.md`        | 1                                          |
+| R-3                | `Requirement: POST /api/accounts crea una cuenta type-driven`                | `grep -c '^#### Requirement: POST /api/accounts crea una cuenta type-driven' openspec/specs/accounts/spec.md`               | 1                                          |
+| R-4                | `Requirement: GET /api/accounts/:id devuelve una cuenta o 404 cross-user`    | `grep -c '^#### Requirement: GET /api/accounts/:id devuelve una cuenta o 404' openspec/specs/accounts/spec.md`              | 1                                          |
+| R-5                | `Requirement: PATCH /api/accounts/:id aplica un partial update`              | `grep -c '^#### Requirement: PATCH /api/accounts/:id aplica un partial update' openspec/specs/accounts/spec.md`             | 1                                          |
+| R-6                | `Requirement: POST /api/accounts/:id/archive soft-archiva la cuenta`         | `grep -c '^#### Requirement: POST /api/accounts/:id/archive soft-archiva la cuenta' openspec/specs/accounts/spec.md`        | 1                                          |
+| R-7                | `Requirement: POST /api/accounts/:id/unarchive restaura la cuenta`           | `grep -c '^#### Requirement: POST /api/accounts/:id/unarchive restaura la cuenta' openspec/specs/accounts/spec.md`          | 1                                          |
+| R-8                | `Requirement: GET /api/accounts/:id/balance devuelve la conversión FX`       | `grep -c '^#### Requirement: GET /api/accounts/:id/balance devuelve la conversión FX' openspec/specs/accounts/spec.md`      | 1                                          |
+| R-9                | `Requirement: /accounts lista las cuentas vivas del usuario`                 | `grep -c '^#### Requirement: /accounts lista' openspec/specs/accounts/spec.md`                                              | 1                                          |
+| R-10               | `Requirement: /accounts/new renderiza el form de create type-driven`         | `grep -c '^#### Requirement: /accounts/new renderiza' openspec/specs/accounts/spec.md`                                      | 1                                          |
+| R-11               | `Requirement: /accounts/[id] muestra el detalle de la cuenta`                | `grep -c '^#### Requirement: /accounts/\[id\] muestra' openspec/specs/accounts/spec.md`                                     | 1                                          |
+| R-12               | `Requirement: Todos los request bodies se validan con Zod schemas`           | `grep -c '^#### Requirement: Todos los request bodies se validan con Zod schemas' openspec/specs/accounts/spec.md`          | 1                                          |
+| R-13               | `Requirement: Todos los endpoints requieren una sesión autenticada`          | `grep -c '^#### Requirement: Todos los endpoints requieren una sesión autenticada' openspec/specs/accounts/spec.md`         | 1                                          |
+| R-14               | `Requirement: Los errores siguen el envelope de error estándar del proyecto` | `grep -c '^#### Requirement: Los errores siguen el envelope' openspec/specs/accounts/spec.md`                               | 1                                          |
+| BR-ACC-12          | `BR-ACC-12`                                                                  | `grep -c 'BR-ACC-12' openspec/specs/accounts/spec.md`                                                                       | 1+                                         |
+| BR-ACC-13          | `BR-ACC-13`                                                                  | `grep -c 'BR-ACC-13' openspec/specs/accounts/spec.md`                                                                       | 1+                                         |
+| BR-ACC-14          | `BR-ACC-14`                                                                  | `grep -c 'BR-ACC-14' openspec/specs/accounts/spec.md`                                                                       | 1+                                         |
+| BR-ACC-15          | `BR-ACC-15`                                                                  | `grep -c 'BR-ACC-15' openspec/specs/accounts/spec.md`                                                                       | 1+                                         |
+| BR-ACC-16          | `BR-ACC-16`                                                                  | `grep -c 'BR-ACC-16' openspec/specs/accounts/spec.md`                                                                       | 1+                                         |
+| BR-ACC-17          | `BR-ACC-17`                                                                  | `grep -c 'BR-ACC-17' openspec/specs/accounts/spec.md`                                                                       | 1+                                         |
+| BR-ACC-18          | `BR-ACC-18`                                                                  | `grep -c 'BR-ACC-18' openspec/specs/accounts/spec.md`                                                                       | 1+                                         |
+| BR-ACC-19          | `BR-ACC-19`                                                                  | `grep -c 'BR-ACC-19' openspec/specs/accounts/spec.md`                                                                       | 1+                                         |
+| Enum `AccountType` | (sección de entities)                                                        | `grep -c 'AccountType.\*BANK                                                                                                | CREDIT                                     | INVESTMENT | CRYPTO | CASH | OTHER' openspec/specs/accounts/spec.md` | 1   |
+| Enum `AccountKind` | (sección de entities)                                                        | `grep -c 'AccountKind.\*SAVINGS                                                                                             | CHECKING' openspec/specs/accounts/spec.md` | 1          |
 
 Los 14 Requirements + 8 BRs + 5 enums están presentes en el spec canónico. El count `1+` en los stable IDs de BR-ACC-NN refleja el heading del BR más las cross-references dentro de los Scenarios relevantes; el heading en sí es hit al menos una vez.
 

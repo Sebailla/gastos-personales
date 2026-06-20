@@ -26,22 +26,22 @@ so the entire delta file becomes the canonical file verbatim
 (modulo the metadata header update described in §4). All 14
 Requirements + 24 Scenarios land in the canonical spec as-is.
 
-| #    | Requirement                                                                                                            | Target section in canonical spec                                  | Type                              |
-| ---- | ---------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | --------------------------------- |
-| R-1  | `FinancialAccount persists the 6-type discriminated model`                                                              | `Requirements > Data model`                                       | behavioral (data + Zod invariant) |
-| R-2  | `GET /api/accounts returns a cursor-paginated list scoped to the authenticated user`                                    | `Requirements > Endpoints`                                        | behavioral (API surface)          |
-| R-3  | `POST /api/accounts creates a type-driven account`                                                                     | `Requirements > Endpoints`                                        | behavioral (API surface + Zod)    |
-| R-4  | `GET /api/accounts/:id returns one account or 404 on cross-user`                                                       | `Requirements > Endpoints`                                        | behavioral (cross-module guard)   |
-| R-5  | `PATCH /api/accounts/:id applies a partial update`                                                                     | `Requirements > Endpoints`                                        | behavioral (API surface + Zod)    |
-| R-6  | `POST /api/accounts/:id/archive soft-archives the account`                                                             | `Requirements > Endpoints`                                        | behavioral (soft-archive)         |
-| R-7  | `POST /api/accounts/:id/unarchive restores the account`                                                                | `Requirements > Endpoints`                                        | behavioral (soft-archive)         |
-| R-8  | `GET /api/accounts/:id/balance returns the display-only FX conversion`                                                 | `Requirements > Endpoints`                                        | behavioral (FX read-only)         |
-| R-9  | `/accounts lists the user's live accounts (Server Component)`                                                          | `Requirements > UI smoke slice`                                  | behavioral (UI smoke slice)       |
-| R-10 | `/accounts/new renders the type-driven create form (Server shell + Client form)`                                       | `Requirements > UI smoke slice`                                  | behavioral (UI smoke slice)       |
-| R-11 | `/accounts/[id] shows the account detail and the balance widget (Server + Client widget)`                              | `Requirements > UI smoke slice`                                  | behavioral (UI smoke slice)       |
-| R-12 | `All request bodies are validated by Zod schemas`                                                                      | `Requirements > Validation, errors, auth integration`             | behavioral (Zod)                  |
-| R-13 | `All endpoints require an authenticated session`                                                                       | `Requirements > Validation, errors, auth integration`             | behavioral (auth integration)     |
-| R-14 | `Errors follow the project's standard error envelope`                                                                  | `Requirements > Validation, errors, auth integration`             | behavioral (error envelope)       |
+| #    | Requirement                                                                               | Target section in canonical spec                      | Type                              |
+| ---- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------- | --------------------------------- |
+| R-1  | `FinancialAccount persists the 6-type discriminated model`                                | `Requirements > Data model`                           | behavioral (data + Zod invariant) |
+| R-2  | `GET /api/accounts returns a cursor-paginated list scoped to the authenticated user`      | `Requirements > Endpoints`                            | behavioral (API surface)          |
+| R-3  | `POST /api/accounts creates a type-driven account`                                        | `Requirements > Endpoints`                            | behavioral (API surface + Zod)    |
+| R-4  | `GET /api/accounts/:id returns one account or 404 on cross-user`                          | `Requirements > Endpoints`                            | behavioral (cross-module guard)   |
+| R-5  | `PATCH /api/accounts/:id applies a partial update`                                        | `Requirements > Endpoints`                            | behavioral (API surface + Zod)    |
+| R-6  | `POST /api/accounts/:id/archive soft-archives the account`                                | `Requirements > Endpoints`                            | behavioral (soft-archive)         |
+| R-7  | `POST /api/accounts/:id/unarchive restores the account`                                   | `Requirements > Endpoints`                            | behavioral (soft-archive)         |
+| R-8  | `GET /api/accounts/:id/balance returns the display-only FX conversion`                    | `Requirements > Endpoints`                            | behavioral (FX read-only)         |
+| R-9  | `/accounts lists the user's live accounts (Server Component)`                             | `Requirements > UI smoke slice`                       | behavioral (UI smoke slice)       |
+| R-10 | `/accounts/new renders the type-driven create form (Server shell + Client form)`          | `Requirements > UI smoke slice`                       | behavioral (UI smoke slice)       |
+| R-11 | `/accounts/[id] shows the account detail and the balance widget (Server + Client widget)` | `Requirements > UI smoke slice`                       | behavioral (UI smoke slice)       |
+| R-12 | `All request bodies are validated by Zod schemas`                                         | `Requirements > Validation, errors, auth integration` | behavioral (Zod)                  |
+| R-13 | `All endpoints require an authenticated session`                                          | `Requirements > Validation, errors, auth integration` | behavioral (auth integration)     |
+| R-14 | `Errors follow the project's standard error envelope`                                     | `Requirements > Validation, errors, auth integration` | behavioral (error envelope)       |
 
 **14 of 14 Requirements promoted.** The spec also includes 8
 Business Rules (BR-ACC-12 through BR-ACC-19) and 5 enums
@@ -106,14 +106,14 @@ The `git diff --stat` between the delta file and the canonical file would show t
 The spec's metadata header was updated from the delta's
 change-context shape to the canonical active shape:
 
-| Field            | Delta spec (change context)                                                                | Canonical spec (active)                                                          |
-| ---------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
-| `**Capability**` | `accounts` (new — first write of this spec)                                                  | `accounts`                                                                        |
-| `**Source change**` | `accounts-ledger` (proposal v3, draft 2026-06-18)                                       | `accounts-ledger`                                                                 |
-| `**Status**`     | `draft · **Created**: 2026-06-18`                                                          | `active · **Created**: 2026-06-18 · **Last sync**: 2026-06-19 (accounts-ledger)`   |
-| `**Stack**`      | kept verbatim                                                                              | kept verbatim                                                                     |
-| `**Preflight**`  | kept (only meaningful in change context)                                                   | **dropped** — only meaningful in change context; lives in `openspec/changes/<name>/proposal.md` |
-| `**Strict TDD**` | kept (only meaningful in change context)                                                   | **dropped** — only meaningful in change context; lives in `openspec/config.yaml`    |
+| Field               | Delta spec (change context)                       | Canonical spec (active)                                                                         |
+| ------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `**Capability**`    | `accounts` (new — first write of this spec)       | `accounts`                                                                                      |
+| `**Source change**` | `accounts-ledger` (proposal v3, draft 2026-06-18) | `accounts-ledger`                                                                               |
+| `**Status**`        | `draft · **Created**: 2026-06-18`                 | `active · **Created**: 2026-06-18 · **Last sync**: 2026-06-19 (accounts-ledger)`                |
+| `**Stack**`         | kept verbatim                                     | kept verbatim                                                                                   |
+| `**Preflight**`     | kept (only meaningful in change context)          | **dropped** — only meaningful in change context; lives in `openspec/changes/<name>/proposal.md` |
+| `**Strict TDD**`    | kept (only meaningful in change context)          | **dropped** — only meaningful in change context; lives in `openspec/config.yaml`                |
 
 The `Status` field moves from `draft` to `active` because the
 spec is now the source of truth, not a draft. A future change
@@ -128,13 +128,13 @@ intentional, not an oversight).
 
 Spanish mirror header equivalents:
 
-| Field            | Spanish mirror (active)                                                                                       |
-| ---------------- | ------------------------------------------------------------------------------------------------------------- |
-| `**Autor**`      | `Sebastián Illa`                                                                                              |
-| `**Capability**` | `accounts`                                                                                                    |
-| `**Cambio fuente**` | `accounts-ledger`                                                                                          |
-| `**Estado**`     | `activo · **Creado**: 2026-06-18 · **Última sincronización**: 2026-06-19 (accounts-ledger)`                  |
-| `**Stack**`      | kept verbatim                                                                                                 |
+| Field               | Spanish mirror (active)                                                                     |
+| ------------------- | ------------------------------------------------------------------------------------------- |
+| `**Autor**`         | `Sebastián Illa`                                                                            |
+| `**Capability**`    | `accounts`                                                                                  |
+| `**Cambio fuente**` | `accounts-ledger`                                                                           |
+| `**Estado**`        | `activo · **Creado**: 2026-06-18 · **Última sincronización**: 2026-06-19 (accounts-ledger)` |
+| `**Stack**`         | kept verbatim                                                                               |
 
 ---
 
@@ -142,11 +142,11 @@ Spanish mirror header equivalents:
 
 The sync is the **second of 3 atomic commits** in this lifecycle closure:
 
-| #   | SHA (real, post-commit) | Type            | Description                                                                  |
-| --- | ----------------------- | --------------- | ---------------------------------------------------------------------------- |
-| 1   | `a66dc1b`               | docs(openspec)  | verify report for accounts-ledger (the verify commit, already merged)        |
-| 2   | `1e3ed4d` (this commit) | docs(openspec)  | sync accounts-ledger deltas to canonical accounts spec (this sync commit)    |
-| 3   | `<sha-3>` (next commit) | chore(openspec) | archive accounts-ledger (the archive commit, lands in this same session)     |
+| #   | SHA (real, post-commit) | Type            | Description                                                              |
+| --- | ----------------------- | --------------- | ------------------------------------------------------------------------ |
+| 1   | `a66dc1b`               | docs(openspec)  | verify report for accounts-ledger (the verify commit, already merged)    |
+| 2   | `fb59a72`               | docs(openspec)  | sync accounts-ledger deltas to canonical accounts spec (the sync commit) |
+| 3   | `6f8b737`               | chore(openspec) | archive accounts-ledger (the archive commit, lands in this same session) |
 
 The 3 SHAs are the real ones, confirmed by `git log origin/develop -3 --format='%H %s'`. SHA-2 was amended three times after creation (cosmetic fixes only — removed stray backticks around `§13.3` from the original shell escape, filled in the SHA placeholder twice as the SHA changed with each amend); no spec content changed across any amend.
 
@@ -160,32 +160,32 @@ verification is grep-based; each Requirement / BR / enum is
 searched in the canonical spec and the hit count is asserted
 at exactly 1 (for the matching heading or stable ID).
 
-| Delta              | Spec section / stable ID                                            | Verified by (grep)                                                                       | Hit |
-| ------------------ | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | --- |
-| R-1                | `Requirement: FinancialAccount persists the 6-type discriminated model` | `grep -c '^#### Requirement: FinancialAccount persists the 6-type discriminated model' openspec/specs/accounts/spec.md` | 1   |
-| R-2                | `Requirement: GET /api/accounts returns a cursor-paginated list`        | `grep -c '^#### Requirement: GET /api/accounts returns a cursor-paginated list' openspec/specs/accounts/spec.md`             | 1   |
-| R-3                | `Requirement: POST /api/accounts creates a type-driven account`        | `grep -c '^#### Requirement: POST /api/accounts creates a type-driven account' openspec/specs/accounts/spec.md`              | 1   |
-| R-4                | `Requirement: GET /api/accounts/:id returns one account or 404`        | `grep -c '^#### Requirement: GET /api/accounts/:id returns one account or 404' openspec/specs/accounts/spec.md`            | 1   |
-| R-5                | `Requirement: PATCH /api/accounts/:id applies a partial update`        | `grep -c '^#### Requirement: PATCH /api/accounts/:id applies a partial update' openspec/specs/accounts/spec.md`            | 1   |
-| R-6                | `Requirement: POST /api/accounts/:id/archive soft-archives`            | `grep -c '^#### Requirement: POST /api/accounts/:id/archive soft-archives' openspec/specs/accounts/spec.md`               | 1   |
-| R-7                | `Requirement: POST /api/accounts/:id/unarchive restores`               | `grep -c '^#### Requirement: POST /api/accounts/:id/unarchive restores' openspec/specs/accounts/spec.md`                  | 1   |
-| R-8                | `Requirement: GET /api/accounts/:id/balance returns the FX`             | `grep -c '^#### Requirement: GET /api/accounts/:id/balance returns the display-only FX' openspec/specs/accounts/spec.md`   | 1   |
-| R-9                | `Requirement: /accounts lists the user's live accounts`                 | `grep -c '^#### Requirement: /accounts lists' openspec/specs/accounts/spec.md`                                               | 1   |
-| R-10               | `Requirement: /accounts/new renders the type-driven create form`        | `grep -c '^#### Requirement: /accounts/new renders' openspec/specs/accounts/spec.md`                                       | 1   |
-| R-11               | `Requirement: /accounts/[id] shows the account detail`                  | `grep -c '^#### Requirement: /accounts/\[id\] shows' openspec/specs/accounts/spec.md`                                     | 1   |
-| R-12               | `Requirement: All request bodies are validated by Zod schemas`         | `grep -c '^#### Requirement: All request bodies are validated by Zod schemas' openspec/specs/accounts/spec.md`             | 1   |
-| R-13               | `Requirement: All endpoints require an authenticated session`          | `grep -c '^#### Requirement: All endpoints require an authenticated session' openspec/specs/accounts/spec.md`              | 1   |
-| R-14               | `Requirement: Errors follow the project's standard error envelope`     | `grep -c '^#### Requirement: Errors follow the project' openspec/specs/accounts/spec.md`                                 | 1   |
-| BR-ACC-12          | `BR-ACC-12`                                                         | `grep -c 'BR-ACC-12' openspec/specs/accounts/spec.md`                                                                     | 1+  |
-| BR-ACC-13          | `BR-ACC-13`                                                         | `grep -c 'BR-ACC-13' openspec/specs/accounts/spec.md`                                                                     | 1+  |
-| BR-ACC-14          | `BR-ACC-14`                                                         | `grep -c 'BR-ACC-14' openspec/specs/accounts/spec.md`                                                                     | 1+  |
-| BR-ACC-15          | `BR-ACC-15`                                                         | `grep -c 'BR-ACC-15' openspec/specs/accounts/spec.md`                                                                     | 1+  |
-| BR-ACC-16          | `BR-ACC-16`                                                         | `grep -c 'BR-ACC-16' openspec/specs/accounts/spec.md`                                                                     | 1+  |
-| BR-ACC-17          | `BR-ACC-17`                                                         | `grep -c 'BR-ACC-17' openspec/specs/accounts/spec.md`                                                                     | 1+  |
-| BR-ACC-18          | `BR-ACC-18`                                                         | `grep -c 'BR-ACC-18' openspec/specs/accounts/spec.md`                                                                     | 1+  |
-| BR-ACC-19          | `BR-ACC-19`                                                         | `grep -c 'BR-ACC-19' openspec/specs/accounts/spec.md`                                                                     | 1+  |
-| Enum `AccountType` | (entity section)                                                    | `grep -c 'AccountType.*BANK | CREDIT | INVESTMENT | CRYPTO | CASH | OTHER' openspec/specs/accounts/spec.md`                  | 1   |
-| Enum `AccountKind` | (entity section)                                                    | `grep -c 'AccountKind.*SAVINGS | CHECKING' openspec/specs/accounts/spec.md`                                              | 1   |
+| Delta              | Spec section / stable ID                                                | Verified by (grep)                                                                                                       | Hit                                        |
+| ------------------ | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ | ---------- | ------ | ---- | --------------------------------------- | --- |
+| R-1                | `Requirement: FinancialAccount persists the 6-type discriminated model` | `grep -c '^#### Requirement: FinancialAccount persists the 6-type discriminated model' openspec/specs/accounts/spec.md`  | 1                                          |
+| R-2                | `Requirement: GET /api/accounts returns a cursor-paginated list`        | `grep -c '^#### Requirement: GET /api/accounts returns a cursor-paginated list' openspec/specs/accounts/spec.md`         | 1                                          |
+| R-3                | `Requirement: POST /api/accounts creates a type-driven account`         | `grep -c '^#### Requirement: POST /api/accounts creates a type-driven account' openspec/specs/accounts/spec.md`          | 1                                          |
+| R-4                | `Requirement: GET /api/accounts/:id returns one account or 404`         | `grep -c '^#### Requirement: GET /api/accounts/:id returns one account or 404' openspec/specs/accounts/spec.md`          | 1                                          |
+| R-5                | `Requirement: PATCH /api/accounts/:id applies a partial update`         | `grep -c '^#### Requirement: PATCH /api/accounts/:id applies a partial update' openspec/specs/accounts/spec.md`          | 1                                          |
+| R-6                | `Requirement: POST /api/accounts/:id/archive soft-archives`             | `grep -c '^#### Requirement: POST /api/accounts/:id/archive soft-archives' openspec/specs/accounts/spec.md`              | 1                                          |
+| R-7                | `Requirement: POST /api/accounts/:id/unarchive restores`                | `grep -c '^#### Requirement: POST /api/accounts/:id/unarchive restores' openspec/specs/accounts/spec.md`                 | 1                                          |
+| R-8                | `Requirement: GET /api/accounts/:id/balance returns the FX`             | `grep -c '^#### Requirement: GET /api/accounts/:id/balance returns the display-only FX' openspec/specs/accounts/spec.md` | 1                                          |
+| R-9                | `Requirement: /accounts lists the user's live accounts`                 | `grep -c '^#### Requirement: /accounts lists' openspec/specs/accounts/spec.md`                                           | 1                                          |
+| R-10               | `Requirement: /accounts/new renders the type-driven create form`        | `grep -c '^#### Requirement: /accounts/new renders' openspec/specs/accounts/spec.md`                                     | 1                                          |
+| R-11               | `Requirement: /accounts/[id] shows the account detail`                  | `grep -c '^#### Requirement: /accounts/\[id\] shows' openspec/specs/accounts/spec.md`                                    | 1                                          |
+| R-12               | `Requirement: All request bodies are validated by Zod schemas`          | `grep -c '^#### Requirement: All request bodies are validated by Zod schemas' openspec/specs/accounts/spec.md`           | 1                                          |
+| R-13               | `Requirement: All endpoints require an authenticated session`           | `grep -c '^#### Requirement: All endpoints require an authenticated session' openspec/specs/accounts/spec.md`            | 1                                          |
+| R-14               | `Requirement: Errors follow the project's standard error envelope`      | `grep -c '^#### Requirement: Errors follow the project' openspec/specs/accounts/spec.md`                                 | 1                                          |
+| BR-ACC-12          | `BR-ACC-12`                                                             | `grep -c 'BR-ACC-12' openspec/specs/accounts/spec.md`                                                                    | 1+                                         |
+| BR-ACC-13          | `BR-ACC-13`                                                             | `grep -c 'BR-ACC-13' openspec/specs/accounts/spec.md`                                                                    | 1+                                         |
+| BR-ACC-14          | `BR-ACC-14`                                                             | `grep -c 'BR-ACC-14' openspec/specs/accounts/spec.md`                                                                    | 1+                                         |
+| BR-ACC-15          | `BR-ACC-15`                                                             | `grep -c 'BR-ACC-15' openspec/specs/accounts/spec.md`                                                                    | 1+                                         |
+| BR-ACC-16          | `BR-ACC-16`                                                             | `grep -c 'BR-ACC-16' openspec/specs/accounts/spec.md`                                                                    | 1+                                         |
+| BR-ACC-17          | `BR-ACC-17`                                                             | `grep -c 'BR-ACC-17' openspec/specs/accounts/spec.md`                                                                    | 1+                                         |
+| BR-ACC-18          | `BR-ACC-18`                                                             | `grep -c 'BR-ACC-18' openspec/specs/accounts/spec.md`                                                                    | 1+                                         |
+| BR-ACC-19          | `BR-ACC-19`                                                             | `grep -c 'BR-ACC-19' openspec/specs/accounts/spec.md`                                                                    | 1+                                         |
+| Enum `AccountType` | (entity section)                                                        | `grep -c 'AccountType.\*BANK                                                                                             | CREDIT                                     | INVESTMENT | CRYPTO | CASH | OTHER' openspec/specs/accounts/spec.md` | 1   |
+| Enum `AccountKind` | (entity section)                                                        | `grep -c 'AccountKind.\*SAVINGS                                                                                          | CHECKING' openspec/specs/accounts/spec.md` | 1          |
 
 All 14 Requirements + 8 BRs + 5 enums are present in the canonical spec. The `1+` count on the BR-ACC-NN stable IDs reflects the BR heading plus the cross-references inside the relevant Scenarios; the heading itself is hit at least once.
 
