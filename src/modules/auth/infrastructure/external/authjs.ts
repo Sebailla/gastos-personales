@@ -87,13 +87,15 @@ export function normalizeEmail(email: string): string {
  */
 export async function signInCallback(params: {
   user?: { email?: string | null };
+  clock?: { now: () => Date };
 }): Promise<boolean> {
   const email = params.user?.email ? normalizeEmail(params.user.email) : null;
   if (!email) return true;
+  const clock = params.clock ?? { now: () => new Date() };
   try {
     const result = await prisma().user.updateMany({
       where: { email },
-      data: { lastLoginAt: new Date() },
+      data: { lastLoginAt: clock.now() },
     });
     if (result.count === 0) {
       logger.warn('signIn_callback_user_not_found', { email });
