@@ -20,6 +20,9 @@
  * `cursor` is opaque (Prisma's `cuid` + `id` in the
  * `accounts-ledger` impl); the domain layer treats it as a
  * string and the application layer passes it through.
+ * `count` reports the total rows matching the same filter
+ * (no limit/cursor) so the UI can render
+ * "Showing first 20 of N" without a second round trip.
  */
 
 import type { AccountCurrency, AccountType, FinancialAccount } from '../entities/financial-account';
@@ -33,6 +36,17 @@ export interface ListAccountsOptions {
 export interface ListAccountsPage {
   readonly data: FinancialAccount[];
   readonly nextCursor: string | null;
+}
+
+/**
+ * `archivedAt` filter for `count`. The smoke UI only ever
+ * passes `null` (live rows); the `{ not: null }` branch
+ * is reserved for a future "show archived" filter.
+ */
+export type CountArchivedFilter = null | { not: null };
+
+export interface CountAccountsOptions {
+  readonly archivedAt?: CountArchivedFilter;
 }
 
 export interface CreateFinancialAccountInput {
@@ -90,6 +104,11 @@ export interface AccountRepositoryPort {
   /** List the user's accounts, ordered by createdAt DESC. */
   list(userId: string, opts: ListAccountsOptions): Promise<ListAccountsPage>;
 
+  /** Total rows matching the same filter as `list` (no limit,
+   *  no cursor). Used by the UI to render the "Showing first N
+   *  of M" footer. */
+  count(userId: string, opts?: CountAccountsOptions): Promise<number>;
+
   /** Find one account by id, scoped to the userId. Returns null on miss
    *  OR on cross-user access (the caller cannot distinguish; this is
    *  the cross-module invariant). */
@@ -109,11 +128,13 @@ export interface AccountRepositoryPort {
     patch: UpdateFinancialAccountPatch,
   ): Promise<FinancialAccount | null>;
 
-  /** Set archivedAt = now() on a live account. Returns
-   *  `null` on miss or cross-user (same pattern as `update`). */
+  /** Set archivedAt = now() on a live account. Idempotent:
+   *  archives only if the row is currently live (`archivedAt = null`).
+   *  Returns `null` on miss or cross-user (same pattern as `update`). */
   archive(userId: string, id: string): Promise<FinancialAccount | null>;
 
-  /** Set archivedAt = null on an archived account. Returns
-   *  `null` on miss or cross-user (same pattern as `update`). */
+  /** Set archivedAt = null on an archived account. Idempotent:
+   *  unarchives only if the row is currently archived (`archivedAt != null`).
+   *  Returns `null` on miss or cross-user (same pattern as `update`). */
   unarchive(userId: string, id: string): Promise<FinancialAccount | null>;
 }
