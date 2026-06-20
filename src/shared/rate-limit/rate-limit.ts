@@ -104,7 +104,14 @@ export class RateLimitError extends Error {
   }
 }
 
-/** Extract the best-effort client IP from common proxy headers. */
+/**
+ * Extract the best-effort client IP from common proxy headers.
+ * Returns the literal `'anonymous'` if no proxy header is
+ * present; the caller is responsible for namespacing that
+ * bucket (e.g. by appending a per-deployment salt) so the
+ * bucket is not shared across every request reaching the
+ * app directly.
+ */
 export function clientIpFromHeaders(headers: Headers): string {
   const fwd = headers.get('x-forwarded-for');
   if (fwd) {
@@ -114,6 +121,26 @@ export function clientIpFromHeaders(headers: Headers): string {
   const real = headers.get('x-real-ip');
   if (real) return real.trim();
   return 'anonymous';
+}
+
+/**
+ * Build a rate-limit identifier that includes the request
+ * `Host` header so the bucket is unique per deployment
+ * (the Fly.io app name + region show up in the Host when
+ * the proxy is set, and the APP_URL host when it is not).
+ * Without this salt, requests without proxy headers (e.g.
+ * health probes from the orchestrator's internal network)
+ * would share a single `'anonymous'` bucket across every
+ * deployment of the app, allowing one noisy deployment
+ * to exhaust the limit for all others. F-04.
+ *
+ * Returns `'unknown'` when no host header is present so
+ * the bucket key is at least non-empty.
+ */
+export function rateLimitIdentifier(prefix: string, headers: Headers): string {
+  const ip = clientIpFromHeaders(headers);
+  const host = headers.get('host')?.trim() || 'unknown';
+  return `${prefix}:${ip}:${host}`;
 }
 
 /**
