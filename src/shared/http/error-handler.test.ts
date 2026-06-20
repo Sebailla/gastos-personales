@@ -51,4 +51,30 @@ describe('errorHandler', () => {
     expect(body.error.code).toBe('INTERNAL_ERROR');
     expect(JSON.stringify(body)).not.toContain('hunter2');
   });
+
+  // F-08: `cause` is logged (so the deployment is
+  // observable) but never echoed in the response body
+  // (would leak PII, stack frames, or upstream secrets).
+  it('logs err.cause but does not include it in the response body', async () => {
+    const app = buildApp();
+    const innerError = new Error('upstream DB says: connection refused');
+    app.get('/boom', () => {
+      throw new AppError({
+        code: ErrorCode.INTERNAL_ERROR,
+        message: 'DB probe failed.',
+        cause: innerError,
+      });
+    });
+
+    const res = await app.request('/boom');
+    expect(res.status).toBe(500);
+    const body = (await res.json()) as { error: { code: string; message: string } };
+    expect(body.error.code).toBe('INTERNAL_ERROR');
+    expect(body.error.message).toBe('DB probe failed.');
+    // `cause` is internal — it must NOT leak into the
+    // response (would expose upstream secrets / stack
+    // frames / PII).
+    expect(JSON.stringify(body)).not.toContain('connection refused');
+    expect(JSON.stringify(body)).not.toContain('upstream DB');
+  });
 });
