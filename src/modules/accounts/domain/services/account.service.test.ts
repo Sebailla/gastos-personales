@@ -19,6 +19,7 @@ import {
   type FinancialAccount,
 } from '../entities/financial-account';
 import { AppError } from '@/shared/errors/app-error';
+import { systemClock } from '@/shared/clock/system-clock';
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -74,6 +75,7 @@ const baseInput: CreateFinancialAccountInput = {
 
 interface FakeRepo extends AccountRepositoryPort {
   listSpy: ReturnType<typeof vi.fn>;
+  countSpy: ReturnType<typeof vi.fn>;
   findByIdSpy: ReturnType<typeof vi.fn>;
   createSpy: ReturnType<typeof vi.fn>;
   updateSpy: ReturnType<typeof vi.fn>;
@@ -90,6 +92,7 @@ function buildFakeRepo(rows: FinancialAccount[] = []): FakeRepo {
     data: Array.from(rowsMap.values()),
     nextCursor: null,
   }));
+  const countSpy = vi.fn(async (_userId: string) => rowsMap.size);
   const findByIdSpy = vi.fn(async (userId: string, id: string) => {
     const r = rowsMap.get(id);
     if (!r) return null;
@@ -131,12 +134,14 @@ function buildFakeRepo(rows: FinancialAccount[] = []): FakeRepo {
 
   return {
     list: listSpy,
+    count: countSpy,
     findById: findByIdSpy,
     create: createSpy,
     update: updateSpy,
     archive: archiveSpy,
     unarchive: unarchiveSpy,
     listSpy,
+    countSpy,
     findByIdSpy,
     createSpy,
     updateSpy,
@@ -149,23 +154,16 @@ function buildFakeRepo(rows: FinancialAccount[] = []): FakeRepo {
 interface FakeFx {
   getDisplayAmount: FxRateProvider['getDisplayAmount'];
   getDisplayAmountSpy: ReturnType<typeof vi.fn>;
-  resultToReturn: FxConversionResult;
   errorToThrow: AppError | null;
 }
 
 function buildFakeFx(): FakeFx {
-  const resultToReturn: FxConversionResult = {
-    native: { amount: 100000, currency: AccountCurrency.USD },
-    display: {
-      amount: 92000,
-      currency: AccountCurrency.EUR,
-      fxRate: 0.92,
-      fxAsOf: new Date('2026-06-18T20:00:00.000Z'),
-    },
-    warnings: [],
-  };
+  // F-16: dropped `resultToReturn` from the default
+  // shape; tests that need to assert a specific result
+  // set the spy's return value inline. The default
+  // success result lives in `getDisplayAmountSpy`'s
+  // implementation below.
   const fake: FakeFx = {
-    resultToReturn,
     errorToThrow: null,
     getDisplayAmountSpy: vi.fn(),
     getDisplayAmount: (_request: FxConversionRequest): Promise<FxConversionResult> =>
@@ -175,7 +173,17 @@ function buildFakeFx(): FakeFx {
     async (request: FxConversionRequest): Promise<FxConversionResult> => {
       if (fake.errorToThrow) throw fake.errorToThrow;
       void request;
-      return fake.resultToReturn;
+      const defaultResult: FxConversionResult = {
+        native: { amount: 100000, currency: AccountCurrency.USD },
+        display: {
+          amount: 92000,
+          currency: AccountCurrency.EUR,
+          fxRate: 0.92,
+          fxAsOf: new Date('2026-06-18T20:00:00.000Z'),
+        },
+        warnings: [],
+      };
+      return defaultResult;
     },
   );
   fake.getDisplayAmount = fake.getDisplayAmountSpy;
@@ -194,7 +202,7 @@ describe('AccountService.create', () => {
   beforeEach(() => {
     repo = buildFakeRepo();
     fx = buildFakeFx();
-    svc = new AccountService(repo, fx);
+    svc = new AccountService(repo, fx, systemClock);
   });
 
   it('calls repo.create(userId, input) and returns the row', async () => {
@@ -211,7 +219,7 @@ describe('AccountService.list', () => {
     const row = makeRow({ id: 'fa-1' });
     const repo = buildFakeRepo([row]);
     const fx = buildFakeFx();
-    const svc = new AccountService(repo, fx);
+    const svc = new AccountService(repo, fx, systemClock);
 
     const page = await svc.list('u-1', { limit: 20, archivedAt: null });
     expect(page.data).toHaveLength(1);
@@ -226,7 +234,7 @@ describe('AccountService.getById', () => {
     const row = makeRow({ id: 'fa-1', userId: 'u-1' });
     const repo = buildFakeRepo([row]);
     const fx = buildFakeFx();
-    const svc = new AccountService(repo, fx);
+    const svc = new AccountService(repo, fx, systemClock);
 
     const got = await svc.getById('u-1', 'fa-1');
     expect(got.id).toBe('fa-1');
@@ -235,7 +243,7 @@ describe('AccountService.getById', () => {
   it('throws AppError(NOT_FOUND) when the row does not exist', async () => {
     const repo = buildFakeRepo();
     const fx = buildFakeFx();
-    const svc = new AccountService(repo, fx);
+    const svc = new AccountService(repo, fx, systemClock);
 
     await expect(svc.getById('u-1', 'does-not-exist')).rejects.toMatchObject({
       code: 'NOT_FOUND',
@@ -247,7 +255,7 @@ describe('AccountService.getById', () => {
     const row = makeRow({ id: 'fa-1', userId: 'u-2' }); // owned by u-2
     const repo = buildFakeRepo([row]);
     const fx = buildFakeFx();
-    const svc = new AccountService(repo, fx);
+    const svc = new AccountService(repo, fx, systemClock);
 
     await expect(svc.getById('u-1', 'fa-1')).rejects.toMatchObject({
       code: 'NOT_FOUND',
@@ -264,7 +272,7 @@ describe('AccountService.getBalance', () => {
     });
     const repo = buildFakeRepo([row]);
     const fx = buildFakeFx();
-    const svc = new AccountService(repo, fx);
+    const svc = new AccountService(repo, fx, systemClock);
 
     const result = await svc.getBalance('u-1', 'fa-1', AccountCurrency.EUR);
     expect(result.display.amount).toBe(92000);
@@ -279,13 +287,27 @@ describe('AccountService.getBalance', () => {
     fx.errorToThrow = new AppError({
       code: 'FX_UNAVAILABLE',
       message: 'fx down',
-      details: undefined,
-      cause: undefined,
     });
-    const svc = new AccountService(repo, fx);
+    const svc = new AccountService(repo, fx, systemClock);
 
     await expect(svc.getBalance('u-1', 'fa-1', AccountCurrency.EUR)).rejects.toMatchObject({
       code: 'FX_UNAVAILABLE',
     });
+  });
+
+  it('propagates the clock time as FxConversionRequest.asOf', async () => {
+    const row = makeRow({
+      id: 'fa-1',
+      currency: AccountCurrency.USD,
+      openingBalanceMinor: 100000,
+    });
+    const repo = buildFakeRepo([row]);
+    const fx = buildFakeFx();
+    const fixed = new Date('2026-06-19T12:00:00.000Z');
+    const svc = new AccountService(repo, fx, { now: () => fixed });
+
+    await svc.getBalance('u-1', 'fa-1', AccountCurrency.EUR);
+
+    expect(fx.getDisplayAmountSpy).toHaveBeenCalledWith(expect.objectContaining({ asOf: fixed }));
   });
 });
