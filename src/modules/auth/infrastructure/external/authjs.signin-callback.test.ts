@@ -113,7 +113,10 @@ describe('signInCallback', () => {
     // withRetry attempts 3 times: 1 initial + 2 retries, so 2 warn
     // calls (one per retry) + 1 final error after all attempts fail.
     expect(warn).toHaveBeenCalledTimes(2);
-    expect(warn).toHaveBeenCalledWith('signIn_callback_retry', expect.objectContaining({ email: 'a@b.com' }));
+    expect(warn).toHaveBeenCalledWith(
+      'signIn_callback_retry',
+      expect.objectContaining({ email: 'a@b.com' }),
+    );
     expect(error).toHaveBeenCalledWith('signIn_callback_failed', {
       email: 'a@b.com',
       error: 'db down',

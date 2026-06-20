@@ -24,7 +24,7 @@
 import NextAuth, { type NextAuthConfig } from 'next-auth';
 import Google from 'next-auth/providers/google';
 import Credentials from 'next-auth/providers/credentials';
-import { PrismaAdapter } from '@auth/prisma-adapter';
+import { createEncryptedPrismaAdapter } from '../adapters/encrypted-prisma-adapter';
 import { z } from 'zod';
 
 import { env } from '@/shared/env/env.schema';
@@ -103,15 +103,21 @@ export async function signInCallback(params: {
     // sign-in). The error is logged with the last attempt's
     // error message. Fixes 4R-R4 C-1 (withRetry was dead code).
     const result = await withRetry(
-      () => prisma().user.updateMany({
-        where: { email },
-        data: { lastLoginAt: clock.now() },
-      }),
+      () =>
+        prisma().user.updateMany({
+          where: { email },
+          data: { lastLoginAt: clock.now() },
+        }),
       {
         attempts: 3,
         baseDelayMs: 100,
         onRetry: (err: unknown, next: number, delayMs: number) =>
-          logger.warn('signIn_callback_retry', { email, next, delayMs, error: err instanceof Error ? err.message : String(err) }),
+          logger.warn('signIn_callback_retry', {
+            email,
+            next,
+            delayMs,
+            error: err instanceof Error ? err.message : String(err),
+          }),
       },
     );
     if (result.count === 0) {
@@ -127,7 +133,7 @@ export async function signInCallback(params: {
 }
 
 export const authConfig: NextAuthConfig = {
-  adapter: PrismaAdapter(prisma()),
+  adapter: createEncryptedPrismaAdapter(prisma()),
   session: {
     strategy: 'database',
     maxAge: 30 * 24 * 60 * 60, // 30 days, per BR-AUTH-7

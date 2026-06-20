@@ -37,6 +37,18 @@ export const envSchema = z
       .string()
       .min(32, 'ARGON2ID_DUMMY_PASSWORD must be at least 32 bytes'),
 
+    // --- OAuth token encryption (4R-R1) ---
+    // 64 hex characters = 32 raw bytes for AES-256-GCM. Generate
+    // with `openssl rand -hex 32` and set as a Fly secret. Optional
+    // in dev: tests that exercise non-Account paths work without
+    // it. Required in production: the Auth.js v5 adapter throws
+    // AppError(INTERNAL_ERROR) on every Account-touching call if
+    // the key is missing or malformed.
+    OAUTH_TOKEN_ENCRYPTION_KEY: z
+      .string()
+      .regex(/^[0-9a-fA-F]{64}$/, 'OAUTH_TOKEN_ENCRYPTION_KEY must be 64 hex characters (32 bytes)')
+      .optional(),
+
     // --- Fly.io (optional) ---
     FLY_REGION: z.string().optional(),
 

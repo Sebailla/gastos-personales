@@ -46,12 +46,20 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  // OAuth tokens are stored as encrypted Bytes (AES-256-GCM
+  // envelope, see docs/adr/0009-oauth-token-encryption.md and
+  // src/shared/crypto/envelope-encryption.ts). The DB only ever
+  // sees ciphertext; plaintext lives in the app process keyed by
+  // OAUTH_TOKEN_ENCRYPTION_KEY. Migration 20260620_encrypt_oauth_tokens
+  // converts existing plaintext rows to ciphertext (dev only;
+  // production must run the backfill script in a controlled
+  // window — see the ADR for the rollout plan).
+  refresh_token     Bytes?
+  access_token      Bytes?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          Bytes?
   session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
