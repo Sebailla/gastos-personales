@@ -1,8 +1,8 @@
 node_modules
 .next
-next-env.d.ts
 dist
 coverage
+coverage.*
 out
 *.log
 pnpm-debug.log*
