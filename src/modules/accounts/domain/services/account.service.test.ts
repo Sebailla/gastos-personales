@@ -117,14 +117,14 @@ function buildFakeRepo(rows: FinancialAccount[] = []): FakeRepo {
       return updated;
     },
   );
-  const archiveSpy = vi.fn(async (userId: string, id: string) => {
+  const archiveSpy = vi.fn(async (userId: string, id: string, _clock?: { now: () => Date }) => {
     const r = rowsMap.get(id);
     if (!r || r.userId !== userId) return null;
     const updated = { ...r, archivedAt: new Date() };
     rowsMap.set(id, updated);
     return updated;
   });
-  const unarchiveSpy = vi.fn(async (userId: string, id: string) => {
+  const unarchiveSpy = vi.fn(async (userId: string, id: string, _clock?: { now: () => Date }) => {
     const r = rowsMap.get(id);
     if (!r || r.userId !== userId) return null;
     const updated = { ...r, archivedAt: null };
