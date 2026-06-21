@@ -90,7 +90,7 @@ jobs:
       # (since db push applied the same schema). The full migration
       # history gap (User/Session/Account/VerificationToken migrations
       # missing) is a follow-up chore tracked separately.
-      - run: pnpm prisma db push --skip-generate --accept-data-loss
+      - run: pnpm prisma db push --accept-data-loss
       - run: pnpm prisma migrate resolve --applied 20260618180000_add_financial_account
       - name: Run unit + integration tests (excludes the slow timing test on CI for stability)
         run: SKIP_TIMING=true npx vitest run --coverage
@@ -186,6 +186,6 @@ jobs:
       # See the comment in the test job above for why this combination
       # of db push + migrate resolve replaces `prisma migrate deploy`
       # until the auth-foundation migrations are committed.
-      - run: pnpm prisma db push --skip-generate --accept-data-loss
+      - run: pnpm prisma db push --accept-data-loss
       - run: pnpm prisma migrate resolve --applied 20260618180000_add_financial_account
       - run: SKIP_TIMING=true npx vitest run src/modules/auth/__tests__/security/
