@@ -1,10 +1,3 @@
-# ESLint 9 still supports the legacy .eslintrc.cjs config when this
-# env var is set. The project migrates to the flat config in a
-# follow-up; until then, every ESLint invocation (lint, lint-staged)
-# needs the flag. Set it once here so lint-staged can spawn ESLint
-# correctly on staged .ts/.tsx files.
-export ESLINT_USE_FLAT_CONFIG=false
-
 # pnpm-lock.yaml policy check (AGENTS.md §5.3): if package.json is
 # staged, the lockfile must be staged too. Runs before lint-staged
 # so a fix is one `git add pnpm-lock.yaml` away.
