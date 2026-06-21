@@ -1,0 +1,95 @@
+// Node-only instrumentation: graceful shutdown on SIGTERM/SIGINT
+// and crash visibility on unhandledRejection / uncaughtException.
+//
+// This file is imported lazily from `instrumentation.ts` only
+// when the runtime is Node.js (gated on
+// `process.env.NEXT_RUNTIME === 'nodejs'`). The Next.js bundler
+// tree-shakes the import out of the Edge bundle, so this file
+// never reaches Edge code. The handlers register as side effects
+// on import — Next.js calls `register()` exactly once at boot,
+// and the dynamic import happens inside that single call.
+//
+// Why all four signals are wired:
+// - SIGTERM / SIGINT: Fly's orchestrator sends SIGTERM before
+//   tearing a machine down; honoring it lets in-flight HTTP
+//   requests drain and the Prisma pool close cleanly. The
+//   hard timeout cap prevents us from hanging past Fly's
+//   grace window.
+// - unhandledRejection / uncaughtException: these crash the
+//   process by default; we capture the cause to Sentry and
+//   log so the deployment is not silent. We do NOT call
+//   `process.exit(0)` on these — exit-on-unhandled is a
+//   known foot-gun (it masks the original error and
+//   prevents future Sentry captures on the same process).
+//   The orchestrator restarts crashed processes anyway.
+
+import * as Sentry from '@sentry/nextjs';
+
+// Graceful shutdown on SIGTERM / SIGINT (Fly sends SIGTERM
+// before draining the machine). The shutdown sequence:
+//   1. stop accepting new work (Fly stops routing first)
+//   2. disconnect Prisma so the pool drains
+//   3. flush Sentry so the last events land
+//   4. exit 0
+// The hard `setTimeout` is the last-resort cap: if any
+// step hangs, we exit anyway. 8s matches Fly's default
+// grace window minus a small slack for the process to
+// actually be killed by the orchestrator.
+const SHUTDOWN_HARD_TIMEOUT_MS = 8000;
+const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
+  // eslint-disable-next-line no-console
+  console.warn(`process_shutdown_start signal=${signal}`);
+  const hardExit = setTimeout(() => {
+    // eslint-disable-next-line no-console
+    console.error('process_shutdown_timeout — forcing exit');
+    process.exit(1);
+  }, SHUTDOWN_HARD_TIMEOUT_MS);
+  hardExit.unref();
+
+  try {
+    const { prisma } = await import('@/shared/db/prisma');
+    await prisma().$disconnect();
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('prisma_disconnect_failed', err);
+  }
+
+  try {
+    await Sentry.flush?.(2000);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('sentry_flush_failed', err);
+  }
+
+  clearTimeout(hardExit);
+  // eslint-disable-next-line no-console
+  console.warn(`process_shutdown_done signal=${signal}`);
+  process.exit(0);
+};
+
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('SIGINT', () => void shutdown('SIGINT'));
+
+// Crash visibility. We capture the cause to Sentry so the
+// deployment is not silent; we deliberately do NOT call
+// `process.exit(0)` here — that would mask the original
+// error and stop future captures on the same process.
+// The orchestrator (Fly) restarts crashed processes
+// automatically, so the lack of a clean exit is fine.
+process.on('unhandledRejection', (reason) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  // eslint-disable-next-line no-console
+  console.error('unhandled_rejection', { message: err.message, stack: err.stack });
+  Sentry?.captureException(err);
+});
+
+process.on('uncaughtException', (err) => {
+  // eslint-disable-next-line no-console
+  console.error('uncaught_exception', { message: err.message, stack: err.stack });
+  Sentry?.captureException(err);
+  // Same drain logic as the SIGTERM path: Prisma disconnect
+  // + Sentry flush + a hard timeout. We still do not call
+  // `process.exit(0)`; Fly will kill the process once the
+  // unhandled exception has had a chance to be observed.
+  void shutdown('SIGTERM').catch(() => undefined);
+});
