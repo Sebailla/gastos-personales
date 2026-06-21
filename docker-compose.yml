@@ -1,0 +1,52 @@
+# Local development database for gastos-personales.
+#
+# Brings up a Postgres instance that matches the DATABASE_URL
+# expected by `.env` (postgresql://gastos:gastos@localhost:5433/gastos_dev).
+# The host port is 5433 (not the default 5432) to avoid conflicts
+# with any system Postgres already running on the machine.
+#
+# Usage (see also the `db:*` scripts in package.json):
+#   docker compose up -d postgres      # create + start (idempotent)
+#   docker compose stop                # stop, preserve data volume
+#   docker compose down -v             # stop AND wipe the data volume
+#   docker compose logs -f postgres    # tail container logs
+#
+# After bringing the DB up the first time, apply the migrations:
+#   pnpm prisma migrate deploy
+#
+# The named volume `gastos-postales_gastos-postgres-data` persists
+# across container restarts and reboots (because of
+# `restart: unless-stopped`). To wipe state entirely:
+#   docker compose down -v
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: gastos-postgres
+    environment:
+      POSTGRES_USER: gastos
+      POSTGRES_PASSWORD: gastos
+      POSTGRES_DB: gastos_dev
+    ports:
+      # Host 5433 -> container 5432. The non-default host port keeps
+      # the dev DB out of the way of any system Postgres already
+      # running on port 5432.
+      - "5433:5432"
+    volumes:
+      - gastos-postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      # pg_isready returns 0 when the server is accepting connections.
+      # The migrations step should be safe to run as soon as this
+      # check passes; Auth.js's first sign-in is the canary for
+      # tables actually existing.
+      test: ["CMD-SHELL", "pg_isready -U gastos -d gastos_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  gastos-postgres-data:
+    # Project-prefixed so it doesn't collide with other Postgres
+    # volumes on the same machine.
+    name: gastos-postales_gastos-postgres-data
