@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { fxCasaStringSchema, type FxCasaString } from './fx-casa-string.schema';
 
 /**
  * `FxQuote` — a single point-in-time foreign-exchange quote
@@ -17,17 +18,10 @@ import { z } from 'zod';
  * serialises entries with `JSON.stringify(fxQuoteSchema.parse(...))`,
  * and the provider constructs `FxQuote` instances from cached or
  * fresh fetches by passing through the schema.
- *
- * NOTE: the casa enum is inlined here to keep T1.1 self-contained.
- * T1.2 extracts it to `fx-casa-string.schema.ts` as a shared
- * source of truth and re-uses it from this file (a one-line
- * import refactor; behaviour-preserving).
  */
-const FX_CASAS = ['oficial', 'blue', 'mep', 'ccl', 'cripto', 'tarjeta'] as const;
-
 export const fxQuoteSchema = z
   .object({
-    casa: z.enum(FX_CASAS),
+    casa: fxCasaStringSchema,
     buy: z.number().positive(),
     sell: z.number().positive(),
     fxAsOf: z
@@ -40,7 +34,8 @@ export const fxQuoteSchema = z
   .strict();
 
 export type FxQuote = z.infer<typeof fxQuoteSchema>;
-export type FxCasaString = (typeof FX_CASAS)[number];
+
+export type { FxCasaString };
 
 /**
  * Runtime type-guard. Cheap re-parse; use only at the
