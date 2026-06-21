@@ -32,7 +32,7 @@ The `auth-foundation` change lands the full identity layer for `gastos-personale
 ### Consequences
 
 - **Good**: industry-standard security defaults; database sessions (no JWT in the client cookie); `signIn` / `session` callbacks for `lastLoginAt` and `defaultProvider`; the Prisma adapter owns the read/write paths for `Account` / `Session` / `VerificationToken`.
-- **Bad**: v5 is still beta; the API surface can change between betas. We pin the exact version in `package.json` and use `pnpm install --frozen-lockfile` in CI. The next-auth + Next.js module-resolution bug (issue #18) is the known wart; the C-1 fix patches `vitest.config.ts` with a `resolve.alias` stub.
+- **Bad**: v5 is still beta; the API surface can change between betas. We pin the exact version in `package.json` and use `pnpm install --frozen-lockfile` in CI. The next-auth + Next.js module-resolution bug (issue #18) was reported against `next@15.1.0` and `next-auth@5.0.0-beta.25` (both betas that predate the extension-aware `next/server` import and the `next` `exports` field). The workaround in Slices A/B was a `test.exclude` block in `vitest.config.ts` listing the 3 test files that transitively import `next-auth`. Slice C-1 (commit `f055938`, PR #19) closed the bug at the upstream boundary by bumping `next-auth` to `5.0.0-beta.31` and `next` to `16.2.9`, and removed the `test.exclude` entries. Verified on 2026-06-21: `SKIP_TIMING=true pnpm test` passes end-to-end (392/392) on a clean checkout against `next@16.2.9` + `next-auth@5.0.0-beta.31` with no `next-auth` or `next/server` module-resolution errors. There was never a `resolve.alias` stub for `next-auth`; the ADR's prior wording conflated the `test.exclude` workaround with a `resolve.alias` patch.
 
 ### Confirmation
 
