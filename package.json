@@ -18,6 +18,10 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "prisma": "prisma",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose stop",
+    "db:reset": "docker compose down -v && docker compose up -d postgres",
+    "db:logs": "docker compose logs -f postgres",
     "prepare": "husky",
     "docs:obsidian": "tsx scripts/sync-obsidian.ts"
   },
