@@ -24,7 +24,6 @@
 import NextAuth, { type NextAuthConfig } from 'next-auth';
 import Google from 'next-auth/providers/google';
 import Credentials from 'next-auth/providers/credentials';
-import { PrismaAdapter } from '@auth/prisma-adapter';
 import { createEncryptedPrismaAdapter } from '../adapters/encrypted-prisma-adapter';
 import { z } from 'zod';
 
