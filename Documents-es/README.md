@@ -31,7 +31,7 @@ cp .env.example .env
 
 # 3. Levantar un Postgres local (Docker) O apuntar a una branch
 #    free-tier de Neon
-docker compose up -d postgres       # Postgres local en localhost:5432
+pnpm db:up                          # Postgres local en localhost:5433
 # O setear DATABASE_URL=postgres://...neon.tech/... en .env
 
 # 4. Aplicar las migraciones a la base de datos de dev
