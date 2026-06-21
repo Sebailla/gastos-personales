@@ -2,6 +2,7 @@ import { describe, it, expectTypeOf } from 'vitest';
 import type { DolarApiPort } from './dolar-api.port';
 import type { FxRateCachePort, FxRateCacheEntry } from './fx-rate-cache.port';
 import type { FxCasaString } from '../entities/fx-casa-string.schema';
+import type { FxQuote } from '../entities/fx-quote';
 
 /**
  * Compile-time port-shape assertions. These tests have no
@@ -34,15 +35,15 @@ describe('FxRateCachePort contract', () => {
     >();
   });
 
-  it('declares set(casa, entry) returning a Promise of void', () => {
+  it('declares set(casa, quote) returning a Promise of void', () => {
     expectTypeOf<FxRateCachePort['set']>().toEqualTypeOf<
-      (casa: FxCasaString, entry: FxRateCacheEntry) => Promise<void>
+      (casa: FxCasaString, quote: FxQuote) => Promise<void>
     >();
   });
 
   it('FxRateCacheEntry carries quote + cachedAt', () => {
     expectTypeOf<FxRateCacheEntry>().toMatchTypeOf<{
-      quote: { casa: FxCasaString; buy: number; sell: number; fxAsOf: string };
+      quote: FxQuote;
       cachedAt: string;
     }>();
   });

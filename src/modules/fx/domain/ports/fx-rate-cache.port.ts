@@ -7,6 +7,11 @@ import type { FxQuote } from '../entities/fx-quote';
  * `FxRateProviderDolarApi` uses it to compute the `stale`
  * flag (entry is stale when `Date.now() - cachedAt > 1 h`,
  * per design §7.2).
+ *
+ * The `cachedAt` field is stamped by the cache adapter on
+ * write; callers pass only the `FxQuote` to `set`. The port
+ * returns the full entry on `get` so the provider can
+ * inspect `cachedAt` directly.
  */
 export interface FxRateCacheEntry {
   readonly quote: FxQuote;
@@ -26,5 +31,5 @@ export interface FxRateCacheEntry {
  */
 export interface FxRateCachePort {
   get(casa: FxCasaString): Promise<FxRateCacheEntry | null>;
-  set(casa: FxCasaString, entry: FxRateCacheEntry): Promise<void>;
+  set(casa: FxCasaString, quote: FxQuote): Promise<void>;
 }
