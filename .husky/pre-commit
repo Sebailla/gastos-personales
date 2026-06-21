@@ -1,6 +1,3 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
 # ESLint 9 still supports the legacy .eslintrc.cjs config when this
 # env var is set. The project migrates to the flat config in a
 # follow-up; until then, every ESLint invocation (lint, lint-staged)

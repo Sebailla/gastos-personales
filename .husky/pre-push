@@ -1,9 +1,20 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
 # Reject pushes to main/master and require the branch name to
 # match the conventional prefix. Pushing to develop happens via
 # squash-merge from a feature branch.
+#
+# Allow `git push --delete <remote> <branch>` and the shorthand
+# `git push <remote> :<branch>` to pass through without checks.
+# Those calls do not change the current branch, so validating
+# `git symbolic-ref --short HEAD` would falsely reject them when
+# the worktree is on develop.
+for arg in "$@"; do
+  case "$arg" in
+    :*|--delete|--delete=*)
+      exit 0
+      ;;
+  esac
+done
+
 protected_branches="^(main|master)$"
 current_branch=$(git symbolic-ref --short HEAD)
 

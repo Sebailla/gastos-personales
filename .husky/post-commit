@@ -1,4 +1,3 @@
-#!/usr/bin/env sh
 # Post-commit: re-index Documents-es/ into the user's Obsidian vault.
 # Runs on every commit but is a no-op (with a warning) on machines
 # where the vault is not mounted, so it doesn't break the workflow
