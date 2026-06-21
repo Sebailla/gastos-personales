@@ -24,7 +24,7 @@
 import NextAuth, { type NextAuthConfig } from 'next-auth';
 import Google from 'next-auth/providers/google';
 import Credentials from 'next-auth/providers/credentials';
-import { PrismaAdapter } from '@auth/prisma-adapter';
+import { createEncryptedPrismaAdapter } from '../adapters/encrypted-prisma-adapter';
 import { z } from 'zod';
 
 import { env } from '@/shared/env/env.schema';
@@ -127,7 +127,7 @@ export async function signInCallback(params: {
 }
 
 export const authConfig: NextAuthConfig = {
-  adapter: PrismaAdapter(prisma()),
+  adapter: createEncryptedPrismaAdapter(prisma()),
   session: {
     strategy: 'database',
     maxAge: 30 * 24 * 60 * 60, // 30 days, per BR-AUTH-7
