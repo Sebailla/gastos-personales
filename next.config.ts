@@ -1,6 +1,17 @@
 import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
 
+// React in dev mode uses eval() for HMR and to reconstruct
+// callstacks from a different environment, which a strict CSP
+// blocks. We allow `'unsafe-eval'` only in non-production
+// environments; `process.env.NODE_ENV` is statically replaced
+// at build time by Next.js, so the prod bundle never sees
+// this directive and the 4R-R1 baseline stays intact.
+const scriptSrc =
+  process.env.NODE_ENV !== 'production'
+    ? "'self' 'unsafe-inline' 'unsafe-eval' https://*.sentry.io https://accounts.google.com"
+    : "'self' 'unsafe-inline' https://*.sentry.io https://accounts.google.com";
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
@@ -39,7 +50,7 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' https://*.sentry.io https://accounts.google.com",
+              scriptSrc,
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https: blob:",
               "font-src 'self' data:",
@@ -65,9 +76,6 @@ export default withSentryConfig(nextConfig, {
   // Hide Sentry's source maps by default in dev. Production builds
   // upload via the Sentry CLI at release time.
   sourcemaps: { disable: process.env.NODE_ENV !== 'production' },
-  // Disable telemetry collection (Next.js collects anonymous
-  // telemetry by default; this also disables Sentry's).
-  disableLogger: true,
   // Tree-shake Sentry when SENTRY_DSN is not set.
   silent: !process.env.SENTRY_DSN,
   // Upload source maps only when a release is set (CI).
