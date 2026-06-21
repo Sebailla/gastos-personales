@@ -1,0 +1,473 @@
+# Tasks — `fx-cache`
+
+**Author**: Sebastián Illa
+**Change**: `fx-cache`
+**Capability**: `fx` (new — first write of the spec + design) + one delta on `accounts`
+**Status**: draft · **Created**: 2026-06-21 · **Last sync**: 2026-06-21 (fx-cache)
+**Stack**: v3 — Next.js 16 + Node 20 + Hono catch-all + Auth.js v5 + Prisma 6 + PostgreSQL (Neon) + Zod + Vitest + pnpm + Tailwind v4
+**Source change**: fx-cache
+**Chained PRs**: 3 (`feat/fx-cache-{1,2,3}` → `develop`)
+**Source artifacts**: `openspec/changes/fx-cache/proposal.md` (v1.1, 635 lines) · `openspec/changes/fx-cache/specs/fx/spec.md` (667 lines, REQ-FX-1 to REQ-FX-9) · `openspec/changes/fx-cache/design.md` (1098 lines, 22 sections) · `docs/adr/0010-dolar-api-provider.md` (290 lines, accepted 2026-06-21)
+**Preflight values**: interactive · `hybrid` (OpenSpec + Engram) · `auto-chain` · 400-line review budget
+**Strict TDD**: enabled per `openspec/config.yaml`; runner `pnpm test`; cycle RED → GREEN → TRIANGULATE → REFACTOR
+**Forecast**: ~1150 total (PR-1 ~600 · PR-2 ~300 · PR-3 ~250). PR-1 exceeds the 400-line guideline; chained-PR strategy is locked in design §21.
+
+> One task = one atomic commit. Each commit lands one focus; the
+> PR is the review checkpoint. The apply worker flips `- [x]`
+> as commits land; the orchestrator verifies CI green and the
+> spec Requirements covered before opening the next PR.
+>
+> Commit discipline per the project's `work-unit-commits`
+> convention (commit by behavior, tests-with-code,
+> docs-with-change, no `Co-authored-by`, conventional commit
+> format). The port-interface + action update in PR-3 (T3.4 +
+> T3.5) MUST land in a single commit — splitting them produces
+> a build-broken intermediate state.
+
+---
+
+## Review Workload Forecast
+
+| Field                   | Value                                                                                                                                                                       |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Estimated changed lines | ~1150 total (PR-1 ~600, PR-2 ~300, PR-3 ~250)                                                                                                                               |
+| 400-line budget risk    | High (PR-1 exceeds the 400-line guideline; PR-2 and PR-3 are under)                                                                                                          |
+| Chained PRs recommended | Yes                                                                                                                                                                         |
+| Suggested split         | PR-1 (`fx` module: domain + DolarAPI client + cache + stampede lock + provider) → PR-2 (per-account `casa`: enum + column + migration + Zod + form select + DTO) → PR-3 (DI swap + port contract + stale DTO field + widget chip + spec + ADR) |
+| Delivery strategy       | auto-chain (locked in design §21; orchestrator auto-slices without re-asking the user)                                                                                       |
+| Chain strategy          | feature-branch-chain (each PR opens from `develop` post-merge of the previous PR)                                                                                           |
+
+```
+Decision needed before apply: No
+Chained PRs recommended: Yes
+Chain strategy: feature-branch-chain
+400-line budget risk: High
+```
+
+> `Decision needed before apply: No` because the chained strategy
+> was locked at design time. The orchestrator decides based on
+> this `tasks.md`; the user only reviews the PRs. The apply
+> worker MUST surface the per-PR `git diff --stat` at PR-open
+> time so the reviewer sees the actual line count.
+
+---
+
+## Goal
+
+`sdd-apply` for `fx-cache` lands the full `fx` capability (canonical at `openspec/specs/fx/spec.md` after sync) plus one additive delta on the `accounts` capability in three chained PRs against `develop`:
+
+- **PR-1** lands the new `src/modules/fx/` module end-to-end: domain entities + ports, DolarAPI client with Zod-validated wire shape and env-var base-URL override, the Upstash cache adapter (env-var-gated, no-op when Upstash env vars are missing), the per-process stampede lock, the `FxRateProviderDolarApi` implementation, and the full unit + integration test suite. The DI graph still wires `FxRateProviderUnconfigured`; the new module exists but has no callers. The smoke UI continues to 503.
+- **PR-2** lands the per-account `casa` surface: a new `AccountFxCasa` Prisma enum + a new nullable `casa` column on `FinancialAccount` + the non-destructive `add_account_fx_casa` migration, a Zod update to `account-create.schema.ts` to accept `casa`, the casa `<select>` in `app/accounts/new/create-account-form.tsx`, the account-read DTO exposing `casa`, and the `update-account.action.ts` accepting `casa`. DI is still wired to the stub; the FX endpoint still 503s on conversion but the casa is now stored on the row.
+- **PR-3** lands the wire-up: the DI swap (delete `fx-rate-provider.unconfigured.ts` + new wiring in `app.ts:316`), the additive `FxConversionRequest.casa` field on the port, the `get-account-balance.action.ts` resolution of `account.casa ?? env.FX_DEFAULT_CASA`, the new `stale: boolean` on the balance DTO, the amber `text-amber-600` chip in `app/accounts/[id]/balance-widget.tsx`, the canonical `openspec/specs/fx/spec.md` (synced from the delta), the `accounts` spec BR-ACC-12 cross-link edit, and the `docs/adr/0010-dolar-api-provider.md` ADR (with its Spanish mirror). After PR-3 the smoke widget stops 503-ing on real DolarAPI responses.
+
+After the three PRs merge to `develop`, the canonical spec lands at `openspec/specs/fx/spec.md` via `sdd-sync`, and `fx-cache` is archived.
+
+---
+
+## Sub-slice structure
+
+### PR-1 — New `fx` module: domain + DolarAPI + Upstash cache + stampede lock + provider
+
+- **Branch**: `feat/fx-cache-1`
+- **Base**: `develop`
+- **Scope (in)**:
+  - New module `src/modules/fx/` (parallel to `src/modules/accounts/`). No existing file is modified except where noted.
+  - `domain/entities/fx-quote.ts` — `FxQuote` value object (`casa`, `buy`, `sell`, `fxAsOf`) + Zod schema, positive buy/sell, ISO-8601 `fxAsOf`.
+  - `domain/entities/fx-casa-string.schema.ts` — `z.enum(['oficial','blue','mep','ccl','cripto','tarjeta'])` (lowercase, DolarAPI wire format). Used by the cache key, the client, the env-var normalizer, and the DTO mapping.
+  - `domain/ports/dolar-api.port.ts` — port: `getDolares(casa) → FxQuote`.
+  - `domain/ports/fx-rate-cache.port.ts` — port: `get(casa) → FxRateCacheEntry | null`, `set(casa, entry) → void`. Env-var-gated; no-op when Upstash env vars are missing.
+  - `infrastructure/external/dolar-api.client.ts` — global `fetch` (Node 20 native) + `AbortController` 3000 ms timeout + `process.env.DOLAR_API_BASE_URL ?? 'https://dolarapi.com/v1'` base URL + Zod validation of the wire shape (`moneda`, `casa`, `nombre`, `compra`, `venta`, `fechaActualizacion`) + mapping to `FxQuote`. Non-2xx and Zod failures throw `AppError(FX_UNAVAILABLE)`.
+  - `infrastructure/cache/upstash-fx-rate.cache.ts` — `UpstashFxRateCache` adapter implementing `FxRateCachePort`. Reads `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`; both missing → `this.redis = null` and every `get` returns `null` / every `set` is a no-op. Key prefix `gastos-personales:fx:v1`, `EX 3600`.
+  - `infrastructure/stampede/stampede-lock.ts` — module-level `Map<FxCasaString, Promise<unknown>>` + `withLock(casa, fn)` wrapper. ~5 lines + types.
+  - `infrastructure/external/fx-rate-provider.dolar-api.ts` — `FxRateProviderDolarApi` implements the existing `FxRateProvider` port from `@/modules/accounts`. Constructor takes `{ cache, lock, dolarApi, env }`. Read flow: cache.get → fresh hit / stale hit (+ background refresh) / cache miss (withLock → dolarApi.get → cache.set). Casa is received as a parameter (NOT yet in the port — see PR-3 for the port change). In PR-1, the provider reads `env.FX_DEFAULT_CASA ?? 'oficial'` as a stand-in for the action's resolution; PR-3 will swap this out and the provider will accept `casa` on the request.
+  - `index.ts` — public surface: exports `FxRateProviderDolarApi`, the casa string schema, the `FxQuote` value object. Other modules import from here.
+  - **DI graph unchanged.** `app.ts:316` still wires `FxRateProviderUnconfigured`. The new `fx` module exists but is not consumed yet — no callers, no behavioural change to the running app.
+  - 2 new env vars added to `src/shared/env/env.schema.ts`: `DOLAR_API_BASE_URL` (optional URL, defaults via client code), `FX_DEFAULT_CASA` (optional, normalized through `fxCasaStringSchema`, defaults to `'oficial'`).
+  - Logger additions: `src/shared/logger/logger.ts` re-exports `logger`; the `fx` module uses it directly. No new transport.
+  - Unit tests: `fx-quote.test.ts`, `fx-casa-string.schema.test.ts`, `dolar-api.client.test.ts`, `upstash-fx-rate.cache.test.ts`, `stampede-lock.test.ts`, `fx-rate-provider.dolar-api.test.ts`.
+  - Integration test: `fx-rate-provider.dolar-api.integration.test.ts` spins up a small in-process stub HTTP server on `process.env.DOLAR_API_BASE_URL = http://localhost:<random>` and exercises the full read flow (miss → hit-fresh → hit-stale → background refresh) against the real `UpstashFxRateCache` adapter pointed at a fake Redis (`ioredis-mock` or a hand-rolled `Map` fake behind the port).
+- **Scope (out)**: schema changes, casa column migration, casa `<select>` in the create form, account DTO changes, `update-account.action.ts` changes, balance DTO `stale` field, widget chip, DI swap (stub still wired), port contract change (`FxConversionRequest.casa` is added in PR-3 — in PR-1 the provider reads `env.FX_DEFAULT_CASA ?? 'oficial'` from constructor args, not from the request), spec archive, ADR.
+- **Files touched** (concrete paths):
+  - `src/modules/fx/domain/entities/fx-quote.ts` (new, ~45 lines)
+  - `src/modules/fx/domain/entities/fx-quote.test.ts` (new, ~70 lines)
+  - `src/modules/fx/domain/entities/fx-casa-string.schema.ts` (new, ~20 lines)
+  - `src/modules/fx/domain/entities/fx-casa-string.schema.test.ts` (new, ~35 lines)
+  - `src/modules/fx/domain/ports/dolar-api.port.ts` (new, ~15 lines)
+  - `src/modules/fx/domain/ports/fx-rate-cache.port.ts` (new, ~25 lines)
+  - `src/modules/fx/infrastructure/external/dolar-api.client.ts` (new, ~110 lines)
+  - `src/modules/fx/infrastructure/external/dolar-api.client.test.ts` (new, ~170 lines)
+  - `src/modules/fx/infrastructure/cache/upstash-fx-rate.cache.ts` (new, ~95 lines)
+  - `src/modules/fx/infrastructure/cache/upstash-fx-rate.cache.test.ts` (new, ~150 lines)
+  - `src/modules/fx/infrastructure/stampede/stampede-lock.ts` (new, ~25 lines)
+  - `src/modules/fx/infrastructure/stampede/stampede-lock.test.ts` (new, ~95 lines)
+  - `src/modules/fx/infrastructure/external/fx-rate-provider.dolar-api.ts` (new, ~160 lines)
+  - `src/modules/fx/infrastructure/external/fx-rate-provider.dolar-api.test.ts` (new, ~210 lines)
+  - `src/modules/fx/infrastructure/external/fx-rate-provider.dolar-api.integration.test.ts` (new, ~130 lines)
+  - `src/modules/fx/index.ts` (new, ~10 lines)
+  - `src/shared/env/env.schema.ts` (+2 env keys, ~10 lines)
+  - `src/shared/env/env.schema.test.ts` (+2 cases, ~30 lines)
+  - `pnpm-lock.yaml` (no change — `@upstash/redis` already in tree from `auth-foundation`)
+- **Strict TDD evidence required (per task)**: each task follows RED → GREEN → TRIANGULATE → REFACTOR. Domain unit tests fail first (RED), the source is written to make them pass (GREEN), a second test is added to triangulate the boundary (TRIANGULATE), then a refactor pass with all tests still green (REFACTOR). The 80% coverage target applies to `src/modules/fx/**` measured at the end of PR-1; the apply worker MUST re-run `pnpm test --coverage` and confirm.
+- **Acceptance (PR-1)**:
+
+  ```bash
+  pnpm test src/modules/fx/
+  # → all unit + integration tests pass
+  pnpm test --coverage
+  # → coverage on src/modules/fx/** ≥ 80% (lines, branches, functions, statements)
+  pnpm test src/modules/accounts/
+  pnpm test src/modules/api/
+  # → all prior tests still pass (no consumer broke)
+  pnpm run typecheck
+  # → 0 errors (verbatimModuleSyntax enforced)
+  pnpm run lint
+  # → 0 errors (max-warnings 0)
+  pnpm run build
+  # → exits 0
+  ```
+
+- **Spanish mirror policy**: this PR does NOT touch any user-facing Markdown beyond `openspec/changes/fx-cache/tasks.md` (which already lives at the canonical path; the Spanish mirror is produced as part of this phase, not by the apply worker). No `Documents-es/` updates required in PR-1.
+
+### PR-2 — Per-account `casa`: enum + column + migration + Zod + form select + DTO + update action
+
+- **Branch**: `feat/fx-cache-2`
+- **Base**: `develop` (post-merge of PR-1)
+- **Scope (in)**:
+  - **Prisma schema** (`prisma/schema.prisma`): new enum `AccountFxCasa` with values `OFICIAL`, `BLUE`, `MEP`, `CCL`, `CRIPTO`, `TARJETA`. New optional column `casa AccountFxCasa?` on `FinancialAccount`. Migration is non-destructive: `ALTER TABLE "FinancialAccount" ADD COLUMN "casa" "AccountFxCasa" NULL` with no default and no backfill. No data loss.
+  - **Domain re-export** (`src/modules/accounts/domain/entities/financial-account.ts`): add `AccountFxCasa` enum mirror (no Prisma import in the domain layer — same convention as the existing 5 enums). Add `casa?: AccountFxCasa | null` to the `FinancialAccount` shape.
+  - **Account DTO** (`src/modules/accounts/application/dto/financial-account.dto.ts`): `toFinancialAccountDto` exposes `casa: AccountFxCasa | null` (lowercase via the `fxCasaStringSchema` mapping).
+  - **Zod validation** (`src/modules/accounts/application/validation/account-create.schema.ts`): add optional nullable `casa` field (mapped through `fxCasaStringSchema`). Update + list schemas gain the same field.
+  - **Account action** (`src/modules/accounts/application/actions/update-account.action.ts`): accepts `casa` on the update payload; the repository adapter writes the column. No automatic flip on every update — only the fields present in the payload are written.
+  - **Repository adapter** (`src/modules/accounts/infrastructure/repositories/account.repository.prisma.ts`): `create` and `update` accept the optional `casa` value; the Prisma client write covers it. Existing `findById` / `list` queries do not need to change — `casa` rides along on the selected row.
+  - **UI** (`app/accounts/new/create-account-form.tsx`): new `<select name="casa">` after the existing `<select name="currency">`. Six `AccountFxCasa` values + a "Default (oficial)" option that maps to `null` in the form state. The `onSubmit` JSON body includes `casa` when non-null and omits the field when null (the Zod schema treats `null` and `undefined` as `column = NULL`).
+  - **Vitest unit tests**: `account-create.schema.test.ts` gains casa cases (present valid, present invalid value, absent treated as NULL); `financial-account.dto.test.ts` gains a casa-mapping case; `update-account.action.test.ts` gains a casa-update case.
+  - **Integration test** (`account.repository.prisma.test.ts`): a populated-database scenario that asserts the migration is non-destructive — existing rows have `casa IS NULL` after the migration runs. The apply worker uses a testcontainers-Postgres fixture for this; local dev can use the same fake-Prisma pattern as `accounts-ledger` PR-B.
+  - **Manual smoke runbook** (committed to `docs/runbooks/fx-casa-migration.md`): the SQL `SELECT count(*) FROM "FinancialAccount" WHERE "casa" IS NULL` check + a screenshot slot for the create form.
+- **Scope (out)**: the FX provider still receives `env.FX_DEFAULT_CASA ?? 'oficial'` because the `casa` resolution at the action site lands in PR-3 (the port change + DI swap). The DI graph still wires `FxRateProviderUnconfigured`. The widget still 503s on conversion. No spec archive, no ADR.
+- **Files touched** (concrete paths):
+  - `prisma/schema.prisma` (+1 enum block, +1 column on `FinancialAccount`, ~15 lines)
+  - `prisma/migrations/<ts>_add_account_fx_casa/migration.sql` (generated, ~6 lines)
+  - `src/modules/accounts/domain/entities/financial-account.ts` (+1 enum mirror, +1 field on the shape, ~12 lines)
+  - `src/modules/accounts/domain/entities/financial-account.test.ts` (+2 cases, ~25 lines)
+  - `src/modules/accounts/application/dto/financial-account.dto.ts` (+1 field on the output, ~5 lines)
+  - `src/modules/accounts/application/dto/financial-account.dto.test.ts` (+2 cases, ~30 lines)
+  - `src/modules/accounts/application/validation/account-create.schema.ts` (+1 nullable casa field, ~6 lines)
+  - `src/modules/accounts/application/validation/account-create.schema.test.ts` (+3 cases, ~45 lines)
+  - `src/modules/accounts/application/validation/account-update.schema.ts` (+1 partial casa field, ~4 lines)
+  - `src/modules/accounts/application/actions/update-account.action.ts` (passthrough the casa field, ~6 lines)
+  - `src/modules/accounts/application/actions/update-account.action.test.ts` (+1 case, ~25 lines)
+  - `src/modules/accounts/infrastructure/repositories/account.repository.prisma.ts` (add casa to create/update params, ~10 lines)
+  - `src/modules/accounts/infrastructure/repositories/account.repository.prisma.test.ts` (+1 migration-populated-database scenario, ~50 lines)
+  - `app/accounts/new/create-account-form.tsx` (+1 `<select>` block, ~22 lines)
+  - `docs/runbooks/fx-casa-migration.md` (new, ~35 lines)
+  - `pnpm-lock.yaml` (no change)
+- **Strict TDD evidence required**: same RED → GREEN → TRIANGULATE → REFACTOR cycle. The migration test must verify on a populated database (testcontainers-Postgres in CI; the local-dev fake-Prisma fixture is acceptable for TDD RED, but CI gates on the testcontainers run).
+- **Acceptance (PR-2)**:
+
+  ```bash
+  pnpm prisma migrate dev --name add_account_fx_casa
+  # → migration applied, generated client updated
+  pnpm prisma migrate status
+  # → clean
+  pnpm test src/modules/accounts/
+  # → all unit + application + repository tests pass (cumulative count includes new casa cases)
+  pnpm test src/modules/fx/
+  # → all PR-1 tests still pass
+  pnpm test --coverage
+  # → coverage on src/modules/{fx,accounts}/** ≥ 80%
+  pnpm run typecheck
+  # → 0 errors
+  pnpm run lint
+  # → 0 errors
+  pnpm run build
+  # → exits 0
+  # Manual end-to-end check (developer terminal):
+  pnpm dev
+  # 1. Sign in via /auth/signin
+  # 2. Visit /accounts/new → confirm the new "FX casa (optional)" select renders with 7 options
+  # 3. Create a new account with casa=BLUE → POST /api/accounts returns 201
+  # 4. GET /api/accounts/<new-id> → response body contains casa: "BLUE"
+  # 5. Verify the existing-balance widget still 503s (no DI swap yet) — the action still throws FX_UNAVAILABLE through the stub
+  ```
+
+- **Spanish mirror policy**: the new `docs/runbooks/fx-casa-migration.md` ships with a `Documents-es/docs/runbooks/fx-casa-migration.md` mirror in the same commit. No other English Markdown is touched in this PR.
+
+### PR-3 — DI swap + port contract + stale DTO + widget chip + spec + ADR
+
+- **Branch**: `feat/fx-cache-3`
+- **Base**: `develop` (post-merge of PR-2)
+- **Scope (in)**:
+  - **Port change** (`src/modules/accounts/domain/interfaces/fx-rate-provider.port.ts`): add `readonly casa: FxCasaString` (the lowercase DolarAPI form) to `FxConversionRequest`. The provider MUST NOT consult `process.env.FX_DEFAULT_CASA` or any column on `FinancialAccount` — the caller passes the fully-resolved casa.
+  - **Port mapping**: the `AccountFxCasa` enum (uppercase Prisma) is mapped to the lowercase `FxCasaString` (DolarAPI wire format) inside the action layer. The Zod `fxCasaStringSchema` is the single source of truth for the lowercase form. The `accounts` public surface re-exports the Zod schema or accepts it as an import from `@/modules/fx` (no new dependency cycle — `fx` already imports from `accounts`'s port; the reverse import is a single Zod schema, not the port itself).
+  - **Provider update** (`src/modules/fx/infrastructure/external/fx-rate-provider.dolar-api.ts`): reads `request.casa` instead of `env.FX_DEFAULT_CASA`. All scenarios that previously passed a casa via the constructor's env now take it from the request.
+  - **Action update** (`src/modules/accounts/application/actions/get-account-balance.action.ts`): the application layer calls `deps.accountService.getBalance(...)` with the resolved casa. The resolution `account.casa ?? env.FX_DEFAULT_CASA` happens at the action site. The action reads `env` (from `@/shared/env/env.schema`) and the account row (already loaded by the service). The `AccountService.getBalance` signature gains a `casa: FxCasaString` parameter that is forwarded to `fxRateProvider.getDisplayAmount(...)`.
+  - **Service update** (`src/modules/accounts/domain/services/account.service.ts`): `getBalance` accepts the casa and threads it into the port call. No business-logic change.
+  - **DI swap** (`src/modules/api/app.ts`): `buildDefaultDeps` constructs `FxRateProviderDolarApi` with `{ cache: new UpstashFxRateCache(), lock: withStampedeLock, dolarApi: new DolarApiClient({ env: process.env }), env: process.env }`. The `FxRateProviderUnconfigured` import is removed and the file `src/modules/accounts/infrastructure/external/fx-rate-provider.unconfigured.ts` is deleted in the same commit.
+  - **Balance DTO** (`src/modules/accounts/application/dto/financial-account-balance.dto.ts`): add `stale: boolean` field. The provider's `FxConversionResult.stale` (new boolean on the result) maps to the DTO's `stale`. The existing `warnings?: string[]` array is populated with the single string `"FX rate is stale; showing last known value."` when `stale === true`.
+  - **Widget** (`app/accounts/[id]/balance-widget.tsx`): render an amber `text-amber-600` chip when `body.data.stale === true`, alongside the existing `"Last updated: <ISO>"` plain text from BR-ACC-18. The chip shows the elapsed minutes between `fxAsOf` and `now()` (computed client-side). ~15 lines.
+  - **Spec archive / sync** (`openspec/specs/fx/spec.md`, `openspec/specs/accounts/spec.md`): the canonical `fx` spec lands via `sdd-sync` from `openspec/changes/fx-cache/specs/fx/spec.md`. The `accounts` spec gains the one-line BR-ACC-12 cross-link edit (no behavioral change). Both files receive their `Documents-es/openspec/specs/fx/spec.md` and `Documents-es/openspec/specs/accounts/spec.md` mirrors in the same commit.
+  - **ADR** (`docs/adr/0010-dolar-api-provider.md`): the ADR is already in `docs/adr/0010-dolar-api-provider.md` and its Spanish mirror is already in `Documents-es/docs/adr/0010-dolar-api-provider.md` (both shipped as design-time artifacts on 2026-06-21). PR-3 verifies the file is on disk and adds a single-line "Implemented: feat/fx-cache-3 (PR-3)" note to the audit trail of the proposal; if the audit-trail note is not desired, this can be skipped silently.
+  - **OpenSpec archive move** (`openspec/changes/fx-cache/` → `openspec/changes/archive/2026-06-21-fx-cache/`): performed by `sdd-archive` after `sdd-sync` lands the canonical spec. The `apply-progress.md` and `verify-report.md` are written before the archive move.
+- **Scope (out)**: any new feature work, any UI beyond the stale chip, any cache warmup, any additional casa values, any other providers.
+- **Files touched** (concrete paths):
+  - `src/modules/accounts/domain/interfaces/fx-rate-provider.port.ts` (+1 field on `FxConversionRequest`, +1 field on `FxConversionResult`, ~10 lines)
+  - `src/modules/accounts/domain/services/account.service.ts` (+1 param on `getBalance`, ~6 lines)
+  - `src/modules/accounts/application/actions/get-account-balance.action.ts` (resolution rule, ~12 lines)
+  - `src/modules/accounts/application/actions/get-account-balance.action.test.ts` (3 new casa-resolution scenarios: NULL → 'oficial'; explicit → 'blue'; env override, ~80 lines)
+  - `src/modules/accounts/application/dto/financial-account-balance.dto.ts` (+1 `stale` field, ~6 lines)
+  - `src/modules/accounts/application/dto/financial-account-balance.dto.test.ts` (+2 cases, ~30 lines)
+  - `src/modules/fx/infrastructure/external/fx-rate-provider.dolar-api.ts` (read casa from request, +`stale: boolean` on the result, ~15 lines)
+  - `src/modules/fx/infrastructure/external/fx-rate-provider.dolar-api.test.ts` (update request-shape tests, ~40 lines)
+  - `src/modules/api/app.ts` (DI swap, ~10 lines)
+  - `src/modules/api/app.accounts.test.ts` (assertion: balance route returns `stale: false` on cache hit; assertion: balance route returns `stale: true` + warning string when the injected fake provider returns a stale result, ~50 lines)
+  - `app/accounts/[id]/balance-widget.tsx` (chip render, ~15 lines)
+  - `src/modules/accounts/infrastructure/external/fx-rate-provider.unconfigured.ts` (DELETED)
+  - `openspec/changes/fx-cache/apply-progress.md` (new, ~600 lines, TDD evidence)
+  - `openspec/changes/fx-cache/verify-report.md` (new, ~150 lines, post-PR-3 end-to-end verify)
+  - `openspec/changes/fx-cache/sync-report.md` (new, ~80 lines, sync-report)
+  - `openspec/specs/fx/spec.md` (synced from the delta, ~670 lines)
+  - `openspec/specs/accounts/spec.md` (1-line BR-ACC-12 cross-link edit)
+  - `Documents-es/openspec/specs/fx/spec.md` (mirror)
+  - `Documents-es/openspec/specs/accounts/spec.md` (mirror, 1-line edit)
+  - `Documents-es/openspec/changes/fx-cache/apply-progress.md` (mirror)
+  - `Documents-es/openspec/changes/fx-cache/verify-report.md` (mirror)
+  - `Documents-es/openspec/changes/fx-cache/sync-report.md` (mirror)
+  - After sync: `openspec/changes/fx-cache/` → `openspec/changes/archive/2026-06-21-fx-cache/` and the `Documents-es/...` mirror move.
+- **Strict TDD evidence required**: same RED → GREEN → TRIANGULATE → REFACTOR cycle. The action's casa-resolution test must lock the three REQ-FX-3 scenarios. The DTO's `stale` mapping test must lock the REQ-FX-6 scenarios. The widget chip is hand-verified per the proposal; the Vitest coverage is on the DTO and the action, not on the React render.
+- **Acceptance (PR-3)**:
+
+  ```bash
+  pnpm test src/modules/{fx,accounts,api}/
+  # → all tests pass (cumulative count includes the new casa + stale + port-contract cases)
+  pnpm test --coverage
+  # → coverage on src/modules/fx/** ≥ 80%; coverage on src/modules/accounts/** ≥ 80%
+  pnpm run typecheck
+  # → 0 errors (the deleted stub file must not leave a dangling import)
+  pnpm run lint
+  # → 0 errors
+  pnpm run build
+  # → exits 0
+  # Manual end-to-end check (developer terminal):
+  pnpm dev
+  # 1. Sign in via /auth/signin
+  # 2. Visit /accounts → click a USD-denominated account → /accounts/<id>
+  # 3. Submit the balance widget with displayCurrency=ARS → see "Display: <amount> @ <rate>" + "Last updated: <ISO>"
+  # 4. Force a stale read by setting process.env.UPSTASH_REDIS_REST_URL + a fake value that returns an entry with cachedAt < now-1h → reload the widget → see the amber chip
+  # 5. Open the create form → confirm the "FX casa (optional)" select still works (regression check on PR-2)
+  # 6. Clear the cookie → visit /accounts/<id>/balance?displayCurrency=ARS → 401 (requireSession)
+  # 7. With DOLAR_API_BASE_URL=http://localhost:9999 (no server) → submit widget → 503 FX_UNAVAILABLE (cache miss + upstream down)
+  ```
+
+- **Spanish mirror policy**: every English Markdown in PR-3 ships with its `Documents-es/...` mirror in the same commit (per root `AGENTS.md` §13.3 atomicity). The CJK check (`grep -P '[\x{4e00}-\x{9fff}]' <mirror>`) returns 0 matches on each new mirror. The Husky pre-commit `check-lockfile.sh` passes (no `package.json` change → no `pnpm-lock.yaml` change required).
+
+---
+
+## Tasks per PR
+
+### PR-1 — New `fx` module
+
+| ID            | Title                                          | Scope (RED → GREEN)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Files                                                                                                                                                                                            | Lines | Depends on | Tests                          | Verify                                                                                                                  | Commit message                                                |
+| ------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----- | ---------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| [ ] **T1.1**  | `fx-quote.ts` value object + Zod schema         | RED: `fx-quote.test.ts` imports the Zod schema and asserts (1) `parse({ casa: 'oficial', buy: 100, sell: 101, fxAsOf: '2026-06-21T18:00:00.000Z' })` succeeds; (2) `buy: -1` fails; (3) `sell: 0` fails; (4) `fxAsOf: 'not-a-date'` fails; (5) `casa: 'unknown'` fails. GREEN: implement the Zod schema + the `FxQuote` type + the `isFxQuote` guard. TRIANGULATE: add a 6th case where `fxAsOf` is in the future relative to `new Date()` (a future-dated quote is rejected).                                                                                                                                  | `src/modules/fx/domain/entities/fx-quote.ts` (new) · `fx-quote.test.ts` (new)                                                                                                                    | ~115  | —          | 6 cases                        | `pnpm test src/modules/fx/domain/entities/` → 6 pass                                                                       | `feat(fx): FxQuote value object with Zod schema`               |
+| [ ] **T1.2**  | `fx-casa-string.schema.ts` (lowercase DolarAPI form) | RED: `fx-casa-string.schema.test.ts` asserts (1) every lowercase casa (`oficial`, `blue`, `mep`, `ccl`, `cripto`, `tarjeta`) parses; (2) `'OfiCial'` fails; (3) `'BLUE'` fails; (4) empty string fails. GREEN: implement the `z.enum([...])` and the `FxCasaString` type. TRIANGULATE: add a 5th case asserting the type is exactly `'oficial' \| 'blue' \| ...` (compile-time + runtime).                                                                                                                                                                                | `src/modules/fx/domain/entities/fx-casa-string.schema.ts` (new) · `fx-casa-string.schema.test.ts` (new)                                                                                       | ~55   | —          | 5 cases                        | `pnpm test src/modules/fx/domain/entities/` → 5 pass (cumulative 11)                                                       | `feat(fx): lowercase fx-casa-string Zod schema`                |
+| [ ] **T1.3**  | `DolarApiPort` + `FxRateCachePort` interfaces   | RED: a compile-time test (`ports.test-d.ts`) that imports both ports and asserts the method signatures. GREEN: create the two port files with `interface` declarations only. TRIANGULATE: assert `FxRateCachePort.set` takes `(casa: FxCasaString, entry: FxRateCacheEntry)` — the type-level test catches accidental drift.                                                                                                                                                                                  | `src/modules/fx/domain/ports/dolar-api.port.ts` (new) · `fx-rate-cache.port.ts` (new)                                                                                                          | ~40   | T1.2       | 2 cases (compile-time)         | `pnpm run typecheck` → 0 errors                                                                                            | `feat(fx): declare DolarApi and FxRateCache ports`             |
+| [ ] **T1.4**  | `dolar-api.client.ts` with env-var override + 3 s timeout | RED: `dolar-api.client.test.ts` with (1) a fake `fetch` returning `{ moneda: 'USD', casa: 'oficial', nombre: 'Oficial', compra: 1180, venta: 1220, fechaActualizacion: '2026-06-21T18:00:00.000Z' }` → maps to `FxQuote` with sell=1220; (2) a fake `fetch` returning 500 → throws `AppError(FX_UNAVAILABLE)`; (3) a fake `fetch` returning 200 with a malformed payload (missing `venta`) → throws `FX_UNAVAILABLE`; (4) `process.env.DOLAR_API_BASE_URL = 'http://localhost:9999'` → client targets `http://localhost:9999`; (5) no env var → client targets `https://dolarapi.com/v1`; (6) a fake `fetch` that delays 4000 ms → throws `FX_UNAVAILABLE` (timeout). GREEN: implement the client with `AbortController` + Zod + the mapping. TRIANGULATE: add a 7th case where `casa: 'OfiCial'` (mixed-case wire) is normalized to `'oficial'` before being used as the URL segment. | `src/modules/fx/infrastructure/external/dolar-api.client.ts` (new) · `dolar-api.client.test.ts` (new)                                                                                          | ~280  | T1.1, T1.3 | 7 cases                        | `pnpm test src/modules/fx/infrastructure/external/dolar-api.client.test.ts` → 7 pass                                      | `feat(fx): DolarAPI client with Zod validation + timeout`      |
+| [ ] **T1.5**  | `upstash-fx-rate.cache.ts` (env-var-gated, no-op fallback) | RED: `upstash-fx-rate.cache.test.ts` with (1) both Upstash env vars present → `cache.get('oficial')` calls the fake Redis `GET gastos-personales:fx:v1:oficial` and parses the JSON; (2) both env vars present → `cache.set('blue', entry)` calls `SET gastos-personales:fx:v1:blue <json> EX 3600`; (3) `UPSTASH_REDIS_REST_URL` unset → `cache.get('oficial')` returns `null` without touching Redis; (4) `UPSTASH_REDIS_REST_TOKEN` unset → `cache.set('oficial', entry)` is a no-op; (5) the cache key prefix is exactly `gastos-personales:fx:v1:` (asserted via a `vi.fn()` on the fake Redis). GREEN: implement the Upstash adapter. TRIANGULATE: add a 6th case asserting the cache entry's `cachedAt` is set by the adapter to `new Date().toISOString()` on every `set`. | `src/modules/fx/infrastructure/cache/upstash-fx-rate.cache.ts` (new) · `upstash-fx-rate.cache.test.ts` (new)                                                                                  | ~245  | T1.2, T1.3 | 6 cases                        | `pnpm test src/modules/fx/infrastructure/cache/` → 6 pass                                                                 | `feat(fx): Upstash cache adapter with env-var no-op fallback`  |
+| [ ] **T1.6**  | `stampede-lock.ts` (`Map<casa, Promise<void>>`) | RED: `stampede-lock.test.ts` with (1) 10 concurrent `withLock('oficial', () => fetchSpy())` calls invoke `fetchSpy` exactly once; (2) concurrent `withLock('oficial', ...)` and `withLock('blue', ...)` invoke the inner fn independently (no cross-casa blocking); (3) after the lock resolves, a fresh `withLock('oficial', ...)` invokes the inner fn again (the entry was deleted on resolve); (4) if the inner fn rejects, the entry is still deleted (the next caller re-runs). GREEN: implement the module-level `Map` + `withLock`. TRIANGULATE: add a 5th case where 100 concurrent callers all see the same returned value (asserts the promise-sharing semantics). | `src/modules/fx/infrastructure/stampede/stampede-lock.ts` (new) · `stampede-lock.test.ts` (new)                                                                                                | ~120  | T1.2       | 5 cases                        | `pnpm test src/modules/fx/infrastructure/stampede/` → 5 pass                                                              | `feat(fx): per-process stampede lock with coalesce semantics`   |
+| [ ] **T1.7**  | `fx-rate-provider.dolar-api.ts` (cache + stampede + client) | RED: `fx-rate-provider.dolar-api.test.ts` with (1) cache miss + DolarAPI 200 → returns the quote with `stale: false`, calls `cache.set` exactly once; (2) cache fresh hit → returns the cached quote with `stale: false`, no DolarAPI call; (3) cache stale hit (cachedAt < now-1h) → returns the cached quote with `stale: true` AND schedules a background `refreshIfStale` (spy on the refresh); (4) cache stale hit + background refresh fails → caller still receives the stale value with `stale: true`, no `AppError`; (5) cache miss + DolarAPI 500 → throws `AppError(FX_UNAVAILABLE)` (no cache write); (6) the provider receives a `casa` on the request and passes it to the cache + the DolarAPI client (REQ-FX-3 enforced at the unit level); (7) the provider does NOT read `process.env.FX_DEFAULT_CASA` (assertion: env var absence does not affect the request's resolved casa). GREEN: implement the read flow per design §7.3. TRIANGULATE: add an 8th case where the same casa is requested twice in quick succession; the second call hits the cache (no stampede). | `src/modules/fx/infrastructure/external/fx-rate-provider.dolar-api.ts` (new) · `fx-rate-provider.dolar-api.test.ts` (new)                                                                    | ~370  | T1.4, T1.5, T1.6 | 8 cases                        | `pnpm test src/modules/fx/infrastructure/external/fx-rate-provider.dolar-api.test.ts` → 8 pass                            | `feat(fx): FxRateProviderDolarApi with cache + stampede + client` |
+| [ ] **T1.8**  | Integration test against a stub DolarAPI server | RED: `fx-rate-provider.dolar-api.integration.test.ts` spins up a `node:http` server on `127.0.0.1:<random>` that returns the DolarAPI wire shape for `GET /dolares/oficial`. Sets `process.env.DOLAR_API_BASE_URL` to that URL. The test (1) first call → cache miss → stub server hit → `FxQuote` returned + cache.set called; (2) second call within TTL → cache hit → stub server NOT hit; (3) the cache key in the fake Redis is exactly `gastos-personales:fx:v1:oficial`. GREEN: implement the integration test with the existing `UpstashFxRateCache` pointed at a fake Redis (an in-process `Map` behind the port). TRIANGULATE: add a 4th scenario that waits for the entry's `cachedAt` to be older than 1 h via `vi.setSystemTime` and asserts the next call returns `stale: true` AND schedules a refresh (the stub server is hit exactly twice — once for the initial fetch, once for the background refresh). | `src/modules/fx/infrastructure/external/fx-rate-provider.dolar-api.integration.test.ts` (new)                                                                                                  | ~130  | T1.7       | 4 cases                        | `pnpm test src/modules/fx/infrastructure/external/` → cumulative 32 pass                                                  | `test(fx): end-to-end fx-rate-provider integration test`       |
+| [ ] **T1.9**  | Env schema additions (`DOLAR_API_BASE_URL`, `FX_DEFAULT_CASA`) | RED: `env.schema.test.ts` adds (1) `DOLAR_API_BASE_URL` valid URL → parses; (2) `DOLAR_API_BASE_URL` unset → other tests still pass (optional); (3) `FX_DEFAULT_CASA='oficial'` → parses through the lowercase Zod schema; (4) `FX_DEFAULT_CASA='OfiCial'` → fails; (5) `FX_DEFAULT_CASA='BLUE'` → fails. GREEN: add the two keys to `envSchema`; the casa key uses `fxCasaStringSchema.optional()` (re-exported from `@/modules/fx`). TRIANGULATE: add a 6th case asserting the env var's effective default is `'oficial'` when unset, surfaced via `env.FX_DEFAULT_CASA ?? 'oficial'` in the action layer (this lives in the action, not the env schema; the test is on the resolution helper, not on the schema). | `src/shared/env/env.schema.ts` (+2 keys, ~10 lines) · `src/shared/env/env.schema.test.ts` (+5 cases, ~60 lines)                                                                                  | ~70   | T1.2       | 5 cases                        | `pnpm test src/shared/env/` → cumulative 5 pass; `pnpm run typecheck` → 0 errors                                          | `feat(env): add DOLAR_API_BASE_URL and FX_DEFAULT_CASA`        |
+| [ ] **T1.10** | Logger additions (none — `logger` already in tree) | This is a verification task. The `fx` module imports `logger` from `@/shared/logger/logger` directly. The 6 log events in design §11.1 (`fx.cache.hit`, `fx.cache.miss`, `fx.cache.miss.fail`, `fx.stale.refresh`, `fx.stampede.coalesce`, `fx.cache.noop`) are emitted through the existing logger. No new transport; no new export. RED: a Vitest assertion that mocks `@/shared/logger/logger` and verifies the 6 events are emitted with the expected field names. GREEN: tests pass on the existing code (logger is already imported). REFACTOR: confirm the structured payloads match design §11.1's table. | `src/modules/fx/infrastructure/external/fx-rate-provider.dolar-api.ts` (logger calls) · `src/modules/fx/infrastructure/cache/upstash-fx-rate.cache.ts` (boot-once `fx.cache.noop` log)               | ~30   | T1.5, T1.7 | 6 logger-mock assertions       | `pnpm test src/modules/fx/` → all logger-mock assertions pass                                                            | `feat(fx): wire structured logger events for fx module`        |
+| [ ] **T1.11** | Sentry capture rules per design §11.3            | RED: `fx-rate-provider.dolar-api.test.ts` adds 3 more cases (9-11): (9) `FX_UNAVAILABLE` on cache miss → `Sentry.captureException` called with `level: 'error'`; (10) `FX_UNAVAILABLE` on stale refresh → `Sentry.captureException` called with `level: 'warning'`; (11) cache layer no-op (missing env vars) → `Sentry.captureException` is NOT called. GREEN: extend the provider with the three capture rules. TRIANGULATE: add a 12th case asserting that `UpstashFxRateCache` errors are captured with the operation (`get` / `set`) and the casa in the `extra` payload, and never include the env var values. | `src/modules/fx/infrastructure/external/fx-rate-provider.dolar-api.ts` (+3 capture rules)                                                                                                      | ~40   | T1.10      | 4 cases (9-12)                 | `pnpm test src/modules/fx/` → cumulative pass count includes 9-12                                                        | `feat(fx): Sentry capture rules for FX errors`                 |
+| [ ] **T1.12** | `src/modules/fx/index.ts` public surface         | RED: a compile-time test that imports `FxRateProviderDolarApi`, `FxQuote`, `fxCasaStringSchema`, and `FxCasaString` from `@/modules/fx`. GREEN: create the barrel file. REFACTOR: split into grouped re-exports if dense.                                                                                                                                                                                                                                                                                                                                                                                            | `src/modules/fx/index.ts` (new) · `src/modules/fx/index.test.ts` (new)                                                                                                                        | ~25   | T1.7       | 4 cases (compile-time + runtime) | `pnpm run typecheck` → 0 errors; `pnpm test src/modules/fx/` → 4 pass                                                    | `feat(fx): public surface exports for fx module`              |
+| [ ] **T1.13** | SPEC scenario tests for REQ-FX-1 to REQ-FX-8 (non-RE-FX-9) | RED: `src/modules/fx/spec-scenarios.test.ts` maps each spec Scenario to a Vitest case: REQ-FX-1 (3 scenarios: miss→hit, stale+refresh, background failure silent); REQ-FX-2 (2: DolarAPI 5xx + malformed payload); REQ-FX-4 (2: first-write key + different casas distinct keys); REQ-FX-5 (2: missing env fall-through, no boot crash); REQ-FX-7 (2: concurrent same-casa fire one fetch, concurrent different casas are independent); REQ-FX-8 (2: default + env override). GREEN: every case passes against the modules built in T1.1-T1.12. TRIANGULATE: add a final cross-cutting case asserting the cache key for every one of the six casas. | `src/modules/fx/spec-scenarios.test.ts` (new)                                                                                                                                                  | ~280  | T1.12      | 14 cases                       | `pnpm test src/modules/fx/spec-scenarios.test.ts` → 14 pass                                                              | `test(fx): spec scenario coverage for REQ-FX-1 to REQ-FX-8`     |
+| [ ] **T1.14** | Coverage gate verification                       | RED: `pnpm test --coverage` reports coverage on `src/modules/fx/**` below 80% (somewhere a branch was missed). GREEN: add a single boundary-case test that lifts the offending branch (e.g. the `withLock` rejection-deletes-entry path). TRIANGULATE: re-run `pnpm test --coverage` and assert the threshold.                                                                                                                                                                                                                                                                                                                | `src/modules/fx/**/stampede-lock.test.ts` (boundary case)                                                                                                                                      | ~20   | T1.13      | 1 case                         | `pnpm test --coverage` → coverage on `src/modules/fx/**` ≥ 80%                                                          | `test(fx): coverage gate to 80% on src/modules/fx/**`          |
+| [ ] **T1.15** | `pnpm-lock.yaml` check (no-op: no new dep)     | PR-1 does NOT add a new dependency. `@upstash/redis` is already in the tree from `auth-foundation`. `git diff develop..feat/fx-cache-1 -- package.json pnpm-lock.yaml` is empty. The Husky pre-commit `check-lockfile.sh` passes trivially.                                                                                                                                                                                                                                                                                                                                                                                          | `package.json` (no change) · `pnpm-lock.yaml` (no change)                                                                                                                                      | 0     | T1.14      | —                              | `git diff` empty                                                                                                          | `chore(deps): no-op (T1.15 lockfile check)`                    |
+| [ ] **T1.16** | PR-1 pre-merge gate (CI green)                  | RED: none. GREEN: all 4 gates passed end-to-end in this PR: `pnpm test src/modules/{fx,accounts,api}` (cumulative), `pnpm run typecheck` (exit 0), `pnpm run lint` (0 errors), `pnpm run build` (exit 0). Branch pushed to `origin/feat/fx-cache-1`; PR opened against `develop` via `gh pr create`. PR URL captured in the handoff. No `eslint-disable` directives added. No `any` types introduced.                                                                                                                                                                                                                                                                            | `.tmp/pr-1-body.md` (intermediate per `AGENTS.md` §7)                                                                                                                                          | ~10   | T1.15      | —                              | All 4 commands exit 0; PR opened against `develop`; CI running on the 4 jobs                                            | `chore(openspec): PR-1 pre-merge evidence`                     |
+
+PR-1 total: **16 tasks**, ~1,830 lines (estimate). The overage is real and is driven by the dense integration test in T1.8 and the 14-case SPEC coverage in T1.13. The design forecast (~600 lines) was a floor; the actual is documented here so the reviewer sees the real number. Each task is a single-commit work unit per the `work-unit-commits` skill.
+
+### PR-2 — Per-account `casa`
+
+| ID            | Title                                            | Scope (RED → GREEN)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Files                                                                                                                                                                                                                            | Lines | Depends on       | Tests                          | Verify                                                                                                                  | Commit message                                                          |
+| ------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ---------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [ ] **T2.1**  | `AccountFxCasa` Prisma enum + `casa` column        | RED: `prisma/schema.prisma` does not yet have `AccountFxCasa`. GREEN: add the enum block + the new optional `casa AccountFxCasa?` column on `FinancialAccount`. Run `pnpm prisma format`.                                                                                                                                                                                                                                                                                                                                                                                                                | `prisma/schema.prisma` (+15 lines)                                                                                                                                                                                               | ~15   | PR-1 merged      | —                              | `pnpm prisma validate` exits 0; `pnpm prisma format` exits 0                                                            | `feat(accounts): add AccountFxCasa enum + casa column on FinancialAccount` |
+| [ ] **T2.2**  | Generate + commit `add_account_fx_casa` migration | RED: `pnpm prisma migrate dev --name add_account_fx_casa --create-only` succeeds; the SQL is inspected (`ALTER TABLE "FinancialAccount" ADD COLUMN "casa" "AccountFxCasa" NULL` with no default, no backfill). GREEN: apply the migration. Commit the generated `migration.sql` and the regenerated client.                                                                                                                                                                                                                                                                                          | `prisma/migrations/<ts>_add_account_fx_casa/migration.sql` (generated)                                                                                                                                                           | ~6    | T2.1             | —                              | `pnpm prisma migrate status` reports clean                                                                              | `feat(accounts): add_account_fx_casa migration (non-destructive)`        |
+| [ ] **T2.3**  | Domain re-export: `AccountFxCasa` enum + `casa` shape field | RED: `financial-account.test.ts` adds (1) exhaustiveness check on the 6 `AccountFxCasa` values; (2) `isFinancialAccount` accepts a row with `casa: 'OFICIAL'`. GREEN: add the enum mirror to `financial-account.ts` and the `casa?: AccountFxCasa \| null` field on the `FinancialAccount` interface. TRIANGULATE: add a 3rd case where `casa: null` is allowed.                                                                                                                                                                                       | `src/modules/accounts/domain/entities/financial-account.ts` (+12 lines) · `financial-account.test.ts` (+3 cases, ~25 lines)                                                                                                       | ~37   | T2.2             | 3 cases                        | `pnpm test src/modules/accounts/domain/entities/` → 3 pass                                                            | `feat(accounts): domain mirror for AccountFxCasa + casa field`           |
+| [ ] **T2.4**  | Zod `account-create.schema.ts` accepts `casa`     | RED: `account-create.schema.test.ts` adds (1) `casa: 'OFICIAL'` parses and lands on the parsed object; (2) `casa: 'OfiCial'` fails (caller must use the lowercase DolarAPI form); (3) `casa: undefined` parses (treated as `column = NULL`); (4) `casa: null` parses (treated as `column = NULL`). GREEN: add `casa: fxCasaStringSchema.nullable().optional()` to `baseFields`. TRIANGULATE: add a 5th case asserting that the type still narrows correctly on the union output. | `src/modules/accounts/application/validation/account-create.schema.ts` (+6 lines) · `account-create.schema.test.ts` (+5 cases, ~45 lines)                                                                                       | ~51   | T2.3             | 5 cases                        | `pnpm test src/modules/accounts/application/validation/` → 5 pass                                                      | `feat(accounts): Zod create schema accepts casa`                        |
+| [ ] **T2.5**  | Zod `account-update.schema.ts` accepts `casa`     | RED: 2 cases: (1) partial with `casa: 'BLUE'` parses; (2) `casa: 'INVALID'` fails. GREEN: extend the partial schema with the same nullable casa field.                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `src/modules/accounts/application/validation/account-update.schema.ts` (+4 lines) · `account-update.schema.test.ts` (+2 cases, ~20 lines)                                                                                          | ~24   | T2.4             | 2 cases                        | `pnpm test src/modules/accounts/application/validation/` → cumulative 7 pass                                           | `feat(accounts): Zod update schema accepts casa`                        |
+| [ ] **T2.6**  | Account DTO exposes `casa`                        | RED: `financial-account.dto.test.ts` adds (1) `toFinancialAccountDto(row)` returns `{ ..., casa: 'oficial' }` when `row.casa === 'OFICIAL'` (lowercase); (2) `toFinancialAccountDto(row)` returns `{ ..., casa: null }` when `row.casa === null`. GREEN: extend `toFinancialAccountDto` with the lowercase casa mapping.                                                                                                                                                                                                                                                                                | `src/modules/accounts/application/dto/financial-account.dto.ts` (+5 lines) · `financial-account.dto.test.ts` (+2 cases, ~30 lines)                                                                                                | ~35   | T2.3             | 2 cases                        | `pnpm test src/modules/accounts/application/dto/` → 2 pass                                                              | `feat(accounts): account DTO exposes casa`                              |
+| [ ] **T2.7**  | Repository adapter writes `casa` on create + update | RED: 3 cases in `account.repository.prisma.test.ts`: (1) `create(userId, { ..., casa: 'OFICIAL' })` writes the column; (2) `update(userId, id, { casa: 'BLUE' })` updates the column; (3) `update(userId, id, { casa: null })` sets the column to NULL. GREEN: extend the repository's `create` + `update` to pass the casa value to the Prisma client.                                                                                                                                                                                | `src/modules/accounts/infrastructure/repositories/account.repository.prisma.ts` (+10 lines) · `account.repository.prisma.test.ts` (+3 cases, ~50 lines)                                                                          | ~60   | T2.6             | 3 cases                        | `pnpm test src/modules/accounts/infrastructure/repositories/` → 3 pass                                                | `feat(accounts): repository adapter writes casa on create + update`     |
+| [ ] **T2.8**  | Update action accepts `casa` payload              | RED: `update-account.action.test.ts` adds 1 case: (1) action receives a payload with `casa: 'BLUE'` and the repository is called with `casa: 'BLUE'`. GREEN: extend the action's payload-handling to forward `casa` to the repository.                                                                                                                                                                                                                                                                                                                                                              | `src/modules/accounts/application/actions/update-account.action.ts` (+6 lines) · `update-account.action.test.ts` (+1 case, ~25 lines)                                                                                            | ~31   | T2.5, T2.7       | 1 case                         | `pnpm test src/modules/accounts/application/actions/` → 1 pass                                                         | `feat(accounts): update-account.action accepts casa`                    |
+| [ ] **T2.9**  | Casa `<select>` in the create form              | RED: a Vitest snapshot test on `create-account-form.tsx` renders the new `<select name="casa">` with the 7 options (6 casas + "Default (oficial)"). GREEN: add the `<label>` + `<select>` block to the form. The `onSubmit` JSON body includes `casa` when non-null and omits the field when null.                                                                                                                                                                                                                                                                                          | `app/accounts/new/create-account-form.tsx` (+22 lines)                                                                                                                                                                          | ~22   | T2.4             | 1 case (snapshot + submit body shape) | `pnpm test app/` → 1 pass                                                                                               | `feat(ui): casa select in create-account-form`                          |
+| [ ] **T2.10** | Migration non-destructive integration test        | RED: integration test runs the `add_account_fx_casa` migration against a testcontainers-Postgres with N pre-existing `FinancialAccount` rows (seeded in setup). GREEN: assert (1) every existing row has `casa IS NULL`; (2) no row was altered beyond the column addition; (3) inserting a new row with `casa = 'BLUE'` succeeds; (4) querying a row with `casa = 'OFICIAL'` returns it.                                                                                                                                                                                       | `src/modules/accounts/infrastructure/repositories/account.repository.prisma.migration.test.ts` (new, ~80 lines)                                                                                                                  | ~80   | T2.7             | 4 cases                        | `pnpm test src/modules/accounts/infrastructure/repositories/` → 4 pass                                                | `test(accounts): add_account_fx_casa migration is non-destructive`      |
+| [ ] **T2.11** | Casa migration runbook                           | RED: none (docs). GREEN: `docs/runbooks/fx-casa-migration.md` written with the pre-migration check (`SELECT count(*) FROM "FinancialAccount"`), the `pnpm prisma migrate deploy` command, the post-migration check (`SELECT count(*) FROM "FinancialAccount" WHERE "casa" IS NULL`), and a screenshot slot for the create form. Spanish mirror in the same commit. CJK grep on the mirror returns 0 matches.                                                                                                                                 | `docs/runbooks/fx-casa-migration.md` (new, ~35 lines) · `Documents-es/docs/runbooks/fx-casa-migration.md` (mirror, ~35 lines)                                                                                                    | ~70   | T2.10            | —                              | Files exist; CJK grep on mirror returns 0                                                                              | `docs(runbooks): casa migration runbook + ES mirror`                   |
+| [ ] **T2.12** | PR-2 pre-merge gate (CI green)                    | RED: none. GREEN: all 4 gates passed end-to-end: `pnpm test src/modules/{fx,accounts,api}` (cumulative, including the new casa cases), `pnpm run typecheck` (exit 0), `pnpm run lint` (0 errors), `pnpm run build` (exit 0). Branch pushed to `origin/feat/fx-cache-2`; PR opened against `develop`. PR URL captured.                                                                                                                                                                                                                                                                            | `.tmp/pr-2-body.md` (intermediate)                                                                                                                                                                                              | ~10   | T2.11            | —                              | All 4 commands exit 0; PR opened against `develop`; CI running                                                         | `chore(openspec): PR-2 pre-merge evidence`                             |
+
+PR-2 total: **12 tasks**, ~441 lines (estimate). Under the 400-line budget guideline at the task-list level; the actual diff at PR-open time will include the Prisma migration + the client regeneration (~15-30 added lines) and the test scaffolding. The design forecast (~300 lines) is on target.
+
+### PR-3 — DI swap + port contract + stale DTO + widget chip + spec + ADR
+
+| ID            | Title                                                  | Scope (RED → GREEN)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Files                                                                                                                                                                                                                            | Lines | Depends on       | Tests                          | Verify                                                                                                                  | Commit message                                                          |
+| ------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ---------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [ ] **T3.1**  | Port interface: `FxConversionRequest.casa` is required   | RED: 1 compile-time test asserting `FxConversionRequest.casa` is required (a `Request` without `casa` fails to typecheck). GREEN: add the field with `readonly casa: FxCasaString` (imported from `@/modules/fx`). The port file re-exports `FxCasaString` from `@/modules/fx` or imports the schema and derives the type — pick the lightest path that does not introduce a circular import.                                                                                                                                                | `src/modules/accounts/domain/interfaces/fx-rate-provider.port.ts` (+8 lines)                                                                                                                                                    | ~8    | PR-2 merged      | 1 case (compile-time)          | `pnpm run typecheck` → 0 errors                                                                                          | `feat(accounts): FxConversionRequest requires casa`                     |
+| [ ] **T3.2**  | Provider reads `casa` from the request                  | RED: 1 case in `fx-rate-provider.dolar-api.test.ts`: (1) the provider receives a request with `casa: 'blue'` and passes `'blue'` to both the cache (`get('blue')` / `set('blue', ...)`) AND the DolarAPI client (`getDolares('blue')`). GREEN: extend the provider's read flow to take `request.casa`. Remove the constructor's `env.FX_DEFAULT_CASA` stand-in (the action layer now resolves the casa). TRIANGULATE: a 2nd case asserting the provider still throws `FX_UNAVAILABLE` on a stale refresh failure (the casa field on the request does not affect the background-refresh error path). | `src/modules/fx/infrastructure/external/fx-rate-provider.dolar-api.ts` (+15 lines) · `fx-rate-provider.dolar-api.test.ts` (+2 cases, ~40 lines)                                                                                  | ~55   | T3.1             | 2 cases                        | `pnpm test src/modules/fx/` → 2 pass                                                                                    | `feat(fx): FxRateProviderDolarApi reads casa from request`              |
+| [ ] **T3.3**  | `AccountService.getBalance` accepts + threads `casa`    | RED: 1 case in `account.service.test.ts`: (1) `getBalance(userId, id, displayCurrency, 'blue')` calls `fxRateProvider.getDisplayAmount({ ..., casa: 'blue' })`. GREEN: extend the service signature with `casa: FxCasaString` and forward it to the provider call. TRIANGULATE: a 2nd case asserting the service does NOT read `process.env.FX_DEFAULT_CASA` (asserted by injecting an env without the var).                                                                                                                                   | `src/modules/accounts/domain/services/account.service.ts` (+6 lines) · `account.service.test.ts` (+2 cases, ~30 lines)                                                                                                          | ~36   | T3.2             | 2 cases                        | `pnpm test src/modules/accounts/domain/services/` → 2 pass                                                              | `feat(accounts): AccountService.getBalance threads casa`                |
+| [ ] **T3.4**  | Action layer resolves `account.casa ?? env.FX_DEFAULT_CASA` | RED: 3 cases in `get-account-balance.action.test.ts`: (1) `account.casa = null`, `env.FX_DEFAULT_CASA` unset → casa passed to the service is `'oficial'`; (2) `account.casa = 'BLUE'`, `env.FX_DEFAULT_CASA = 'oficial'` → casa is `'blue'`; (3) `account.casa = null`, `env.FX_DEFAULT_CASA = 'mep'` → casa is `'mep'`. GREEN: extend the action to resolve `account.casa ?? env.FX_DEFAULT_CASA` (lowercase mapping) and pass it to `deps.accountService.getBalance(...)`. NOTE: this task MUST land in the same commit as T3.5 (port + service signatures change).                                    | `src/modules/accounts/application/actions/get-account-balance.action.ts` (+12 lines) · `get-account-balance.action.test.ts` (+3 cases, ~80 lines)                                                                                  | ~92   | T3.1, T3.3       | 3 cases                        | `pnpm test src/modules/accounts/application/actions/` → 3 pass                                                          | `feat(accounts): get-account-balance.action resolves casa`              |
+| [ ] **T3.5**  | Balance DTO gains `stale: boolean` + `warnings` propagation | RED: 2 cases in `financial-account-balance.dto.test.ts`: (1) `toBalanceDto({ ..., stale: true, warnings: ['FX rate is stale; showing last known value.'] })` returns `{ ..., stale: true, warnings: [...] }`; (2) `toBalanceDto({ ..., stale: false })` returns `{ ..., stale: false }` (warnings field omitted). GREEN: extend `FxConversionResult` with `readonly stale: boolean`; extend the DTO with `stale: boolean`; map the result's `warnings` (when present) to the DTO's `warnings`. NOTE: this task MUST land in the same commit as T3.4 (the action's result shape changes).                                  | `src/modules/accounts/application/dto/financial-account-balance.dto.ts` (+6 lines) · `financial-account-balance.dto.test.ts` (+2 cases, ~30 lines) · `src/modules/fx/infrastructure/external/fx-rate-provider.dolar-api.ts` (`+stale: boolean` on the return) | ~46   | T3.2             | 2 cases                        | `pnpm test src/modules/accounts/application/dto/` → 2 pass                                                              | `feat(accounts): balance DTO gains stale boolean + warnings propagation` |
+| [ ] **T3.6**  | DI swap in `buildDefaultDeps`                          | RED: 1 wiring test in `app.accounts.test.ts`: (1) `createHonoApp({ ..., fxRateProvider: new FxRateProviderDolarApi({ cache, lock, dolarApi, env }) })` boots without throwing; a GET to `/api/accounts/<id>/balance?displayCurrency=ARS` reaches the new provider. GREEN: swap the import + the construction in `app.ts:316`. The `FxRateProviderUnconfigured` import is removed and the stub file is deleted in the same commit (the TypeScript compiler fails the build if the import is left dangling — reviewer confirms the deletion is paired with the import removal).                                    | `src/modules/api/app.ts` (+~10 lines) · `src/modules/api/app.accounts.test.ts` (+1 wiring assertion, ~15 lines)                                                                                                                  | ~25   | T3.4, T3.5       | 1 case                         | `pnpm run typecheck` → 0 errors (the deleted stub file must not leave a dangling import); `pnpm test src/modules/api/` → 1 pass | `feat(api): swap FxRateProviderUnconfigured for FxRateProviderDolarApi` |
+| [ ] **T3.7**  | Delete the unconfigured stub                           | RED: none (deletion is verified by `git diff`). GREEN: `git rm src/modules/accounts/infrastructure/external/fx-rate-provider.unconfigured.ts`. The DI swap in T3.6 must have landed in the same commit so the import in `app.ts:59` is gone. TRIANGULATE: a CI guard — `grep -r 'FxRateProviderUnconfigured' src/` returns 0 matches.                                                                                                                                                                                                                                                                          | `src/modules/accounts/infrastructure/external/fx-rate-provider.unconfigured.ts` (DELETED)                                                                                                                                       | 0     | T3.6             | —                              | `git grep FxRateProviderUnconfigured` returns 0                                                                          | `chore(accounts): delete FxRateProviderUnconfigured stub`               |
+| [ ] **T3.8**  | Stale chip in `balance-widget.tsx`                     | RED: a Vitest component test (jsdom + `@testing-library/react`) that renders the widget with a stub `body.data.stale === true` and asserts the amber `text-amber-600` chip text is present. GREEN: add the conditional `<p role="status" aria-live="polite" className="... bg-amber-100 ... text-amber-700">Cotización desactualizada (hace {staleMinutes} min)</p>` above the existing display block when `stale === true`. The `fxAsOf` text from BR-ACC-18 stays unchanged. Hand-verified in the PR acceptance script.                                                              | `app/accounts/[id]/balance-widget.tsx` (+15 lines) · `app/accounts/[id]/balance-widget.test.tsx` (new, ~50 lines, jsdom + @testing-library/react)                                                                              | ~65   | T3.5             | 1 case (component test)         | `pnpm test app/` → 1 pass                                                                                               | `feat(ui): stale chip in balance widget`                                |
+| [ ] **T3.9**  | OpenSpec `apply-progress.md` + verify-report + sync-report | RED: none (docs). GREEN: written in this PR. `apply-progress.md` lists every commit with its on-disk test citations. `verify-report.md` covers the 16 PR-1 acceptance criteria, the 12 PR-2 acceptance criteria, and the 7 PR-3 manual smoke checks. `sync-report.md` documents the spec promotion from `openspec/changes/fx-cache/specs/fx/spec.md` to `openspec/specs/fx/spec.md` and the one-line `accounts/spec.md` BR-ACC-12 cross-link edit. ES mirrors in the same commit. CJK grep on each mirror returns 0.                                                                  | `openspec/changes/fx-cache/apply-progress.md` (new, ~600 lines) · `Documents-es/.../apply-progress.md` (mirror) · `verify-report.md` (new, ~150 lines) · mirror · `sync-report.md` (new, ~80 lines) · mirror                   | ~830  | T3.7, T3.8       | —                              | Files exist; CJK grep on each mirror returns 0                                                                          | `docs(openspec): apply-progress + verify-report + sync-report + ES mirrors` |
+| [ ] **T3.10** | Spec promotion + archive move                          | RED: none. GREEN: `cp openspec/changes/fx-cache/specs/fx/spec.md openspec/specs/fx/spec.md` (canonical copy). Edit `openspec/specs/accounts/spec.md` to add the BR-ACC-12 cross-link. Copy to `Documents-es/...` mirrors. Then `git mv openspec/changes/fx-cache openspec/changes/archive/2026-06-21-fx-cache` (mirror move too). TRIANGULATE: a CI guard — `ls openspec/changes/archive/2026-06-21-fx-cache/` returns the 7 files.                                                                                                                                                                                                                                          | `openspec/specs/fx/spec.md` (new canonical) · `openspec/specs/accounts/spec.md` (1-line edit) · mirrors · `openspec/changes/fx-cache/` → archive move                    | ~5    | T3.9             | —                              | `ls openspec/changes/archive/2026-06-21-fx-cache/` returns 7 files                                                       | `chore(openspec): archive fx-cache after spec sync`                     |
+| [ ] **T3.11** | PR-3 pre-merge gate (CI green + manual smoke)          | RED: none. GREEN: all 4 gates passed end-to-end: `pnpm test src/modules/{fx,accounts,api}` (cumulative, including the new casa + stale + port-contract cases), `pnpm run typecheck` (exit 0), `pnpm run lint` (0 errors), `pnpm run build` (exit 0). Branch pushed to `origin/feat/fx-cache-3`; PR opened against `develop`. The 7 manual smoke checks (sign-in → submit widget → 200 + display; stale cache → amber chip; create form still works; cookie clear → 401; DolarAPI down → 503) are documented in the PR body with screenshots.                                                                                                                                  | `.tmp/pr-3-body.md` (intermediate)                                                                                                                                                                                              | ~10   | T3.10            | —                              | All 4 commands exit 0; PR opened; manual smoke checks passed                                                            | `chore(openspec): PR-3 pre-merge evidence`                             |
+
+PR-3 total: **11 tasks**, ~1,172 lines (estimate). The overage is driven by the OpenSpec documentation tasks (T3.9, T3.10). The design forecast (~250 lines) was a code-only floor; the OpenSpec deliverables add ~830 lines of Markdown, which the design §"Audit trail" task is responsible for. The actual code-only diff at PR-open time is closer to ~250 lines as forecast.
+
+---
+
+## Task ordering and dependencies
+
+The task graph is mostly linear within each PR. Cross-PR dependencies:
+
+```
+PR-1: T1.1 ─┬─→ T1.2 ──→ T1.3 ──┬─→ T1.4 ──────────────────────────────┐
+            │                    ├─→ T1.5 ──┐                            │
+            │                    │          ├─→ T1.7 ──┬─→ T1.10 ─→ T1.11 ─→ T1.12 ─→ T1.13 ─→ T1.14 ─→ T1.15 ─→ T1.16
+            │                    ├─→ T1.6 ──┘            │
+            │                    │                       └─→ T1.8 ──────────┘
+            │                    └─→ T1.9 (independent) ─┘
+PR-2: T2.1 ─→ T2.2 ─→ T2.3 ─┬─→ T2.4 ──→ T2.5 ─────────────→ T2.8 ─────┐
+                              ├─→ T2.6 ──→ T2.7 ──→ T2.10 ─────────────┤
+                              └─→ T2.4 ──→ T2.9 (independent of repo) ─┤
+                                                                       └─→ T2.11 ─→ T2.12
+PR-3: T3.1 ─┬─→ T3.2 ─┬─→ T3.3 ─→ T3.4 ─┐
+            │         │                    ├─→ T3.5 ─→ T3.6 ─→ T3.7 ─→ T3.8 ─→ T3.9 ─→ T3.10 ─→ T3.11
+            │         └─→ T3.5 ───────────┘
+            └─→ T3.2 (independent)
+```
+
+Hard ordering constraints:
+
+- T3.4 (action casa resolution) and T3.5 (balance DTO stale) MUST land in the same commit. Splitting them produces a build-broken intermediate state — the action would either fail to typecheck (missing `casa` on the request, after T3.1) or the DTO would not match the new `FxConversionResult.stale` field.
+- T3.6 (DI swap) and T3.7 (stub deletion) MUST land in the same commit. Splitting them produces a build-broken intermediate state — `app.ts:59` would import a deleted file.
+- T1.10 (logger verification) depends on T1.7 (provider implementation); the logger calls live inside the provider's read flow.
+- T2.10 (migration integration test) depends on T2.7 (repository writes `casa`); the test exercises the new column.
+
+Soft ordering (independent paths that the worker can run in parallel within a single PR, if the worktree allows it):
+
+- T1.9 (env schema) is independent of T1.4-T1.8; it can land before or after the provider work.
+- T2.9 (UI select) is independent of T2.7-T2.8; it can land before or after the repository/action work as long as the schema accepts the field (T2.4).
+
+---
+
+## PR review budget
+
+| PR | Tasks | Estimated lines (per task table) | Forecast (per design §21) | 400-line guideline |
+| -- | ----- | -------------------------------- | ------------------------- | ------------------ |
+| PR-1 (`feat/fx-cache-1`) | 16 | ~1,830 (design + integration + spec scenarios) | ~600 | **OVER** by design (auto-chain) |
+| PR-2 (`feat/fx-cache-2`) | 12 | ~441 (Prisma schema + Zod + repo + UI + runbook) | ~300 | At the boundary; the migration + client regen pushes the actual diff to ~330 lines |
+| PR-3 (`feat/fx-cache-3`) | 11 | ~1,172 (mostly OpenSpec deliverables; code-only is ~250 as forecast) | ~250 | Code-only under; total incl. docs/mirrors is over |
+
+The 400-line guideline applies to **code-only diffs**. PR-1 is over by design and the auto-chain strategy is locked. PR-2 is at the boundary; the apply worker must surface the per-PR `git diff --stat` at PR-open time so the reviewer sees the real number. PR-3's overage is documentation (apply-progress + verify-report + sync-report + ES mirrors + canonical spec promotion); the code-only diff is under the guideline.
+
+If PR-2's diff crosses 400 lines at PR-open time, the apply worker MUST flag it and propose a T2.8a / T2.8b split (the update action + repo write are the dense half). This is a runtime decision, not a planning decision.
+
+---
+
+## Acceptance gates (per PR)
+
+Every PR MUST pass these gates before merge. The orchestrator runs them; the apply worker records the output.
+
+**Per-PR gates (PR-1, PR-2, PR-3):**
+
+```bash
+pnpm install --frozen-lockfile
+# → exits 0 (no lockfile drift)
+
+pnpm test
+# → exits 0; cumulative count includes all prior PRs
+
+pnpm test --coverage
+# → coverage on src/modules/{fx,accounts}/** ≥ 80% (lines, branches, functions, statements)
+
+pnpm run typecheck
+# → 0 errors
+
+pnpm run lint
+# → 0 errors (max-warnings 0; pre-existing warnings are not blocked)
+
+pnpm run build
+# → exits 0
+```
+
+**Per-PR TDD evidence:**
+
+- Every code change in `src/` has a corresponding test file.
+- Every test file in `src/` was authored in the same commit as the code it covers (per `work-unit-commits`).
+- The 80% coverage threshold is per-layer (domain + application), measured on `src/modules/{fx,accounts}/**`, not per-repo.
+
+**Per-PR no-regression gates:**
+
+- `git diff develop..feat/fx-cache-N -- eslint-disable` is empty (no `eslint-disable` directives added).
+- `git grep -P '\bany\b' src/modules/fx/ src/modules/accounts/` returns 0 matches in the new files (no `any` types introduced).
+- `git grep -P 'As<.*>\(' src/modules/fx/ src/modules/accounts/` returns 0 matches in the new files (no `as` casts introduced).
+
+**PR-3 specific gates:**
+
+- `git grep FxRateProviderUnconfigured` returns 0 matches.
+- `ls openspec/changes/archive/2026-06-21-fx-cache/` returns the 7 files (proposal, design, tasks, apply-progress, verify-report, sync-report, specs/).
+- `ls openspec/specs/fx/` returns `spec.md` (canonical promotion).
+- `grep -P '[\x{4e00}-\x{9fff}]' Documents-es/openspec/specs/fx/spec.md Documents-es/docs/adr/0010-dolar-api-provider.md` returns 0 matches on every new mirror.
+
+---
+
+## Risks
+
+These are the risks the task list itself introduces. Existing risks (DolarAPI SLA, Upstash client duplication, ARS inflation cadence) are tracked in the proposal + design + ADR and are not repeated here.
+
+| Risk                                                                                                                | Likelihood | Mitigation                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **PR-1 is ~1,830 lines by the task-table estimate**; the 400-line review budget is exceeded.                       | Confirmed  | Auto-chain is locked at design time. The PR ships as `feat/fx-cache-1`; the orchestrator surfaces the per-PR `git diff --stat` at PR-open time so the reviewer sees the real number.                                                          |
+| **PR-2's diff approaches 400 lines** (the Zod + repo + UI + tests bundle).                                          | Medium     | The apply worker MUST flag at PR-open time. If the actual diff is over 400, propose splitting T2.8 into T2.8a (action + repo write) and T2.8b (UI select). Pre-planned split point; not a re-architecture.                                |
+| **T3.4 + T3.5 MUST land in the same commit** (action + DTO shape change).                                            | High       | Listed as a single commit message in the task table; the apply worker MUST NOT split. If a CI failure forces a split, the next commit must be a hotfix re-merge. The risk is mitigated by the explicit "Note: this task MUST land in the same commit as T3.5" callout in T3.4. |
+| **T3.6 + T3.7 MUST land in the same commit** (DI swap + stub deletion).                                              | High       | Same rule. The TypeScript compiler will fail the build if the import in `app.ts:59` is left dangling; reviewer confirms the deletion is paired with the import removal.                                                                    |
+| **The Prisma migration runs against a populated database** (existing N `FinancialAccount` rows).                     | Low        | T2.2 generates the migration with `pnpm prisma migrate dev --create-only`; the apply worker inspects the SQL before applying. T2.10 is the integration test that proves the migration is non-destructive on a testcontainers-Postgres.   |
+| **The `fx-casa-string.schema.ts` is imported by both `accounts` (Zod) and `fx` (cache + client)**.                    | Low        | The schema is the single source of truth for the lowercase DolarAPI form. The import direction is `accounts → fx` (the same direction as the existing port import); no new cycle.                                                              |
+| **The `FxConversionRequest.casa` field is required, not optional** (port is a breaking change).                      | Confirmed  | The only caller is `get-account-balance.action.ts`, which is updated in T3.4 (same commit). No external consumer. The existing stub also accepts the field (TypeScript's structural typing lets the stub's signature stay valid).         |
+| **`@upstash/redis` is already in the tree but the `UpstashFxRateCache` adapter construction duplicates the rate-limit pattern**. | Low     | Deferred to the follow-up listed in ADR-0010 §"Follow-ups". The two consumers are tiny and identical in shape today. A shared `UpstashClient` factory is a follow-up after this change lands.                                                |
+| **The cache key prefix `gastos-personales:fx:v1` differs from the proposal's `gastos-personales:fx:ars-usd:<casa>`**. | Confirmed  | The design §4 closes DG-FX-KEY with the `v1` prefix; the proposal was amended in design. Both the proposal and the design are approved by the user; the spec uses the prefix indirectly (REQ-FX-4 says "the cache key is namespaced by the rate-limit module convention"). No drift between artifacts. |
+| **The Spanish mirror of the OpenSpec deliverables (T3.9) is large (~830 lines)** and may drift from the English source. | Medium   | The mirror is written in the same commit (root `AGENTS.md` §13.3 atomicity). The CI guard at PR-3 acceptance gates includes a CJK grep on every new mirror. The `reviewer` subagent catches any literal drift between English and Spanish.     |
+
+---
+
+## Spec hand-off coverage
+
+Every `REQ-FX-N` is covered by at least one task in this list:
+
+| Spec REQ | Covered by                                                              | Scenario count |
+| -------- | ----------------------------------------------------------------------- | -------------- |
+| REQ-FX-1 (TTL + stale fallback) | T1.7 (provider read flow + background refresh), T1.8 (integration test stale scenario), T1.13 (SPEC scenario tests), T3.5 (`stale: boolean` + `warnings` propagation) | 3 |
+| REQ-FX-2 (DolarAPI miss throws) | T1.4 (DolarAPI client 5xx + malformed payload), T1.7 (provider miss path), T1.13 (SPEC scenario tests) | 2 |
+| REQ-FX-3 (casa resolution at caller) | T3.1 (port `casa` required), T3.4 (action resolution), T1.7 (provider unit-test asserts it never reads env) | 3 |
+| REQ-FX-4 (cache key) | T1.5 (`KEY_PREFIX` + TTL), T1.13 (SPEC scenario tests), T1.8 (integration test asserts key shape) | 2 |
+| REQ-FX-5 (no-op without Upstash env) | T1.5 (env-var-gated constructor + no-op fallback), T1.10 (logger boot-once `fx.cache.noop`), T1.13 (SPEC scenario tests) | 2 |
+| REQ-FX-6 (`stale` boolean + warnings) | T3.5 (DTO mapping), T3.8 (widget chip), T1.13 (SPEC scenario tests) | 2 |
+| REQ-FX-7 (stampede lock) | T1.6 (`withLock` + `Map`), T1.13 (SPEC scenario tests) | 2 |
+| REQ-FX-8 (base URL override) | T1.4 (default + env override), T1.13 (SPEC scenario tests) | 2 |
+| REQ-FX-9 (non-destructive migration) | T2.2 (migration generation), T2.10 (migration integration test on populated DB), T2.11 (runbook) | 2 |
+
+All 9 REQ-FX-N are covered. The `stale: boolean` DTO field is co-owned by `fx` (REQ-FX-6) and `accounts` (the DTO lives in `accounts`); the cross-link edit on BR-ACC-12 is in T3.10 (spec promotion).
+
+---
+
+## Follow-ups (carried from ADR-0010, not part of this change)
+
+- Cron warmup (serverless function every 30 min) — follow-up.
+- `FxRateProviderFrankfurter` for EUR pairs — separate change `fx-eu`.
+- Per-account casa change history (audit log) — follow-up.
+- Shared `UpstashClient` factory — follow-up.
+- Production UI (full casa picker, multi-currency display, history views) — `ui-accounts` change.
+- Stampede lock for multi-instance (Redis lock per casa) — follow-up after the second instance exists.
+
+These are documented in `docs/adr/0010-dolar-api-provider.md` §"Follow-ups" and are explicitly out of scope for `fx-cache`.
