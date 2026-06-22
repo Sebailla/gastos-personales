@@ -44,10 +44,16 @@ const INVESTMENT_TYPES = [
   'CERTS_OF_DEPOSIT',
   'OTHER',
 ] as const;
+// fx-cache PR-2 T2.9 — REQ-FX-9. Six AccountFxCasa values in
+// UPPERCASE form (matching the Prisma enum). The wire form on
+// POST /api/accounts is UPPERCASE; the DolarAPI lowercase form
+// lives at /api/fx and is consumed only by the fx module.
+const CASAS = ['OFICIAL', 'BLUE', 'MEP', 'CCL', 'CRIPTO', 'TARJETA'] as const;
 
 type AccountType = (typeof TYPES)[number];
 type AccountCurrency = (typeof CURRENCIES)[number];
 type OpeningBalanceMode = 'FRESH' | 'HISTORICAL';
+type Casa = (typeof CASAS)[number];
 
 interface ErrorResponse {
   error: { code: string; message: string; details?: unknown };
@@ -77,6 +83,11 @@ export function CreateAccountForm() {
     useState<OpeningBalanceMode>('FRESH');
   const [openingBalanceDate, setOpeningBalanceDate] = useState<string>('');
   const [typeFields, setTypeFields] = useState(EMPTY_TYPE_FIELDS);
+  // fx-cache PR-2 T2.9 — REQ-FX-9. The casa state is nullable:
+  // `null` means "inherit the global default" and maps to
+  // `casa = NULL` in the request body (the Zod schema treats
+  // undefined and null the same way at the Prisma boundary).
+  const [casa, setCasa] = useState<Casa | null>(null);
 
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
@@ -110,6 +121,13 @@ export function CreateAccountForm() {
       openingBalanceDate:
         openingBalanceMode === 'HISTORICAL' ? openingBalanceDate : null,
     };
+    // fx-cache PR-2 T2.9 — REQ-FX-9. Include casa only when
+    // the user picked one (non-null). When the placeholder is
+    // active, the field is omitted and the server treats it as
+    // `column = NULL` (inherit global default).
+    if (casa !== null) {
+      body['casa'] = casa;
+    }
 
     // Add type-specific fields only for the relevant type.
     if (type === 'BANK') {
@@ -195,6 +213,31 @@ export function CreateAccountForm() {
           className="border border-gray-300 rounded px-2 py-1"
         >
           {CURRENCIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {/* fx-cache PR-2 T2.9 — REQ-FX-9. Per-account casa selection.
+          The placeholder ("Default (oficial)") maps to casa = NULL
+          in the request body; the user picks an explicit casa when
+          they want a non-default quote source. WCAG: the label
+          text is associated with the <select> via the wrapping
+          <label>, the control is focusable and keyboard-navigable. */}
+      <label className="flex flex-col gap-1">
+        <span className="text-sm">FX casa (optional)</span>
+        <select
+          name="casa"
+          value={casa ?? ''}
+          onChange={(e) =>
+            setCasa(e.target.value === '' ? null : (e.target.value as Casa))
+          }
+          className="border border-gray-300 rounded px-2 py-1"
+        >
+          <option value="">Default (oficial)</option>
+          {CASAS.map((c) => (
             <option key={c} value={c}>
               {c}
             </option>
