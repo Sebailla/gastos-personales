@@ -37,6 +37,7 @@ import type {
   FxConversionRequest,
   FxConversionResult,
   FxRateProvider,
+  FxCasaString,
 } from '../interfaces/fx-rate-provider.port';
 import type { AccountCurrency, FinancialAccount } from '../entities/financial-account';
 
@@ -122,11 +123,17 @@ export class AccountService {
    * the repository and passed to the FX provider; the native value
    * is never mutated (BR-ACC-12). The provider is responsible for
    * short-circuiting when `native.currency === displayCurrency`.
+   *
+   * The `casa` is the fully-resolved lowercase DolarAPI form
+   * (the action layer resolves `account.casa ?? env.FX_DEFAULT_CASA`
+   * before the call). The service does NOT consult env or the
+   * account row's `casa` column — REQ-FX-3.
    */
   async getBalance(
     userId: string,
     id: string,
     displayCurrency: AccountCurrency,
+    casa: FxCasaString,
   ): Promise<FxConversionResult> {
     const account = await this.getById(userId, id);
     const req: FxConversionRequest = {
@@ -136,6 +143,7 @@ export class AccountService {
       },
       displayCurrency,
       asOf: this.clock.now(),
+      casa,
     };
     return this.fx.getDisplayAmount(req);
   }

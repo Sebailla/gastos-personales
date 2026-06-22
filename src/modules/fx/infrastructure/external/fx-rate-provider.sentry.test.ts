@@ -41,8 +41,6 @@ const makeClient = (): MockClient => ({
   getDolares: vi.fn(),
 });
 
-const emptyEnv = {} as NodeJS.ProcessEnv;
-
 describe('FxRateProviderDolarApi — Sentry capture rules (T1.11)', () => {
   beforeEach(() => {
     vi.stubEnv('FX_DEFAULT_CASA', undefined as unknown as string);
@@ -64,7 +62,6 @@ describe('FxRateProviderDolarApi — Sentry capture rules (T1.11)', () => {
       cache,
       lock: withLock,
       dolarApi: client,
-      env: emptyEnv,
     });
     await expect(provider.getDisplayAmount(requestFor('oficial'))).rejects.toMatchObject({
       code: ErrorCode.FX_UNAVAILABLE,
@@ -98,7 +95,6 @@ describe('FxRateProviderDolarApi — Sentry capture rules (T1.11)', () => {
       cache,
       lock: withLock,
       dolarApi: client,
-      env: emptyEnv,
     });
     await provider.getDisplayAmount(requestFor('oficial'));
     await vi.runAllTimersAsync();
@@ -123,7 +119,6 @@ describe('FxRateProviderDolarApi — Sentry capture rules (T1.11)', () => {
       cache,
       lock: withLock,
       dolarApi: client,
-      env: emptyEnv,
     });
     await provider.getDisplayAmount(requestFor('oficial'));
     expect(sentryMock.captureException).not.toHaveBeenCalled();
@@ -143,7 +138,6 @@ describe('FxRateProviderDolarApi — Sentry capture rules (T1.11)', () => {
       cache,
       lock: withLock,
       dolarApi: client,
-      env: emptyEnv,
     });
     await expect(provider.getDisplayAmount(requestFor('blue'))).rejects.toThrow('redis down');
     // Cache errors propagate as INTERNAL_ERROR; the

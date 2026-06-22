@@ -1,6 +1,6 @@
 # Propuesta — `fx-cache`
 
-**Estado**: borrador · **Autor**: Sebastián Illa · **Creada**: 2026-06-21
+**Estado**: implementado · **Autor**: Sebastián Illa · **Creada**: 2026-06-21 · **Implementado**: 2026-06-22 (PR-1 + PR-2 + PR-3 de `feat/fx-cache-{1,2,3}`)
 **Slice objetivo**: MVP-1.5 (proveedor FX + caché) · **Reemplaza**: ninguna
 **Origen**: preflight global SDD (interactive, both, auto-chain, 400 líneas)
 **Lagunas de decisión**: DG-FX-1 a DG-FX-5 **cerradas** (2026-06-21).

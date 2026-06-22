@@ -46,6 +46,11 @@ export interface FinancialAccountWire {
 export interface FinancialAccountBalanceWire {
   native: { amount: number; currency: string };
   display: { amount: number; currency: string; fxRate: number; fxAsOf: string };
+  // PR-3 T3.8: `stale: true` drives the amber chip in
+  // `app/accounts/[id]/balance-widget.tsx`. The widget
+  // also reads `display.fxAsOf` to compute the minutes
+  // elapsed since the rate was published.
+  stale: boolean;
   warnings?: string[];
 }
 

@@ -56,7 +56,6 @@ import { originCheck } from './middlewares/origin-check';
 import { requireSession } from './middlewares/require-session';
 import type { MiddlewareHandler } from 'hono';
 import { AccountService, FxRateProvider } from '@/modules/accounts';
-import { FxRateProviderUnconfigured } from '@/modules/accounts/infrastructure/external/fx-rate-provider.unconfigured';
 import { AccountRepositoryPrisma } from '@/modules/accounts/infrastructure/repositories/account.repository.prisma';
 import { asPrismaDelegateView } from '@/shared/db/prisma-types';
 import { listAccountsAction } from '@/modules/accounts/application/actions/list-accounts.action';
@@ -65,11 +64,21 @@ import { createAccountAction } from '@/modules/accounts/application/actions/crea
 import { updateAccountAction } from '@/modules/accounts/application/actions/update-account.action';
 import { archiveAccountAction } from '@/modules/accounts/application/actions/archive-account.action';
 import { unarchiveAccountAction } from '@/modules/accounts/application/actions/unarchive-account.action';
-import { getAccountBalanceAction } from '@/modules/accounts/application/actions/get-account-balance.action';
+import {
+  getAccountBalanceAction,
+  type GetAccountBalanceActionDeps,
+} from '@/modules/accounts/application/actions/get-account-balance.action';
 import { toFinancialAccountDto } from '@/modules/accounts/application/dto/financial-account.dto';
 import { toBalanceDto } from '@/modules/accounts/application/dto/financial-account-balance.dto';
 import { assertWithinRateLimit, rateLimitIdentifier } from '@/shared/rate-limit/rate-limit';
 import { systemClock } from '@/shared/clock/system-clock';
+import {
+  DolarApiClient,
+  FxRateProviderDolarApi,
+  UpstashFxRateCache,
+  withLock,
+} from '@/modules/fx';
+import { env } from '@/shared/env/env.schema';
 import type { AuthUser } from './middlewares/variables';
 
 export type AuthjsAuthFn = () => Promise<{ user: AuthUser | null } | null>;
@@ -201,6 +210,14 @@ export function createHonoApp(deps: HonoAppDeps): OpenAPIHono<{ Variables: HonoC
   });
 
   const accountDeps = { accountService };
+  // PR-3 T3.4: the balance action receives the resolved
+  // `defaultCasa` (from env.FX_DEFAULT_CASA) via deps so the
+  // function stays pure and testable. The env is read once
+  // here at startup; the implicit fallback is `'oficial'`.
+  const balanceDeps: GetAccountBalanceActionDeps = {
+    accountService,
+    defaultCasa: env.FX_DEFAULT_CASA,
+  };
 
   // 1. List accounts
   protectedApp.get('/api/accounts', async (c) => {
@@ -281,7 +298,7 @@ export function createHonoApp(deps: HonoAppDeps): OpenAPIHono<{ Variables: HonoC
     const user = c.get('user');
     const id = c.req.param('id');
     const query = Object.fromEntries(new URL(c.req.url).searchParams);
-    const res = await getAccountBalanceAction(accountDeps, user.id, id, query);
+    const res = await getAccountBalanceAction(balanceDeps, user.id, id, query);
     if (res.ok) {
       return c.json({ data: toBalanceDto(res.data) }, 200);
     }
@@ -311,9 +328,17 @@ function buildDefaultDeps(): HonoAppDeps {
   const authService = new AuthService(userRepo, hasher, dispatcher, systemClock);
   // F-05: only the FX provider is wired at the deps level;
   // the AccountService is built inside `createHonoApp`.
-  // The fx-cache change will swap this for a real provider
-  // without touching the rest of the file.
-  const fxProvider: FxRateProvider = new FxRateProviderUnconfigured();
+  // PR-3 T3.6: the FxRateProviderUnconfigured stub is
+  // REPLACED by FxRateProviderDolarApi (the real DolarAPI
+  // + Upstash cache + stampede lock implementation). The
+  // Upstash cache adapter is env-var-gated (no-op when
+  // UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN are
+  // missing), so dev / CI boot without a real Redis.
+  const fxProvider: FxRateProvider = new FxRateProviderDolarApi({
+    cache: new UpstashFxRateCache(),
+    lock: withLock,
+    dolarApi: new DolarApiClient(),
+  });
   return {
     authService,
     // The real `auth()` is loaded by the production route

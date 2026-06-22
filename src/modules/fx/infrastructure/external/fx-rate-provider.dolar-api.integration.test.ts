@@ -67,12 +67,13 @@ describe('FxRateProviderDolarApi integration (stub DolarAPI server)', () => {
       } as unknown as NodeJS.ProcessEnv,
       redis: fakeRedis as unknown as Redis,
     });
-    client = new DolarApiClient({ env: { DOLAR_API_BASE_URL: baseUrl } as unknown as NodeJS.ProcessEnv });
+    client = new DolarApiClient({
+      env: { DOLAR_API_BASE_URL: baseUrl } as unknown as NodeJS.ProcessEnv,
+    });
     provider = new FxRateProviderDolarApi({
       cache,
       lock: withLock,
       dolarApi: client,
-      env: {} as NodeJS.ProcessEnv,
     });
   };
 

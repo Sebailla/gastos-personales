@@ -41,7 +41,12 @@ import { AuthService } from '@/modules/auth/domain/services/auth.service';
 import { dispatcher } from '@/shared/events/event-dispatcher';
 import { prisma } from '@/shared/db/prisma';
 import { systemClock } from '@/shared/clock/system-clock';
-import { FxRateProviderUnconfigured } from '@/modules/accounts/infrastructure/external/fx-rate-provider.unconfigured';
+import {
+  DolarApiClient,
+  FxRateProviderDolarApi,
+  UpstashFxRateCache,
+  withLock,
+} from '@/modules/fx';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { asPrismaDelegateView } from '@/shared/db/prisma-types';
 
@@ -55,7 +60,13 @@ function buildAccountsDeps(): Omit<HonoAppDeps, 'authjsAuth'> {
   const authService = new AuthService(userRepo, hasher, dispatcher, systemClock);
   // F-05: only the FX provider is wired at the deps level;
   // the AccountService is built inside `createHonoApp`.
-  const fxProvider = new FxRateProviderUnconfigured();
+  // PR-3 T3.6: the unconfigured stub is replaced by the
+  // real DolarAPI + Upstash cache + stampede lock implementation.
+  const fxProvider = new FxRateProviderDolarApi({
+    cache: new UpstashFxRateCache(),
+    lock: withLock,
+    dolarApi: new DolarApiClient(),
+  });
   return { authService, fxRateProvider: fxProvider };
 }
 
