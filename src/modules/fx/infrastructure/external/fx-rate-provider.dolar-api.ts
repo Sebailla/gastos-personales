@@ -1,6 +1,5 @@
 import * as Sentry from '@sentry/nextjs';
 import { AppError } from '@/shared/errors/app-error';
-import { ErrorCode } from '@/shared/errors/error-codes';
 import { logger } from '@/shared/logger/logger';
 import type {
   FxConversionRequest,

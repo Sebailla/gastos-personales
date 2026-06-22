@@ -22,7 +22,7 @@ import type { FxQuote } from './domain/entities/fx-quote';
 import type { FxRateProviderDolarApiDeps } from './infrastructure/external/fx-rate-provider.dolar-api';
 import { AppError } from '@/shared/errors/app-error';
 
-interface MockCache extends InstanceType<typeof UpstashFxRateCache> {
+interface _MockCache extends InstanceType<typeof UpstashFxRateCache> {
   get: ReturnType<typeof vi.fn>;
   set: ReturnType<typeof vi.fn>;
 }

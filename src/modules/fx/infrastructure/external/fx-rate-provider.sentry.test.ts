@@ -23,13 +23,22 @@ const requestFor = (casa: FxCasaString) =>
     casa,
   }) as unknown as Parameters<FxRateProviderDolarApi['getDisplayAmount']>[0];
 
-const makeCache = () => ({
-  get: vi.fn() as unknown as FxRateCachePort['get'],
-  set: vi.fn() as unknown as FxRateCachePort['set'],
+interface MockCache extends FxRateCachePort {
+  get: ReturnType<typeof vi.fn>;
+  set: ReturnType<typeof vi.fn>;
+}
+
+interface MockClient extends DolarApiPort {
+  getDolares: ReturnType<typeof vi.fn>;
+}
+
+const makeCache = (): MockCache => ({
+  get: vi.fn(),
+  set: vi.fn(),
 });
 
-const makeClient = () => ({
-  getDolares: vi.fn() as unknown as DolarApiPort['getDolares'],
+const makeClient = (): MockClient => ({
+  getDolares: vi.fn(),
 });
 
 const emptyEnv = {} as NodeJS.ProcessEnv;
