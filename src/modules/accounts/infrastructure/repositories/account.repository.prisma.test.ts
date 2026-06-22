@@ -259,6 +259,26 @@ describe('AccountRepositoryPrisma.create', () => {
       code: ErrorCode.NAME_TAKEN,
     });
   });
+
+  // fx-cache PR-2 T2.7 — REQ-FX-9. The create adapter writes
+  // the per-account casa column when present on the input.
+  it('writes the casa column when input.casa is set', async () => {
+    const row = await repo.create('u-1', { ...aRowInput({ name: 'A' }), casa: 'OFICIAL' });
+    expect(row.casa).toBe('OFICIAL');
+    // The data payload to the Prisma client MUST include casa.
+    const createSpy = prisma.financialAccount.create as unknown as ReturnType<typeof vi.fn>;
+    const lastCall = createSpy.mock.calls[createSpy.mock.calls.length - 1]?.[0] as {
+      data: Record<string, unknown>;
+    };
+    expect(lastCall.data['casa']).toBe('OFICIAL');
+  });
+
+  // When the input omits casa, the row lands with casa = NULL
+  // (inherits the global default).
+  it('writes the casa column as NULL when input.casa is undefined', async () => {
+    const row = await repo.create('u-1', aRowInput({ name: 'A' }));
+    expect(row.casa).toBeNull();
+  });
 });
 
 describe('AccountRepositoryPrisma.findById', () => {
@@ -394,6 +414,50 @@ describe('AccountRepositoryPrisma.count (N1)', () => {
 
     expect(await repo.count('u-1')).toBe(1);
     expect(await repo.count('u-2')).toBe(1);
+  });
+});
+
+describe('AccountRepositoryPrisma.update — casa column (fx-cache PR-2 T2.7)', () => {
+  let prisma: FakePrisma;
+  let repo: AccountRepositoryPrisma;
+
+  beforeEach(() => {
+    prisma = buildFakePrisma();
+    repo = new AccountRepositoryPrisma({
+      financialAccount: prisma.financialAccount,
+    });
+  });
+
+  // REQ-FX-9: the partial update path writes the casa column
+  // when present on the patch.
+  it('updates the casa column to "BLUE" when patch.casa is set', async () => {
+    await repo.create('u-1', aRowInput({ name: 'A' }));
+    const updated = await repo.update('u-1', 'fa-1', { casa: 'BLUE' });
+    expect(updated?.casa).toBe('BLUE');
+    // The Prisma data payload MUST include casa.
+    const updateManySpy = prisma.financialAccount.updateMany as unknown as ReturnType<typeof vi.fn>;
+    const lastCall = updateManySpy.mock.calls[updateManySpy.mock.calls.length - 1]?.[0] as {
+      data: Record<string, unknown>;
+    };
+    expect(lastCall.data['casa']).toBe('BLUE');
+  });
+
+  // REQ-FX-9: explicit `casa: null` on the patch sets the
+  // column to NULL (user reverts to inheriting the global
+  // default).
+  it('sets the casa column to NULL when patch.casa is null', async () => {
+    await repo.create('u-1', { ...aRowInput({ name: 'A' }), casa: 'OFICIAL' });
+    const updated = await repo.update('u-1', 'fa-1', { casa: null });
+    expect(updated?.casa).toBeNull();
+  });
+
+  // Regression — partial update with no casa key does not
+  // touch the existing casa column.
+  it('does not touch the casa column when patch.casa is undefined', async () => {
+    await repo.create('u-1', { ...aRowInput({ name: 'A' }), casa: 'OFICIAL' });
+    const updated = await repo.update('u-1', 'fa-1', { name: 'Renamed' });
+    expect(updated?.casa).toBe('OFICIAL');
+    expect(updated?.name).toBe('Renamed');
   });
 });
 
