@@ -1,10 +1,15 @@
 /**
- * Tests for FxRateProviderUnconfigured (always throws 503)
- * and FxRateProviderStub (configurable success / 503 / 409).
+ * Tests for FxRateProviderStub (configurable success / 503 / 409).
+ *
+ * PR-3 T3.7: the `FxRateProviderUnconfigured` stub is deleted
+ * (replaced by `FxRateProviderDolarApi` in `app.ts:316`). The
+ * unconfigured-stub test that lived here is removed; the
+ * behavior it pinned is covered by the `503` assertion in
+ * `src/modules/api/app.deps.test.ts` (which exercises the
+ * wiring path end-to-end).
  */
 
 import { describe, it, expect } from 'vitest';
-import { FxRateProviderUnconfigured } from './fx-rate-provider.unconfigured';
 import { FxRateProviderStub } from './fx-rate-provider.stub';
 import { AccountCurrency } from '../../domain/entities/financial-account';
 import { ErrorCode } from '@/shared/errors/error-codes';
@@ -16,16 +21,6 @@ const sampleRequest: FxConversionRequest = {
   asOf: new Date('2026-06-18T20:00:00.000Z'),
   casa: 'oficial',
 };
-
-describe('FxRateProviderUnconfigured', () => {
-  it('always throws AppError(FX_UNAVAILABLE) regardless of input', async () => {
-    const stub = new FxRateProviderUnconfigured();
-    await expect(stub.getDisplayAmount(sampleRequest)).rejects.toMatchObject({
-      code: ErrorCode.FX_UNAVAILABLE,
-      statusCode: 503,
-    });
-  });
-});
 
 describe('FxRateProviderStub', () => {
   it('returns the configured success result on success mode', async () => {

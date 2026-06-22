@@ -110,6 +110,7 @@ function buildAccountServiceMock(
           fxRate: 0.92,
           fxAsOf: new Date('2026-06-18T20:00:00.000Z'),
         },
+        stale: false,
       })),
   } as unknown as AccountService;
 }
@@ -279,6 +280,61 @@ describe('GET /api/accounts/:id/balance', () => {
     const app = createHonoApp(buildDeps(svc, fx));
     const res = await app.request('/api/accounts/fa-1/balance?displayCurrency=EUR');
     expect(res.status).toBe(503);
+  });
+
+  // -- PR-3 T3.6 wiring tests: the balance route exposes
+  // `stale: false` on cache hits and `stale: true` + a
+  // warnings array when the injected fake provider returns
+  // a stale result. The widget (T3.8) reads `stale` to
+  // render the amber chip.
+
+  it('returns 200 with stale=false when the FX provider returns a fresh result', async () => {
+    const svc = buildAccountServiceMock({
+      getBalance: vi.fn(
+        async (_userId: string, _id: string, _ccy: AccountCurrency) => ({
+          native: { amount: 100000, currency: AccountCurrency.USD },
+          display: {
+            amount: 92000,
+            currency: AccountCurrency.EUR,
+            fxRate: 0.92,
+            fxAsOf: new Date('2026-06-18T20:00:00.000Z'),
+          },
+          stale: false,
+        }),
+      ),
+    });
+    const app = createHonoApp(buildDeps(svc, fxStub()));
+    const res = await app.request('/api/accounts/fa-1/balance?displayCurrency=EUR');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.stale).toBe(false);
+    expect('warnings' in body.data).toBe(false);
+  });
+
+  it('returns 200 with stale=true and a warnings array when the FX provider returns a stale result', async () => {
+    const svc = buildAccountServiceMock({
+      getBalance: vi.fn(
+        async (_userId: string, _id: string, _ccy: AccountCurrency) => ({
+          native: { amount: 100000, currency: AccountCurrency.USD },
+          display: {
+            amount: 92000,
+            currency: AccountCurrency.EUR,
+            fxRate: 0.92,
+            fxAsOf: new Date('2026-06-18T20:00:00.000Z'),
+          },
+          stale: true,
+          warnings: ['FX rate is stale; showing last known value.'],
+        }),
+      ),
+    });
+    const app = createHonoApp(buildDeps(svc, fxStub()));
+    const res = await app.request('/api/accounts/fa-1/balance?displayCurrency=EUR');
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.stale).toBe(true);
+    expect(body.data.warnings).toEqual([
+      'FX rate is stale; showing last known value.',
+    ]);
   });
 });
 

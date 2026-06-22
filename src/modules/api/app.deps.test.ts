@@ -7,8 +7,9 @@
  * (1) `createHonoApp` accepts the deps with `fxRateProvider`
  *     and the accounts routes dispatch through the built
  *     `AccountService`.
- * (2) the default `honoApp` is wired with the unconfigured
- *     FX stub.
+ * (2) the default `honoApp` boots without throwing (the
+ *     FxRateProviderUnconfigured stub is gone; the new
+ *     DolarApiFxRateProvider is wired at composition time).
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -19,7 +20,6 @@ import type { PasswordHasherPort } from '@/modules/auth/domain/interfaces/passwo
 import { EventDispatcher } from '@/shared/events/event-dispatcher';
 import { systemClock } from '@/shared/clock/system-clock';
 import { AccountService } from '@/modules/accounts';
-import { FxRateProviderUnconfigured } from '@/modules/accounts/infrastructure/external/fx-rate-provider.unconfigured';
 import { FxRateProviderStub } from '@/modules/accounts/infrastructure/external/fx-rate-provider.stub';
 import {
   AccountCurrency,
@@ -99,28 +99,22 @@ describe('HonoAppDeps wiring (F-05)', () => {
     expect(svc.list).toHaveBeenCalledTimes(1);
   });
 
-  it('the default honoApp uses the unconfigured FX stub (returns 503)', async () => {
+  it('the default honoApp boots with the real FxRateProviderDolarApi wiring (returns 401 on a sessionless request)', async () => {
+    // PR-3 T3.7: the unconfigured stub is gone. The default
+    // honoApp now boots with the real DolarAPI + Upstash cache
+    // + stampede lock implementation wired at composition time.
+    // The Upstash cache is env-var-gated (no-op when the
+    // Upstash env vars are missing), so the app boots in CI /
+    // local dev without a real Redis.
     const res = await honoApp.request('/api/accounts/fa-1/balance?displayCurrency=EUR', {
       headers: { cookie: 'authjs.session-token=test' },
     });
     // The default authjsAuth is `async () => null`, so
     // requireSession returns 401. The 401 short-circuit
-    // fires before the FX stub is exercised. The relevant
+    // fires before the FX provider is exercised. The relevant
     // assertion is: the dep is wired (the route exists;
     // the FX provider type is correct).
     expect(res.status).toBe(401);
-  });
-
-  it('returns 503 from the unconfigured FX stub when invoked directly', async () => {
-    const fx = new FxRateProviderUnconfigured();
-    await expect(
-      fx.getDisplayAmount({
-        native: { amount: 100000, currency: AccountCurrency.USD },
-        displayCurrency: AccountCurrency.EUR,
-        asOf: new Date(),
-        casa: 'oficial',
-      }),
-    ).rejects.toMatchObject({ code: ErrorCode.FX_UNAVAILABLE });
   });
 
   it('the FX_NOT_SUPPORTED error from the provider is mapped to 409', async () => {
