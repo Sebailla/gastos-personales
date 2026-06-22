@@ -68,18 +68,18 @@ export class FxRateProviderDolarApi implements FxRateProvider {
       // block on it (REQ-FX-1). Errors are captured in
       // `refreshIfStale`.
       void this.refreshIfStale(casa);
-      return buildResult(request, cached.quote, [STALE_WARNING]);
+      return buildResult(request, cached.quote, true, [STALE_WARNING]);
     }
 
     // --- Fresh hit (cache hit within TTL) ---
     if (cached) {
       logger.info('fx.cache.hit', { casa, stale: false, fxAsOf: cached.quote.fxAsOf });
-      return buildResult(request, cached.quote);
+      return buildResult(request, cached.quote, false);
     }
 
     // --- Cache miss: stampede-locked upstream fetch ---
     const quote = await this.fetchWithLock(casa);
-    return buildResult(request, quote);
+    return buildResult(request, quote, false);
   }
 
   /**
@@ -151,6 +151,7 @@ function isStale(cachedAt: string): boolean {
 function buildResult(
   request: FxConversionRequest,
   quote: { buy: number; sell: number; fxAsOf: string },
+  stale: boolean,
   warnings?: string[],
 ): FxConversionResult {
   const fxRate = quote.sell;
@@ -166,6 +167,7 @@ function buildResult(
       fxRate,
       fxAsOf: new Date(quote.fxAsOf),
     },
-    warnings,
+    stale,
+    ...(warnings !== undefined ? { warnings } : {}),
   };
 }

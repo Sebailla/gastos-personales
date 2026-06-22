@@ -78,6 +78,12 @@ export interface FxConversionResult {
     readonly fxRate: number;
     readonly fxAsOf: Date;
   };
+  /**
+   * `true` when the rate is past the freshness window (cache
+   * entry older than 1h, etc.). The widget renders the amber
+   * chip on `stale === true`. BR-FX-6 / REQ-FX-6.
+   */
+  readonly stale: boolean;
   readonly warnings?: string[];
 }
 

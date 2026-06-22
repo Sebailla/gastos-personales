@@ -62,6 +62,7 @@ export class FxRateProviderStub implements FxRateProvider {
         fxRate: 0.92,
         fxAsOf: new Date(),
       },
+      stale: false,
     };
   }
 }

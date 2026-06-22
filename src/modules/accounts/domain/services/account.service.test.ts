@@ -183,6 +183,7 @@ function buildFakeFx(): FakeFx {
           fxAsOf: new Date('2026-06-18T20:00:00.000Z'),
         },
         warnings: [],
+        stale: false,
       };
       return defaultResult;
     },

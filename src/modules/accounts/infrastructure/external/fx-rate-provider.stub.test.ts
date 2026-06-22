@@ -14,6 +14,7 @@ const sampleRequest: FxConversionRequest = {
   native: { amount: 100000, currency: AccountCurrency.USD },
   displayCurrency: AccountCurrency.EUR,
   asOf: new Date('2026-06-18T20:00:00.000Z'),
+  casa: 'oficial',
 };
 
 describe('FxRateProviderUnconfigured', () => {
@@ -37,6 +38,7 @@ describe('FxRateProviderStub', () => {
         fxRate: 0.92,
         fxAsOf: new Date('2026-06-18T20:00:00.000Z'),
       },
+      stale: false,
     });
     const result = await stub.getDisplayAmount(sampleRequest);
     expect(result.display.amount).toBe(92000);

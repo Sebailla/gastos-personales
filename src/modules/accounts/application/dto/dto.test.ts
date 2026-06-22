@@ -89,6 +89,7 @@ describe('toBalanceDto', () => {
         fxAsOf: new Date('2026-06-18T20:00:00.000Z'),
       },
       warnings: ['rate is older than 24h'],
+      stale: false,
     };
     const dto = toBalanceDto(result);
     expect(dto.display.amount).toBe(92000);
@@ -105,9 +106,46 @@ describe('toBalanceDto', () => {
         fxRate: 1,
         fxAsOf: new Date('2026-06-18T20:00:00.000Z'),
       },
+      stale: false,
     };
     const dto = toBalanceDto(result);
     expect(dto.warnings).toBeUndefined();
+    expect('warnings' in dto).toBe(false);
+  });
+
+  // -- PR-3 T3.5 RED cases: stale boolean + warnings propagation --
+
+  it('maps result.stale = true to DTO.stale = true and propagates the warnings array', () => {
+    const result: FxConversionResult = {
+      native: { amount: 100000, currency: AccountCurrency.USD },
+      display: {
+        amount: 92000,
+        currency: AccountCurrency.EUR,
+        fxRate: 0.92,
+        fxAsOf: new Date('2026-06-18T20:00:00.000Z'),
+      },
+      warnings: ['FX rate is stale; showing last known value.'],
+      stale: true,
+    };
+    const dto = toBalanceDto(result);
+    expect(dto.stale).toBe(true);
+    expect(dto.warnings).toEqual(['FX rate is stale; showing last known value.']);
+  });
+
+  it('maps result.stale = false to DTO.stale = false and omits the warnings field when empty', () => {
+    const result: FxConversionResult = {
+      native: { amount: 100000, currency: AccountCurrency.USD },
+      display: {
+        amount: 92000,
+        currency: AccountCurrency.EUR,
+        fxRate: 0.92,
+        fxAsOf: new Date('2026-06-18T20:00:00.000Z'),
+      },
+      warnings: [], // empty (not absent) — DTO still omits
+      stale: false,
+    };
+    const dto = toBalanceDto(result);
+    expect(dto.stale).toBe(false);
     expect('warnings' in dto).toBe(false);
   });
 });
