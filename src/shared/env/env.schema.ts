@@ -1,6 +1,17 @@
 import { z } from 'zod';
 
 /**
+ * Lowercase DolarAPI casa names. Inlined here (rather than
+ * importing from `@/modules/fx/domain/entities/fx-casa-string.schema`)
+ * to preserve the module-isolation rule: `shared/` MUST NOT
+ * import from `modules/`. The list is 6 values, kept in sync
+ * with the `fx` module's Zod enum and the `AccountFxCasa`
+ * Prisma enum. A typo in either source fails a downstream
+ * parse test.
+ */
+const FX_CASAS = ['oficial', 'blue', 'mep', 'ccl', 'cripto', 'tarjeta'] as const;
+
+/**
  * Environment schema for `gastos-personales`.
  *
  * Validated at startup. Any missing or malformed value fails
@@ -63,6 +74,18 @@ export const envSchema = z
     NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
     SENTRY_ENVIRONMENT: z.string().optional(),
     NEXT_PUBLIC_SENTRY_ENVIRONMENT: z.string().optional(),
+
+    // --- fx-cache (optional) ---
+    // DolarAPI base URL override. Default 'https://dolarapi.com/v1'
+    // is resolved in the DolarApiClient when this is absent.
+    // Optional so local dev and CI run without a real DolarAPI.
+    DOLAR_API_BASE_URL: z.string().url().optional(),
+    // Default casa for FX conversions when an account has no
+    // casa column (or as a stand-in during PR-1). Validated
+    // through the lowercase casa enum so the env cannot accept
+    // mixed-case or unknown values. Action layer applies the
+    // fallback ('oficial') when the env var is unset.
+    FX_DEFAULT_CASA: z.enum(FX_CASAS).optional(),
   })
   .superRefine((data, ctx) => {
     // Cross-field: AUTH_URL and APP_URL must share the same origin.
