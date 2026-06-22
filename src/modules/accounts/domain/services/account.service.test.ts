@@ -275,7 +275,7 @@ describe('AccountService.getBalance', () => {
     const fx = buildFakeFx();
     const svc = new AccountService(repo, fx, systemClock);
 
-    const result = await svc.getBalance('u-1', 'fa-1', AccountCurrency.EUR);
+    const result = await svc.getBalance('u-1', 'fa-1', AccountCurrency.EUR, 'oficial');
     expect(result.display.amount).toBe(92000);
     expect(result.native.amount).toBe(100000); // native unchanged
     expect(fx.getDisplayAmountSpy).toHaveBeenCalledTimes(1);
@@ -291,7 +291,9 @@ describe('AccountService.getBalance', () => {
     });
     const svc = new AccountService(repo, fx, systemClock);
 
-    await expect(svc.getBalance('u-1', 'fa-1', AccountCurrency.EUR)).rejects.toMatchObject({
+    await expect(
+      svc.getBalance('u-1', 'fa-1', AccountCurrency.EUR, 'oficial'),
+    ).rejects.toMatchObject({
       code: 'FX_UNAVAILABLE',
     });
   });
@@ -307,8 +309,55 @@ describe('AccountService.getBalance', () => {
     const fixed = new Date('2026-06-19T12:00:00.000Z');
     const svc = new AccountService(repo, fx, { now: () => fixed });
 
-    await svc.getBalance('u-1', 'fa-1', AccountCurrency.EUR);
+    await svc.getBalance('u-1', 'fa-1', AccountCurrency.EUR, 'oficial');
 
     expect(fx.getDisplayAmountSpy).toHaveBeenCalledWith(expect.objectContaining({ asOf: fixed }));
+  });
+
+  // PR-3 T3.3 RED cases
+  it('threads the casa into the FxConversionRequest forwarded to the FX port', async () => {
+    const row = makeRow({
+      id: 'fa-1',
+      currency: AccountCurrency.USD,
+      openingBalanceMinor: 100000,
+      casa: null,
+    });
+    const repo = buildFakeRepo([row]);
+    const fx = buildFakeFx();
+    const svc = new AccountService(repo, fx, systemClock);
+
+    await svc.getBalance('u-1', 'fa-1', AccountCurrency.EUR, 'blue');
+
+    expect(fx.getDisplayAmountSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ casa: 'blue' }),
+    );
+  });
+
+  it('does NOT read process.env.FX_DEFAULT_CASA at request time (env var absence does not change the resolved casa)', async () => {
+    // PR-3 T3.3 triangulation: the service MUST NOT consult the
+    // env. It only forwards the casa passed in by the action
+    // layer. We delete the env var and assert the call carries
+    // the caller-supplied casa.
+    const originalEnv = process.env.FX_DEFAULT_CASA;
+    delete process.env.FX_DEFAULT_CASA;
+    try {
+      const row = makeRow({
+        id: 'fa-1',
+        currency: AccountCurrency.USD,
+        openingBalanceMinor: 100000,
+        casa: null,
+      });
+      const repo = buildFakeRepo([row]);
+      const fx = buildFakeFx();
+      const svc = new AccountService(repo, fx, systemClock);
+
+      await svc.getBalance('u-1', 'fa-1', AccountCurrency.EUR, 'mep');
+
+      expect(fx.getDisplayAmountSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ casa: 'mep' }),
+      );
+    } finally {
+      if (originalEnv !== undefined) process.env.FX_DEFAULT_CASA = originalEnv;
+    }
   });
 });
