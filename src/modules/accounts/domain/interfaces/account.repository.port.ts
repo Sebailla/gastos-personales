@@ -25,7 +25,12 @@
  * "Showing first 20 of N" without a second round trip.
  */
 
-import type { AccountCurrency, AccountType, FinancialAccount } from '../entities/financial-account';
+import type {
+  AccountCurrency,
+  AccountFxCasa,
+  AccountType,
+  FinancialAccount,
+} from '../entities/financial-account';
 import type { Clock } from '@/shared/clock/clock.port';
 
 export interface ListAccountsOptions {
@@ -76,6 +81,15 @@ export interface CreateFinancialAccountInput {
     | 'OTHER'
     | null;
   readonly walletAddress: string | null;
+
+  // fx-cache PR-2 — REQ-FX-9. Per-account casa selection
+  // (nullable). When omitted, the row lands with `casa = NULL`
+  // and inherits the global default at the action site (PR-3).
+  // The Zod schema in `account-create.schema.ts` validates the
+  // uppercase `AccountFxCasa` form; the application layer
+  // translates from the lowercase DolarAPI wire form when the
+  // request body carries it.
+  readonly casa?: AccountFxCasa | null;
 }
 
 export interface UpdateFinancialAccountPatch {
@@ -93,6 +107,11 @@ export interface UpdateFinancialAccountPatch {
   broker?: string | null;
   investmentType?: 'STOCKS' | 'BONDS' | 'MUTUAL_FUNDS' | 'CERTS_OF_DEPOSIT' | 'OTHER' | null;
   walletAddress?: string | null;
+  // fx-cache PR-2 — REQ-FX-9. Per-account casa selection
+  // (partial — omitted key means "do not change this field").
+  // Accepts null explicitly so the user can clear an existing
+  // casa and revert to inheriting the global default.
+  casa?: AccountFxCasa | null;
 }
 
 export interface AccountRepositoryPort {

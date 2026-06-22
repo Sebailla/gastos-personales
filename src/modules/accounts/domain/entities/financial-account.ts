@@ -64,6 +64,27 @@ export const AccountCurrency = {
 } as const;
 export type AccountCurrency = (typeof AccountCurrency)[keyof typeof AccountCurrency];
 
+// fx-cache PR-2 — REQ-FX-9. Per-account casa selection.
+// Mirrors the Prisma `AccountFxCasa` enum (`prisma/schema.prisma`)
+// with UPPERCASE values per the project's existing 5-enum
+// convention. The DolarAPI wire format is lowercase; the
+// lowercase ↔ uppercase mapping lives at the Zod / DTO layer
+// (`application/validation/account-fx-casa.schema.ts` and
+// `toFinancialAccountDto`). The domain layer never imports
+// from `@prisma/client`. `NULL` in the Prisma column means
+// "inherit the global default" (`env.FX_DEFAULT_CASA`,
+// defaulting to `'oficial'`); the type is nullable here so
+// the same shape works for existing rows post-migration.
+export const AccountFxCasa = {
+  OFICIAL: 'OFICIAL',
+  BLUE: 'BLUE',
+  MEP: 'MEP',
+  CCL: 'CCL',
+  CRIPTO: 'CRIPTO',
+  TARJETA: 'TARJETA',
+} as const;
+export type AccountFxCasa = (typeof AccountFxCasa)[keyof typeof AccountFxCasa];
+
 /**
  * Structural shape of a FinancialAccount row, as the domain
  * layer sees it. Matches the Prisma model 1:1; the
@@ -93,6 +114,17 @@ export interface FinancialAccount {
   readonly broker: string | null;
   readonly investmentType: InvestmentType | null;
   readonly walletAddress: string | null;
+
+  // fx-cache PR-2 — per-account casa selection (REQ-FX-9).
+  // Nullable: existing rows after `add_account_fx_casa` migrate
+  // land with casa = NULL and render the inherited global
+  // default (`env.FX_DEFAULT_CASA`, default `'oficial'`).
+  // The lowercase DolarAPI wire form (`oficial` / `blue` / …)
+  // appears at the API boundary; the domain + DTO keep the
+  // uppercase Prisma form. The mapping is centralized in
+  // `application/validation/account-fx-casa.schema.ts` and
+  // `application/dto/financial-account.dto.ts`.
+  readonly casa: AccountFxCasa | null;
 
   readonly createdAt: Date;
   readonly updatedAt: Date;

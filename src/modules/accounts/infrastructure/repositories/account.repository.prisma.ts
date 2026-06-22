@@ -119,6 +119,12 @@ export class AccountRepositoryPrisma implements AccountRepositoryPort {
           broker: input.broker,
           investmentType: input.investmentType,
           walletAddress: input.walletAddress,
+          // fx-cache PR-2 T2.7: the per-account casa column is
+          // written here (REQ-FX-9). Landed together with the
+          // domain shape so the type chain compiles end-to-end;
+          // the casa-specific behaviour is locked by
+          // `account.repository.prisma.test.ts` in T2.7.
+          ...(input.casa !== undefined ? { casa: input.casa } : {}),
         },
       });
       return mapRow(row);
@@ -218,6 +224,10 @@ function mapRow(row: PrismaFinancialAccountRow): FinancialAccount {
     broker: (row['broker'] as string | null) ?? null,
     investmentType: (row['investmentType'] as InvestmentType | null) ?? null,
     walletAddress: (row['walletAddress'] as string | null) ?? null,
+    // fx-cache PR-2 — REQ-FX-9: `casa IS NULL` maps to `null`
+    // in the domain shape. Existing rows pre-migration land on
+    // `null` and inherit the global default.
+    casa: (row['casa'] as FinancialAccount['casa']) ?? null,
     createdAt: row['createdAt'] as Date,
     updatedAt: row['updatedAt'] as Date,
   };

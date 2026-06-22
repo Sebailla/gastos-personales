@@ -5,6 +5,7 @@ import {
   InvestmentType,
   OpeningBalanceMode,
   AccountCurrency,
+  AccountFxCasa,
   isFinancialAccount,
   type FinancialAccount,
 } from './financial-account';
@@ -43,6 +44,74 @@ describe('AccountCurrency enum exhaustiveness', () => {
   });
 });
 
+describe('AccountFxCasa enum exhaustiveness', () => {
+  // fx-cache PR-2 — REQ-FX-9: per-account casa selection. The
+  // enum mirrors the Prisma `AccountFxCasa` (`prisma/schema.prisma`)
+  // with UPPERCASE values per the project's existing 5 enums.
+  // The DolarAPI wire format is lowercase; the lowercase ↔
+  // uppercase mapping lives at the Zod / DTO layer (see
+  // `src/modules/accounts/application/validation/account-fx-casa.schema.ts`
+  // and the casa field in `toFinancialAccountDto`).
+  it('declares exactly the 6 DolarAPI casas in uppercase', () => {
+    expect(Object.values(AccountFxCasa).sort()).toEqual(
+      ['BLUE', 'CCL', 'CRIPTO', 'MEP', 'OFICIAL', 'TARJETA'].sort(),
+    );
+  });
+});
+
+describe('FinancialAccount.casa field', () => {
+  const baseRow: FinancialAccount = {
+    id: 'fa-1',
+    userId: 'u-1',
+    type: AccountType.BANK,
+    name: 'Main savings',
+    currency: AccountCurrency.USD,
+    openingBalanceMinor: 0,
+    openingBalanceMode: OpeningBalanceMode.FRESH,
+    openingBalanceDate: null,
+    archivedAt: null,
+    bankName: 'ICBC',
+    accountKind: AccountKind.SAVINGS,
+    issuer: null,
+    creditLimitMinor: null,
+    statementDay: null,
+    paymentDueDay: null,
+    broker: null,
+    investmentType: null,
+    walletAddress: null,
+    casa: null,
+    createdAt: new Date('2026-06-18T00:00:00.000Z'),
+    updatedAt: new Date('2026-06-18T00:00:00.000Z'),
+  };
+
+  it('accepts a row with casa: "OFICIAL" (happy path)', () => {
+    const rowWithCasa: FinancialAccount = { ...baseRow, casa: AccountFxCasa.OFICIAL };
+    expect(rowWithCasa.casa).toBe(AccountFxCasa.OFICIAL);
+    expect(isFinancialAccount(rowWithCasa)).toBe(true);
+  });
+
+  // TRIANGULATE — REQ-FX-9 migration safety: existing rows
+  // land with casa: NULL. The shape MUST accept null (the
+  // smoke UI renders the inherited global default).
+  it('accepts a row with casa: null (existing row after the migration)', () => {
+    const rowWithNullCasa: FinancialAccount = { ...baseRow, casa: null };
+    expect(rowWithNullCasa.casa).toBeNull();
+    expect(isFinancialAccount(rowWithNullCasa)).toBe(true);
+  });
+
+  // The migration is non-destructive: every existing row
+  // ends up with casa = NULL; the user picks a casa on the
+  // create form or via the future edit form.
+  it('represents the three legal casa states: OFICIAL | BLUE | null', () => {
+    const casaA: FinancialAccount = { ...baseRow, casa: AccountFxCasa.OFICIAL };
+    const casaB: FinancialAccount = { ...baseRow, casa: AccountFxCasa.BLUE };
+    const casaNull: FinancialAccount = { ...baseRow, casa: null };
+    expect(casaA.casa).toBe('OFICIAL');
+    expect(casaB.casa).toBe('BLUE');
+    expect(casaNull.casa).toBeNull();
+  });
+});
+
 describe('isFinancialAccount type-guard', () => {
   const baseRow: FinancialAccount = {
     id: 'fa-1',
@@ -63,6 +132,7 @@ describe('isFinancialAccount type-guard', () => {
     broker: null,
     investmentType: null,
     walletAddress: null,
+    casa: null,
     createdAt: new Date('2026-06-18T00:00:00.000Z'),
     updatedAt: new Date('2026-06-18T00:00:00.000Z'),
   };

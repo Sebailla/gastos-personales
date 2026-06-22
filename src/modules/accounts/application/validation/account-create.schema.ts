@@ -27,6 +27,7 @@ import {
   OpeningBalanceMode,
   AccountType,
 } from '../../domain/entities/financial-account';
+import { accountFxCasaSchema } from './account-fx-casa.schema';
 
 const accountCurrencySchema = z.enum([
   AccountCurrency.ARS,
@@ -51,6 +52,14 @@ const baseFields = {
   name: z.string().min(1).max(80),
   currency: accountCurrencySchema,
   openingBalance: openingBalanceSchema,
+  // fx-cache PR-2 T2.4 — REQ-FX-9. Optional nullable casa
+  // selection. `undefined` and `null` both map to `column =
+  // NULL` on `FinancialAccount.casa` (the user inherits the
+  // global default at the action site). The schema accepts
+  // the UPPERCASE Prisma form; the lowercase DolarAPI wire
+  // form is rejected (the DolarAPI form lives at
+  // `fx-casa-string.schema.ts` in the `fx` module).
+  casa: accountFxCasaSchema.nullable().optional(),
 };
 
 const bankSchema = z

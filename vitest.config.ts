@@ -12,7 +12,7 @@ export default defineConfig({
     include: [
       'src/**/*.{test,spec}.ts',
       'test/**/*.{test,spec}.ts',
-      'app/**/*.{test,spec}.ts',
+      'app/**/*.{test,spec}.{ts,tsx}',
       'proxy.{test,spec}.ts',
     ],
     exclude: ['node_modules', 'dist', '.next'],

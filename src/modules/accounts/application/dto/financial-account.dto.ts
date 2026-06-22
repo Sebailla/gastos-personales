@@ -12,6 +12,26 @@
  */
 
 import type { FinancialAccount } from '../../domain/entities/financial-account';
+import { AccountFxCasa } from '../../domain/entities/financial-account';
+
+/**
+ * The DolarAPI wire form of `AccountFxCasa` (lowercase). The
+ * fx-cache capability exposes this form on every wire shape
+ * because the `FxRateProvider` and the cache key both speak it.
+ * The Zod schemas (application/validation/account-fx-casa.schema.ts
+ * for the Prisma boundary and
+ * `src/modules/fx/domain/entities/fx-casa-string.schema.ts` for
+ * the DolarAPI boundary) are the single source of truth for the
+ * two cases; the DTO converts between them at the boundary.
+ */
+const ACCOUNT_FX_CASA_TO_WIRE: Readonly<Record<AccountFxCasa, string>> = {
+  [AccountFxCasa.OFICIAL]: 'oficial',
+  [AccountFxCasa.BLUE]: 'blue',
+  [AccountFxCasa.MEP]: 'mep',
+  [AccountFxCasa.CCL]: 'ccl',
+  [AccountFxCasa.CRIPTO]: 'cripto',
+  [AccountFxCasa.TARJETA]: 'tarjeta',
+};
 
 export interface FinancialAccountDto {
   id: string;
@@ -32,6 +52,10 @@ export interface FinancialAccountDto {
   broker: string | null;
   investmentType: string | null;
   walletAddress: string | null;
+  // fx-cache PR-2 T2.6 — REQ-FX-9. Wire form is the lowercase
+  // DolarAPI casa (the form the `fx` capability consumes).
+  // `null` means "inherit the global default".
+  casa: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -56,6 +80,7 @@ export function toFinancialAccountDto(row: FinancialAccount): FinancialAccountDt
     broker: row.broker,
     investmentType: row.investmentType,
     walletAddress: row.walletAddress,
+    casa: row.casa === null ? null : ACCOUNT_FX_CASA_TO_WIRE[row.casa],
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

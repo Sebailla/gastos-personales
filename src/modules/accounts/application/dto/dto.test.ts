@@ -5,6 +5,10 @@
  * (1) toFinancialAccountDto converts a domain row to the wire shape.
  * (2) toBalanceDto converts an FxConversionResult to the wire shape.
  * (3) toBalanceDto omits `warnings` when undefined.
+ *
+ * 2 fx-cache PR-2 T2.6 casa cases appended at the bottom:
+ * (4) DTO maps row.casa: 'OFICIAL' (UPPERCASE) → wire casa: 'oficial' (lowercase DolarAPI form).
+ * (5) DTO maps row.casa: null → wire casa: null.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -12,6 +16,7 @@ import { toFinancialAccountDto } from './financial-account.dto';
 import { toBalanceDto } from './financial-account-balance.dto';
 import {
   AccountCurrency,
+  AccountFxCasa,
   AccountKind,
   AccountType,
   OpeningBalanceMode,
@@ -39,6 +44,7 @@ function makeRow(): FinancialAccount {
     broker: null,
     investmentType: null,
     walletAddress: null,
+    casa: null,
     createdAt: new Date('2026-06-18T00:00:00.000Z'),
     updatedAt: new Date('2026-06-18T00:00:00.000Z'),
   };
@@ -52,6 +58,23 @@ describe('toFinancialAccountDto', () => {
     expect(dto.bankName).toBe('ICBC');
     expect(dto.createdAt).toBe('2026-06-18T00:00:00.000Z');
     expect(dto.openingBalanceDate).toBeNull();
+  });
+
+  // -- fx-cache PR-2 T2.6 — REQ-FX-9 casa mapping --
+  // The wire form is the DolarAPI lowercase casa. The mapping
+  // AccountFxCasa.OFICIAL → 'oficial' is centralised here so
+  // the rest of the system never spells out the conversion
+  // ad-hoc.
+  it('maps row.casa: "OFICIAL" (UPPERCASE) → wire casa: "oficial" (lowercase)', () => {
+    const row: FinancialAccount = { ...makeRow(), casa: AccountFxCasa.OFICIAL };
+    const dto = toFinancialAccountDto(row);
+    expect(dto.casa).toBe('oficial');
+  });
+
+  it('maps row.casa: null → wire casa: null (inherit the global default)', () => {
+    const row: FinancialAccount = { ...makeRow(), casa: null };
+    const dto = toFinancialAccountDto(row);
+    expect(dto.casa).toBeNull();
   });
 });
 

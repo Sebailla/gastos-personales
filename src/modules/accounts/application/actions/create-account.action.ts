@@ -56,5 +56,10 @@ function toCreateInput(
     broker: body.type === 'INVESTMENT' ? body.broker : null,
     investmentType: body.type === 'INVESTMENT' ? body.investmentType : null,
     walletAddress: body.type === 'CRYPTO' ? body.walletAddress ?? null : null,
+    // fx-cache PR-2 T2.4 — REQ-FX-9. Forward the casa
+    // (optional nullable). `undefined` from the Zod parse maps
+    // to "do not write the column" in the repository (T2.7
+    // conditional spread); `null` maps to `casa = NULL`.
+    casa: body.casa,
   };
 }

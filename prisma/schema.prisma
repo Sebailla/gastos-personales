@@ -131,6 +131,31 @@ enum AccountCurrency {
   EUR
 }
 
+// --- fx-cache (PR-2) — per-account casa (nullable) ---
+// Values match the DolarAPI casa names in uppercase (Prisma's
+// enum convention). The DolarAPI wire format uses lowercase
+// (`/dolares/oficial`); the lowercase ↔ uppercase mapping lives
+// in the Zod schema at
+// `src/modules/accounts/application/validation/account-fx-casa.schema.ts`
+// and the DTO mapper at
+// `src/modules/accounts/application/dto/financial-account.dto.ts`.
+// The `fx` module's `fxCasaStringSchema`
+// (`src/modules/fx/domain/entities/fx-casa-string.schema.ts`) is
+// the lowercase mirror. Adding a casa is a multi-file change:
+// update this enum, the lowercase Zod enum, the create-account
+// form's `<select>`, and the AccountFxCasa mirror in the domain
+// entity. The Prisma migration is non-destructive (nullable, no
+// default, no backfill); existing rows go from "no column" to
+// `casa IS NULL` after `add_account_fx_casa` runs.
+enum AccountFxCasa {
+  OFICIAL
+  BLUE
+  MEP
+  CCL
+  CRIPTO
+  TARJETA
+}
+
 // ============================================================================
 // FinancialAccount model — added by accounts-ledger (PR-A, task T-A2)
 // See: openspec/changes/accounts-ledger/specs/accounts/spec.md §"Entities"
@@ -172,6 +197,16 @@ model FinancialAccount {
   broker           String?
   investmentType   InvestmentType?
   walletAddress    String?
+
+  // --- fx-cache (PR-2) — per-account casa selection ---
+  // Nullable. `NULL` means "inherit the global default"
+  // (`env.FX_DEFAULT_CASA`, defaulting to `'oficial'`). The
+  // value is passed through to the `FxRateProvider` on every
+  // `GET /api/accounts/:id/balance` call; the provider itself
+  // does not consult the env var (REQ-FX-3). See
+  // `docs/runbooks/fx-casa-migration.md` for the operator
+  // runbook.
+  casa AccountFxCasa?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
