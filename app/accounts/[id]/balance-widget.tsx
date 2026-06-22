@@ -15,6 +15,12 @@
  *   via plain `fetch` (same-origin).
  * - On `200`, renders `display.amount`, `display.fxRate`,
  *   and `display.fxAsOf` as "Last updated: <ISO>".
+ * - PR-3 T3.8: when `body.data.stale === true`, renders
+ *   the amber "Cotización desactualizada (hace N min)"
+ *   chip alongside the existing display block. The chip
+ *   text is computed client-side from `Date.now()` minus
+ *   `display.fxAsOf`. The fxAsOf plain text is unchanged
+ *   (BR-ACC-18 Decision 3 — no warning styling on it).
  * - On `503 FX_UNAVAILABLE`: inline error
  *   "FX rate provider unavailable. Try again in a few
  *   minutes."
@@ -54,6 +60,11 @@ export function BalanceWidget({
   const [result, setResult] = useState<FinancialAccountBalanceWire['display'] | null>(
     null,
   );
+  // PR-3 T3.8: track `stale` alongside the display result
+  // so the chip can be rendered conditionally. `fxAsOf` is
+  // already on `result`; we only need to lift `stale` to a
+  // sibling state.
+  const [stale, setStale] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -62,6 +73,7 @@ export function BalanceWidget({
     setLoading(true);
     setError(null);
     setResult(null);
+    setStale(false);
     try {
       const res = await fetch(
         `/api/accounts/${accountId}/balance?displayCurrency=${displayCurrency}`,
@@ -70,6 +82,7 @@ export function BalanceWidget({
       if (res.ok) {
         const body = (await res.json()) as { data: FinancialAccountBalanceWire };
         setResult(body.data.display);
+        setStale(body.data.stale);
         router.refresh();
         return;
       }
@@ -141,6 +154,7 @@ export function BalanceWidget({
 
       {result ? (
         <div className="mt-3 rounded border border-gray-200 bg-gray-50 px-3 py-2">
+          {stale ? <StaleChip fxAsOf={result.fxAsOf} /> : null}
           <p>
             Display:{' '}
             <span className="font-mono">
@@ -156,5 +170,38 @@ export function BalanceWidget({
         </div>
       ) : null}
     </section>
+  );
+}
+
+/**
+ * StaleChip — PR-3 T3.8. Renders the amber "cotización
+ * desactualizada" chip when the FX rate is stale
+ * (`body.data.stale === true`). The chip is announced
+ * via `role="status"` + `aria-live="polite"` so screen
+ * readers surface it without stealing focus.
+ *
+ * Tailwind classes per the design: `bg-amber-100
+ * text-amber-700 px-2 py-1 rounded text-sm`. The text is
+ * `"Cotización desactualizada (hace ${minutes} min)"`
+ * where minutes is `Math.floor((Date.now() -
+ * new Date(fxAsOf).getTime()) / 60000)`.
+ *
+ * The `fxAsOf` text from BR-ACC-18 (Decision 3) stays
+ * unchanged in the parent — no warning styling on it.
+ * The chip is the new signal.
+ *
+ * Exported for unit testing; the widget uses it internally.
+ */
+export function StaleChip({ fxAsOf }: { fxAsOf: string }) {
+  const minutes = Math.floor((Date.now() - new Date(fxAsOf).getTime()) / 60000);
+  return (
+    <p
+      role="status"
+      aria-live="polite"
+      data-testid="fx-stale-chip"
+      className="mb-2 inline-block rounded bg-amber-100 px-2 py-1 text-sm text-amber-700"
+    >
+      Cotización desactualizada (hace {minutes} min)
+    </p>
   );
 }
