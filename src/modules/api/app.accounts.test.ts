@@ -64,6 +64,7 @@ function makeRow(overrides: Partial<FinancialAccount> = {}): FinancialAccount {
     broker: null,
     investmentType: null,
     walletAddress: null,
+    casa: null,
     createdAt: new Date('2026-06-18T00:00:00.000Z'),
     updatedAt: new Date('2026-06-18T00:00:00.000Z'),
     ...overrides,

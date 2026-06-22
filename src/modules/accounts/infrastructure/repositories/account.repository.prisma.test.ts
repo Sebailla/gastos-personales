@@ -89,6 +89,7 @@ function buildFakePrisma(): FakePrisma {
         broker: (d['broker'] as string | null) ?? null,
         investmentType: (d['investmentType'] as InvestmentType | null) ?? null,
         walletAddress: (d['walletAddress'] as string | null) ?? null,
+        casa: (d['casa'] as FinancialAccount['casa']) ?? null,
         createdAt,
         updatedAt: createdAt,
       };

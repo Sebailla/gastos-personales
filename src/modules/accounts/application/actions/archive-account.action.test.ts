@@ -36,6 +36,7 @@ function makeRow(archivedAt: Date | null = new Date()): FinancialAccount {
     broker: null,
     investmentType: null,
     walletAddress: null,
+    casa: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
