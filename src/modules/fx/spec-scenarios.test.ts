@@ -49,7 +49,11 @@ const buildProvider = (
   env?: Record<string, string>,
 ): FxRateProviderDolarApi => {
   const cache = new UpstashFxRateCache({
-    env: { UPSTASH_REDIS_REST_URL: 'https://upstash.example', UPSTASH_REDIS_REST_TOKEN: 'tok', ...env } as unknown as NodeJS.ProcessEnv,
+    env: {
+      UPSTASH_REDIS_REST_URL: 'https://upstash.example',
+      UPSTASH_REDIS_REST_TOKEN: 'tok',
+      ...env,
+    } as unknown as NodeJS.ProcessEnv,
     redis: fakeRedis as unknown as Redis,
   });
   const dolarApi: MockClient = client;
@@ -57,7 +61,6 @@ const buildProvider = (
     cache,
     lock: withLock,
     dolarApi: dolarApi as unknown as FxRateProviderDolarApiDeps['dolarApi'],
-    env: {} as NodeJS.ProcessEnv,
   });
 };
 
@@ -160,12 +163,14 @@ describe('REQ-FX-2 — DolarAPI unavailable on cache miss throws FX_UNAVAILABLE'
     const fakeRedis = makeFakeRedis();
     const provider = new FxRateProviderDolarApi({
       cache: new UpstashFxRateCache({
-        env: { UPSTASH_REDIS_REST_URL: 'https://upstash.example', UPSTASH_REDIS_REST_TOKEN: 'tok' } as unknown as NodeJS.ProcessEnv,
+        env: {
+          UPSTASH_REDIS_REST_URL: 'https://upstash.example',
+          UPSTASH_REDIS_REST_TOKEN: 'tok',
+        } as unknown as NodeJS.ProcessEnv,
         redis: fakeRedis as unknown as Redis,
       }),
       lock: withLock,
       dolarApi: client,
-      env: {} as NodeJS.ProcessEnv,
     });
     await expect(provider.getDisplayAmount(requestFor('oficial'))).rejects.toMatchObject({
       code: 'FX_UNAVAILABLE',
@@ -173,14 +178,16 @@ describe('REQ-FX-2 — DolarAPI unavailable on cache miss throws FX_UNAVAILABLE'
   });
 });
 
-describe('REQ-FX-3 — Casa resolution is the caller\'s responsibility', () => {
+describe("REQ-FX-3 — Casa resolution is the caller's responsibility", () => {
   beforeEach(() => {
     _resetInflightForTests();
   });
 
   it('Scenario: provider receives casa on the request and uses it for the cache + upstream', async () => {
     const fakeRedis = makeFakeRedis();
-    const client: MockClient = { getDolares: vi.fn().mockResolvedValue(makeQuote({ casa: 'blue' })) };
+    const client: MockClient = {
+      getDolares: vi.fn().mockResolvedValue(makeQuote({ casa: 'blue' })),
+    };
     const provider = buildProvider(fakeRedis, client);
     await provider.getDisplayAmount(requestFor('blue'));
     expect(fakeRedis.set.mock.calls[0]?.[0]).toBe('gastos-personales:fx:v1:blue');
@@ -190,7 +197,9 @@ describe('REQ-FX-3 — Casa resolution is the caller\'s responsibility', () => {
   it('Scenario: provider does NOT read process.env.FX_DEFAULT_CASA at request time', async () => {
     vi.stubEnv('FX_DEFAULT_CASA', 'oficial');
     const fakeRedis = makeFakeRedis();
-    const client: MockClient = { getDolares: vi.fn().mockResolvedValue(makeQuote({ casa: 'mep' })) };
+    const client: MockClient = {
+      getDolares: vi.fn().mockResolvedValue(makeQuote({ casa: 'mep' })),
+    };
     const provider = buildProvider(fakeRedis, client);
     await provider.getDisplayAmount(requestFor('mep'));
     expect(client.getDolares).toHaveBeenCalledWith('mep');
@@ -235,7 +244,6 @@ describe('REQ-FX-5 — Cache is a no-op when Upstash env vars are missing', () =
       cache,
       lock: withLock,
       dolarApi: client as unknown as FxRateProviderDolarApiDeps['dolarApi'],
-      env: {} as NodeJS.ProcessEnv,
     });
     await provider.getDisplayAmount(requestFor('oficial'));
     await provider.getDisplayAmount(requestFor('oficial'));
@@ -267,7 +275,11 @@ describe('REQ-FX-7 — The stampede lock coalesces concurrent cold-start fetches
 
   it('Scenario: concurrent different-casa cache-miss calls are independent', async () => {
     const fakeRedis = makeFakeRedis();
-    const client: MockClient = { getDolares: vi.fn().mockImplementation(async (c: string) => makeQuote({ casa: c as FxCasaString })) };
+    const client: MockClient = {
+      getDolares: vi
+        .fn()
+        .mockImplementation(async (c: string) => makeQuote({ casa: c as FxCasaString })),
+    };
     const provider = buildProvider(fakeRedis, client);
     await Promise.all([
       provider.getDisplayAmount(requestFor('oficial')),

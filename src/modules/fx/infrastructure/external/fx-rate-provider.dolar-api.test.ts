@@ -7,6 +7,7 @@ import { ErrorCode } from '@/shared/errors/error-codes';
 import type { FxQuote } from '../../domain/entities/fx-quote';
 import type { FxCasaString } from '../../domain/entities/fx-casa-string.schema';
 import { withLock } from '../stampede/stampede-lock';
+import type { FxConversionRequest } from '@/modules/accounts/domain/interfaces/fx-rate-provider.port';
 
 const makeQuote = (overrides: Partial<FxQuote> = {}): FxQuote => ({
   casa: 'oficial',
@@ -40,19 +41,23 @@ const makeClient = (): MockClient => ({
   getDolares: vi.fn(),
 });
 
-const requestFor = (nativeAmount: number, casa: FxCasaString) =>
-  ({
-    native: { amount: nativeAmount, currency: 'USD' as const },
-    displayCurrency: 'ARS' as const,
-    asOf: new Date('2026-06-21T18:00:00.000Z'),
-    casa,
-  }) as unknown as Parameters<FxRateProviderDolarApi['getDisplayAmount']>[0];
-
-const emptyEnv = {} as NodeJS.ProcessEnv;
+// PR-3: the request shape now carries a REQUIRED `casa`
+// field. Use a real FxConversionRequest shape (no `as
+// unknown` cast) so the typecheck catches drift.
+const requestFor = (nativeAmount: number, casa: FxCasaString): FxConversionRequest => ({
+  native: { amount: nativeAmount, currency: 'USD' },
+  displayCurrency: 'ARS',
+  asOf: new Date('2026-06-21T18:00:00.000Z'),
+  casa,
+});
 
 describe('FxRateProviderDolarApi', () => {
   beforeEach(() => {
-    vi.stubEnv('FX_DEFAULT_CASA', undefined as unknown as string);
+    // PR-3 T3.2: the provider MUST NOT read FX_DEFAULT_CASA at
+    // request time. We explicitly stub it to a value that would
+    // differ from the request's casa if the provider were to
+    // consult env — so any leakage fails the test below.
+    vi.stubEnv('FX_DEFAULT_CASA', 'oficial');
   });
 
   afterEach(() => {
@@ -68,7 +73,6 @@ describe('FxRateProviderDolarApi', () => {
       cache,
       lock: withLock,
       dolarApi: client,
-      env: emptyEnv,
     });
     const result = await provider.getDisplayAmount(requestFor(10000, 'oficial'));
     expect(result.display.fxRate).toBe(1220);
@@ -87,7 +91,6 @@ describe('FxRateProviderDolarApi', () => {
       cache,
       lock: withLock,
       dolarApi: client,
-      env: emptyEnv,
     });
     const result = await provider.getDisplayAmount(requestFor(10000, 'oficial'));
     expect(result.display.fxRate).toBe(1220);
@@ -95,7 +98,7 @@ describe('FxRateProviderDolarApi', () => {
     expect(cache.set).not.toHaveBeenCalled();
   });
 
-  it('cache stale hit (cachedAt < now-1h) -> returns stale=true AND schedules a background refresh', async () => {
+  it('cache stale hit (cachedAt < now-1h) -> returns stale warning AND schedules a background refresh', async () => {
     vi.useFakeTimers();
     const now = new Date('2026-06-21T20:00:00.000Z');
     vi.setSystemTime(now);
@@ -111,7 +114,6 @@ describe('FxRateProviderDolarApi', () => {
       cache,
       lock: withLock,
       dolarApi: client,
-      env: emptyEnv,
     });
     const result = await provider.getDisplayAmount(requestFor(10000, 'oficial'));
     expect(result.warnings).toContain('FX rate is stale; showing last known value.');
@@ -124,7 +126,10 @@ describe('FxRateProviderDolarApi', () => {
     vi.useRealTimers();
   });
 
-  it('cache stale hit + background refresh fails -> caller still receives stale value with stale=true, no AppError', async () => {
+  it('cache stale hit + background refresh fails -> caller still receives stale value, no AppError', async () => {
+    // PR-3 T3.2 triangulation: the casa field on the request
+    // does not affect the background-refresh error path. The
+    // stale path is doing its job; the refresh is best-effort.
     vi.useFakeTimers();
     const now = new Date('2026-06-21T20:00:00.000Z');
     vi.setSystemTime(now);
@@ -139,7 +144,6 @@ describe('FxRateProviderDolarApi', () => {
       cache,
       lock: withLock,
       dolarApi: client,
-      env: emptyEnv,
     });
     const result = await provider.getDisplayAmount(requestFor(10000, 'oficial'));
     expect(result.warnings).toContain('FX rate is stale; showing last known value.');
@@ -161,7 +165,6 @@ describe('FxRateProviderDolarApi', () => {
       cache,
       lock: withLock,
       dolarApi: client,
-      env: emptyEnv,
     });
     await expect(provider.getDisplayAmount(requestFor(10000, 'oficial'))).rejects.toMatchObject({
       code: ErrorCode.FX_UNAVAILABLE,
@@ -170,6 +173,8 @@ describe('FxRateProviderDolarApi', () => {
   });
 
   it('provider receives a casa on the request and passes it to the cache + the DolarAPI client', async () => {
+    // PR-3 T3.2 RED case: the casa comes from the request, not
+    // from the constructor's env.
     const cache = makeCache();
     const client = makeClient();
     cache.get.mockResolvedValue(null);
@@ -178,7 +183,6 @@ describe('FxRateProviderDolarApi', () => {
       cache,
       lock: withLock,
       dolarApi: client,
-      env: emptyEnv,
     });
     await provider.getDisplayAmount(requestFor(10000, 'blue'));
     expect(cache.get).toHaveBeenCalledWith('blue');
@@ -187,21 +191,20 @@ describe('FxRateProviderDolarApi', () => {
   });
 
   it('provider does NOT read process.env.FX_DEFAULT_CASA at request time (env var absence does not change the resolved casa)', async () => {
+    // PR-3 T3.2 triangulation: the env is stubbed to 'oficial'
+    // (via the beforeEach) but the request carries 'mep'. The
+    // provider MUST honour the request's casa and NOT silently
+    // overwrite it with the env default.
     const cache = makeCache();
     const client = makeClient();
     cache.get.mockResolvedValue(null);
     client.getDolares.mockResolvedValue(makeQuote({ casa: 'mep' }));
-    vi.stubEnv('FX_DEFAULT_CASA', 'oficial');
     const provider = new FxRateProviderDolarApi({
       cache,
       lock: withLock,
       dolarApi: client,
-      env: emptyEnv,
     });
     await provider.getDisplayAmount(requestFor(10000, 'mep'));
-    // Env says 'oficial' but the request carries 'mep' — the
-    // provider MUST honour the request's casa and not silently
-    // overwrite it with the env default.
     expect(client.getDolares).toHaveBeenCalledWith('mep');
     expect(cache.set).toHaveBeenCalledWith('mep', expect.objectContaining({ casa: 'mep' }));
   });
@@ -215,7 +218,6 @@ describe('FxRateProviderDolarApi', () => {
       cache,
       lock: withLock,
       dolarApi: client,
-      env: emptyEnv,
     });
     await provider.getDisplayAmount(requestFor(10000, 'oficial'));
     await provider.getDisplayAmount(requestFor(10000, 'oficial'));
