@@ -662,6 +662,7 @@ objects, or request bodies in the error response.
 
 - `openspec/changes/accounts-ledger/proposal.md` — proposal v3 (draft 2026-06-18); the spec operationalizes the proposal.
 - `openspec/specs/auth/spec.md` — canonical `auth` capability; cross-module invariant on `userId` and the `auth()` server-side helper.
+- `openspec/specs/fx/spec.md` — canonical `fx` capability; the `FxRateProvider` interface declared in `src/modules/accounts/domain/interfaces/fx-rate-provider.port.ts` is consumed by `accounts` (via `get-account-balance.action.ts`). The implementation lives in `fx` (REQ-FX-3 enforced at the type level). The `FinancialAccountBalanceDto` is co-owned — `fx` adds the `stale: boolean` field; `accounts` owns the wire shape.
 - `openspec/config.yaml` — strict TDD rules; `pnpm test` runner.
 - `openspec/changes/archive/auth-foundation-slice-c/spec.md` — sibling delta spec; format and tone reference.
 - `AGENTS.md` (root) — §5.3 `pnpm-lock.yaml` policy; §3 dual-language docs mirror policy.
