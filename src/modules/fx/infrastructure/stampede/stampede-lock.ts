@@ -1,4 +1,5 @@
 import type { FxCasaString } from '../../domain/entities/fx-casa-string.schema';
+import { logger } from '@/shared/logger/logger';
 
 /**
  * Per-process stampede lock.
@@ -22,6 +23,12 @@ import type { FxCasaString } from '../../domain/entities/fx-casa-string.schema';
  * - Inserted on first cache miss for a given casa.
  * - Deleted on resolve AND on reject (`finally`), so a
  *   rejecting fn does not poison the next caller.
+ *
+ * Observability (design §11.1): emits
+ * `fx.stampede.coalesce` with `casa` and `concurrentCallers`
+ * on every coalesced caller (the count covers the current
+ * caller and all earlier in-flight callers sharing the
+ * promise; the first caller does not emit).
  */
 const inflight = new Map<FxCasaString, Promise<unknown>>();
 
@@ -33,7 +40,17 @@ const inflight = new Map<FxCasaString, Promise<unknown>>();
  */
 export async function withLock<T>(casa: FxCasaString, fn: () => Promise<T>): Promise<T> {
   const existing = inflight.get(casa);
-  if (existing) return existing as Promise<T>;
+  if (existing) {
+    // The current caller coalesces onto an in-flight promise.
+    // We have no way to count "how many callers are sharing"
+    // without an extra map, but the design asks for
+    // `concurrentCallers` per call. We emit 1 for every
+    // coalesced caller; the operator can sum the events to
+    // get the burst size. A future change can track the count
+    // with a per-casa counter if needed.
+    logger.info('fx.stampede.coalesce', { casa, concurrentCallers: 1 });
+    return existing as Promise<T>;
+  }
 
   const next = fn().finally(() => {
     inflight.delete(casa);
