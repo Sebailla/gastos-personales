@@ -103,15 +103,21 @@ export async function signInCallback(params: {
     // sign-in). The error is logged with the last attempt's
     // error message. Fixes 4R-R4 C-1 (withRetry was dead code).
     const result = await withRetry(
-      () => prisma().user.updateMany({
-        where: { email },
-        data: { lastLoginAt: clock.now() },
-      }),
+      () =>
+        prisma().user.updateMany({
+          where: { email },
+          data: { lastLoginAt: clock.now() },
+        }),
       {
         attempts: 3,
         baseDelayMs: 100,
         onRetry: (err: unknown, next: number, delayMs: number) =>
-          logger.warn('signIn_callback_retry', { email, next, delayMs, error: err instanceof Error ? err.message : String(err) }),
+          logger.warn('signIn_callback_retry', {
+            email,
+            next,
+            delayMs,
+            error: err instanceof Error ? err.message : String(err),
+          }),
       },
     );
     if (result.count === 0) {
@@ -193,17 +199,33 @@ export const authConfig: NextAuthConfig = {
     async session({ session, user }) {
       if (session.user && user?.id) {
         session.user.id = user.id;
-        const dbUser = await prisma().user.findUnique({
-          where: { id: user.id },
-          select: { defaultProvider: true, lastLoginAt: true },
-        });
-        if (dbUser) {
-          // The Auth.js Session type doesn't know about our custom
-          // fields; we attach them via the same `user` object so
-          // the client can read them through `useSession()`.
-          Object.assign(session.user, {
-            defaultProvider: dbUser.defaultProvider,
-            lastLoginAt: dbUser.lastLoginAt ? dbUser.lastLoginAt.toISOString() : null,
+        // Graceful degradation: if the DB lookup fails (Prisma
+        // outage, transient connection blip), we still return the
+        // session with `session.user.id` already set above. The
+        // custom fields (`defaultProvider`, `lastLoginAt`) are
+        // optional additive extensions — the client can fall back
+        // to its default state when they're missing. We log the
+        // error for observability but never propagate it: a
+        // session callback rejection surfaces as a 500 to the
+        // client instead of a usable session.
+        try {
+          const dbUser = await prisma().user.findUnique({
+            where: { id: user.id },
+            select: { defaultProvider: true, lastLoginAt: true },
+          });
+          if (dbUser) {
+            // The Auth.js Session type doesn't know about our custom
+            // fields; we attach them via the same `user` object so
+            // the client can read them through `useSession()`.
+            Object.assign(session.user, {
+              defaultProvider: dbUser.defaultProvider,
+              lastLoginAt: dbUser.lastLoginAt ? dbUser.lastLoginAt.toISOString() : null,
+            });
+          }
+        } catch (err) {
+          logger.error('session_callback_db_lookup_failed', {
+            userId: user.id,
+            errorMessage: err instanceof Error ? err.message : String(err),
           });
         }
       }

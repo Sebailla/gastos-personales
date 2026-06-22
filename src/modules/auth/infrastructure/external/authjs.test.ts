@@ -159,16 +159,47 @@ describe('callbacks.session', () => {
     expect(user.lastLoginAt).toBe('2026-06-12T10:00:00.000Z');
   });
 
-  it('propagates the UserRepository error (no graceful degradation — flagged in PR body)', async () => {
-    // NOTE: the production `session` callback does NOT wrap the
-    // `prisma().user.findUnique` call in try/catch. The contract
-    // documented for this callback is "graceful degradation", so
-    // today's behaviour is a documented-vs-implemented drift. We're
-    // flagging it in the PR body and leaving the fix to a follow-up
-    // change (scope creep to fix here).
+  it('returns the session without custom fields when UserRepository throws (graceful degradation)', async () => {
+    // Contract: a DB outage during the session callback must NOT
+    // reject the entire callback (that surfaces as a 500). The
+    // callback returns the session with `session.user.id` (set above
+    // the DB call, never touches the DB) and omits the optional
+    // additive custom fields (`defaultProvider`, `lastLoginAt`).
+    // The error is logged for observability.
     findUnique.mockRejectedValueOnce(new Error('db down'));
     const session = { user: { email: 'alice@example.com' } };
-    await expect(invokeSession({ session, user: { id: 'u-2' } })).rejects.toThrow('db down');
+    const result = await invokeSession({ session, user: { id: 'u-2' } });
+
+    expect(result).toBeDefined();
+    const user = result.user as { id?: string; defaultProvider?: unknown; lastLoginAt?: unknown };
+    expect(user.id).toBe('u-2');
+    expect(user.defaultProvider).toBeUndefined();
+    expect(user.lastLoginAt).toBeUndefined();
+  });
+
+  it('logs the DB-lookup error via the structured logger', async () => {
+    // The session callback's graceful-degradation branch must emit a
+    // structured error log so operators can see the outage in Sentry
+    // / the JSON log stream. The log payload carries the user id and
+    // the underlying error message; it MUST NOT propagate.
+    const logger = (await import('@/shared/logger/logger')).logger;
+    const errorSpy = vi.spyOn(logger, 'error');
+    findUnique.mockRejectedValueOnce(new Error('db down'));
+
+    const session = { user: { email: 'alice@example.com' } };
+    const result = await invokeSession({ session, user: { id: 'u-log' } });
+    expect(result).toBeDefined();
+    const user = result.user as { id?: string };
+    expect(user.id).toBe('u-log');
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      'session_callback_db_lookup_failed',
+      expect.objectContaining({
+        userId: 'u-log',
+        errorMessage: 'db down',
+      }),
+    );
+    errorSpy.mockRestore();
   });
 
   it('returns the session unchanged when user.id is missing', async () => {

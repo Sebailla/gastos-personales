@@ -59,6 +59,7 @@ vi.mock('@auth/prisma-adapter', () => ({
 
 import { createEncryptedPrismaAdapter } from './encrypted-prisma-adapter';
 import { AppError } from '@/shared/errors/app-error';
+import { ErrorCode } from '@/shared/errors/error-codes';
 
 // 32-byte key encoded as 64 hex chars. Real keys live in Fly secrets.
 const TEST_KEY_HEX = 'a'.repeat(64);
@@ -154,7 +155,9 @@ describe('createEncryptedPrismaAdapter.linkAccount', () => {
     >;
     // The token fields reaching Prisma must be Uint8Array (encrypted
     // bytes), not the plaintext strings. Length > 0 because the
-    // envelope includes IV + ciphertext + tag.
+    // envelope includes IV + ciphertext + tag. Prisma's runtime accepts
+    // any `Bytes`-shaped value (Buffer / Uint8Array), so Uint8Array is
+    // the correct contract surface here.
     expect(passedToBase['refresh_token']).toBeInstanceOf(Uint8Array);
     expect((passedToBase['refresh_token'] as Uint8Array).length).toBeGreaterThan(0);
     expect(passedToBase['access_token']).toBeInstanceOf(Uint8Array);
@@ -223,25 +226,25 @@ describe('createEncryptedPrismaAdapter.linkAccount', () => {
     expect(result).toBeNull();
   });
 
-  it('propagates the underlying linkAccount error (no try/catch — flagged in PR body)', async () => {
-    // NOTE: the production `linkAccount` does NOT wrap `base.linkAccount`
-    // in try/catch. A prisma outage during linkAccount surfaces as a
-    // raw `Error` to the Auth.js callback, not as `AppError(INTERNAL_ERROR)`.
-    // The contract documentation (file header) says "throws AppError(INTERNAL_ERROR)
-    // if the underlying base.linkAccount throws", so this is a documented-vs-implemented
-    // drift. We're flagging it in the PR body and leaving the fix to a follow-up
-    // change (scope creep to fix here).
+  it('wraps the underlying linkAccount error in AppError(INTERNAL_ERROR)', async () => {
+    // Contract (file header): underlying base.linkAccount failures
+    // (Prisma outage, network blip) must surface as AppError(INTERNAL_ERROR)
+    // so the Auth.js callback sees a known, expected error class.
+    // The original error is preserved on `cause` for traceability.
     const { client } = buildPrismaClient();
     const adapter = createEncryptedPrismaAdapter(client);
-    prismaAdapterMock.linkAccount.mockRejectedValue(new Error('prisma is down'));
+    const underlying = new Error('prisma is down');
+    prismaAdapterMock.linkAccount.mockRejectedValue(underlying);
 
-    await expect(adapter.linkAccount!(buildAccountRow({ refresh_token: 'tok' }))).rejects.toThrow(
-      'prisma is down',
-    );
-    // Confirm it is NOT wrapped as AppError today.
-    await expect(
-      adapter.linkAccount!(buildAccountRow({ refresh_token: 'tok' })),
-    ).rejects.not.toBeInstanceOf(AppError);
+    let caught: unknown;
+    try {
+      await adapter.linkAccount!(buildAccountRow({ refresh_token: 'tok' }));
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(AppError);
+    expect((caught as AppError).code).toBe(ErrorCode.INTERNAL_ERROR);
+    expect((caught as AppError).cause).toBe(underlying);
   });
 
   it('throws AppError(INTERNAL_ERROR) if OAUTH_TOKEN_ENCRYPTION_KEY is missing', async () => {
