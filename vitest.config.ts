@@ -22,6 +22,7 @@ export default defineConfig({
       include: [
         'src/modules/auth/**',
         'src/modules/accounts/**',
+        'src/modules/fx/**',
         'src/shared/db/**',
         'src/shared/env/**',
         'src/shared/logger/**',
