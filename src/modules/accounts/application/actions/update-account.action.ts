@@ -48,6 +48,12 @@ function toPatch(
       patch.openingBalanceDate = body.openingBalance.date ?? null;
     }
   }
+  // fx-cache PR-2 T2.8 — REQ-FX-9. Forward casa. `undefined`
+  // means "do not touch this column"; `null` means "set the
+  // column to NULL" (user reverts to inheriting the global
+  // default). The two cases are distinct on the wire and the
+  // repository honours them.
+  if (body.casa !== undefined) patch.casa = body.casa;
   if (body.type === 'BANK') {
     if (body.bankName !== undefined) patch.bankName = body.bankName;
     if (body.accountKind !== undefined) patch.accountKind = body.accountKind;

@@ -10,6 +10,7 @@ import { updateAccountAction } from './update-account.action';
 import type { AccountActionDeps } from './_shared';
 import {
   AccountCurrency,
+  AccountFxCasa,
   AccountKind,
   AccountType,
   OpeningBalanceMode,
@@ -72,5 +73,24 @@ describe('updateAccountAction', () => {
     });
     assertFail(result);
     expect(result.status).toBe(404);
+  });
+
+  // fx-cache PR-2 T2.8 — REQ-FX-9. The action forwards casa
+  // from the validated body to the repository update call.
+  it('forwards casa: "BLUE" to the repository update call', async () => {
+    const updateSpy = vi.fn(async () => makeRow());
+    const deps: AccountActionDeps = {
+      accountService: { update: updateSpy } as never,
+    };
+    const result = await updateAccountAction(deps, 'u-1', 'fa-1', {
+      type: AccountType.BANK,
+      casa: AccountFxCasa.BLUE,
+    });
+    assertOk(result);
+    expect(updateSpy).toHaveBeenCalledWith(
+      'u-1',
+      'fa-1',
+      expect.objectContaining({ casa: AccountFxCasa.BLUE }),
+    );
   });
 });
