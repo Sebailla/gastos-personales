@@ -22,6 +22,7 @@ import {
   OpeningBalanceMode,
   AccountType,
 } from '../../domain/entities/financial-account';
+import { accountFxCasaSchema } from './account-fx-casa.schema';
 
 const accountCurrencySchema = z.enum([
   AccountCurrency.ARS,
@@ -56,6 +57,8 @@ const bankUpdateSchema = z
     openingBalance: openingBalanceUpdateSchema,
     bankName: z.string().min(1).optional(),
     accountKind: z.enum([AccountKind.SAVINGS, AccountKind.CHECKING]).optional(),
+    // fx-cache PR-2 T2.5 — REQ-FX-9. Partial nullable casa.
+    casa: accountFxCasaSchema.nullable().optional(),
   })
   .strict();
 
@@ -69,6 +72,7 @@ const creditUpdateSchema = z
     creditLimitMinor: z.number().int().min(0).optional(),
     statementDay: z.number().int().min(1).max(31).optional(),
     paymentDueDay: z.number().int().min(1).max(31).optional(),
+    casa: accountFxCasaSchema.nullable().optional(),
   })
   .strict();
 
@@ -88,6 +92,7 @@ const investmentUpdateSchema = z
         InvestmentType.OTHER,
       ])
       .optional(),
+    casa: accountFxCasaSchema.nullable().optional(),
   })
   .strict();
 
@@ -98,6 +103,7 @@ const cryptoUpdateSchema = z
     currency: accountCurrencySchema.optional(),
     openingBalance: openingBalanceUpdateSchema,
     walletAddress: z.string().optional(),
+    casa: accountFxCasaSchema.nullable().optional(),
   })
   .strict();
 
@@ -107,6 +113,7 @@ const cashUpdateSchema = z
     name: z.string().min(1).max(80).optional(),
     currency: accountCurrencySchema.optional(),
     openingBalance: openingBalanceUpdateSchema,
+    casa: accountFxCasaSchema.nullable().optional(),
   })
   .strict();
 
@@ -116,6 +123,7 @@ const otherUpdateSchema = z
     name: z.string().min(1).max(80).optional(),
     currency: accountCurrencySchema.optional(),
     openingBalance: openingBalanceUpdateSchema,
+    casa: accountFxCasaSchema.nullable().optional(),
   })
   .strict();
 

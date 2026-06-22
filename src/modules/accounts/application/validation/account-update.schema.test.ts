@@ -1,11 +1,17 @@
 /**
  * Tests for accountUpdateSchema.
+ *
+ * fx-cache PR-2 T2.5 — REQ-FX-9. The update schema accepts the
+ * partial casa field (UPPERCASE Prisma form). Two cases:
+ * (1) partial with casa: 'BLUE' parses;
+ * (2) casa: 'INVALID' fails.
  */
 
 import { describe, it, expect } from 'vitest';
 import { accountUpdateSchema } from './account-update.schema';
 import {
   AccountCurrency,
+  AccountFxCasa,
   AccountType,
   OpeningBalanceMode,
 } from '../../domain/entities/financial-account';
@@ -57,6 +63,26 @@ describe('accountUpdateSchema', () => {
     const result = accountUpdateSchema.safeParse({
       type: 'GOLD',
       name: 'X',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  // -- fx-cache PR-2 T2.5 — REQ-FX-9 casa partial --
+  it('accepts a partial update with casa: BLUE (UPPERCASE Prisma form)', () => {
+    const result = accountUpdateSchema.safeParse({
+      type: AccountType.BANK,
+      casa: AccountFxCasa.BLUE,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data['casa']).toBe(AccountFxCasa.BLUE);
+    }
+  });
+
+  it('rejects casa: "INVALID" (not one of the 6 AccountFxCasa values)', () => {
+    const result = accountUpdateSchema.safeParse({
+      type: AccountType.BANK,
+      casa: 'INVALID',
     });
     expect(result.success).toBe(false);
   });
