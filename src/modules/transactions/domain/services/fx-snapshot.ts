@@ -1,6 +1,5 @@
-import type { FxRateProvider } from '@/modules/accounts';
-import { AccountCurrency } from '@/modules/accounts';
-import { AccountFxCasa } from '../entities/transaction';
+import { AccountCurrency, AccountFxCasa } from '../entities/transaction';
+import type { FxRateProvider } from '../interfaces/fx-rate-provider.port';
 
 /**
  * FX snapshot helper: `convertAndSnapshot`.
