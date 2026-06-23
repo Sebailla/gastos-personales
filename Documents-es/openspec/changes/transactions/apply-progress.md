@@ -1,11 +1,11 @@
-# Progreso de Apply — `transactions` (slice 1: entidad + port + factory)
+# Progreso de Apply — `transactions` (slices 1+2: entidad, port, factory, fx-snapshot, códigos de error, evento)
 
 **Autor**: Sebastián Illa
 **Cambio**: `transactions`
-**Slice**: 1 de N — slice atómico de entidad (agregado `Transaction`, `TransactionRepositoryPort`, factory `createTransaction`, const `TransactionDirection`, errores de dominio)
-**Rama**: `feat/transactions-entity`
+**Slices**: 1 (entidad + port + factory) mergeado en `d66151c`; 2 (helper fx-snapshot + 3 códigos de error + evento `TransactionRecorded` + cableado de factory) — este archivo
+**Rama**: `feat/transactions-fx-snapshot`
 **Base**: `develop`
-**Estado**: needs-split · **Creado**: 2026-06-23 · **Última sync**: 2026-06-23 (slice 1)
+**Estado**: abierto · **Creado**: 2026-06-23 · **Última sync**: 2026-06-23 (slice 2)
 **Stack**: v3 — Next.js 16 + Node 20 + Hono catch-all + Auth.js v5 (heredado de `auth-foundation`) + Prisma 6 + PostgreSQL (Neon) + Zod + Vitest + pnpm + Tailwind v4
 **TDD estricto**: habilitado según `openspec/config.yaml`; runner `pnpm test`; ciclo RED → GREEN → TRIANGULATE → REFACTOR
 
@@ -179,3 +179,78 @@ Abrir el PR (`gh pr create`) solo después de que el usuario acepte
 explícitamente el sobre-presupuesto. El título, body y outputs de
 verificación del PR están listos; el push + `gh` se retuvo por la regla
 de review-antes-de-merge del usuario (AGENTS.md §5.2).
+
+---
+
+# Slice 2 — helper fx-snapshot + 3 códigos de error + evento `TransactionRecorded` + cableado de factory
+
+**Rama**: `feat/transactions-fx-snapshot` (worktree `../gastos-personales-transactions-fx-snapshot/`)
+**Base**: `develop` (slice 1 ya mergeado en `d66151c`)
+**Alcance**: estricto — ver "Alcance del slice 2" abajo
+**Estado**: en curso
+
+## Alcance del slice 2 (vinculante)
+
+| #    | Archivo                                                         | Tipo | Spec REQ                     | Notas                                                                                                                                                           |
+| ---- | --------------------------------------------------------------- | ---- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S2-1 | `domain/services/fx-snapshot.ts`                                | impl | REQ-TX-12, BR-TX-6           | `convertAndSnapshot` puro + `currencyForCasa`                                                                                                                   |
+| S2-2 | `domain/services/fx-snapshot.test.ts`                           | test | REQ-TX-12, BR-TX-6, DG-TX-8  | 6 casos (skip native=casa, llamada FX cuando difieren, propagación `FX_UNAVAILABLE`, redondeo half-up, `fxAsOfSnapshot: Date \| null`, mapeo `currencyForCasa`) |
+| S2-3 | `shared/errors/error-codes.ts`                                  | impl | REQ-TX-2, REQ-TX-4, REQ-TX-7 | 3 códigos nuevos: `INVALID_AMOUNT`, `FUTURE_DATE_NOT_ALLOWED`, `ACCOUNT_ARCHIVED` + entradas correspondientes en `ErrorStatus`                                  |
+| S2-4 | `shared/errors/error-codes.test.ts`                             | test | REQ-TX-2, REQ-TX-4, REQ-TX-7 | 3 casos (códigos exportados, mapeo `ErrorStatus`, type-check exhaustivo)                                                                                        |
+| S2-5 | `shared/events/event-dispatcher.ts`                             | impl | REQ-TX-13, BR-TX-11          | variante `TransactionRecorded` + payload + constante                                                                                                            |
+| S2-6 | `shared/events/event-dispatcher.test.ts`                        | test | REQ-TX-13, BR-TX-11          | 3 casos (variante agregada, tipo payload expuesto, round-trip subscribe+dispatch)                                                                               |
+| S2-7 | `domain/factories/create-transaction.ts`                        | impl | REQ-TX-12, REQ-TX-13         | cablear `FxRateProvider` + `EventDispatcher`; estampar snapshot + despachar evento                                                                              |
+| S2-8 | `domain/factories/create-transaction.test.ts` (UPDATE — append) | test | REQ-TX-12, REQ-TX-13         | 4 casos nuevos (estampa convertedAmountMinor cuando native=casa, llama a FX cuando difieren, despacha `TransactionRecorded`, acepta casa custom del input)      |
+| S2-9 | `domain/index.ts`                                               | impl | barrel                       | re-exportar `convertAndSnapshot`, `FxSnapshot`, `FxSnapshotInput`, `currencyForCasa`                                                                            |
+
+**Fuera de alcance (según spec del slice):** `application/**`, `infrastructure/**`, `prisma/schema.prisma`, `app/transactions/**`, `src/modules/api/app.ts`, cualquier archivo bajo `src/shared/` que no sea `error-codes.ts` o `event-dispatcher.ts`, cualquier archivo bajo `src/modules/accounts/**`, cualquier archivo bajo `src/modules/fx/**`.
+
+## Baseline de pre-vuelo (2026-06-23, slice 2)
+
+| Verificación                      | Resultado                                                        |
+| --------------------------------- | ---------------------------------------------------------------- |
+| `pnpm install --ignore-workspace` | OK (905 paquetes)                                                |
+| `pnpm prisma generate`            | OK (v7.8.0)                                                      |
+| `pnpm test` (baseline)            | **551 pasaron**, 4 skipped (testcontainers Postgres), 0 fallaron |
+| `pnpm run typecheck` (baseline)   | **0 errores**                                                    |
+| `gga run` (baseline)              | OK — "No matching files staged for commit"                       |
+
+## Desviaciones del slice 2 (planificadas)
+
+> **1. Cambio de firma de la factory.** La factory del slice 1
+> `createTransaction(input: NewTransactionInput): Transaction` se
+> extiende a `createTransaction(input, deps, fxRateProvider)`. Esto
+> cambia la firma pública; los tests del slice 1 siguen pasando porque
+> los nuevos parámetros son opcionales y por defecto saltean la llamada
+> FX y el dispatch del evento. Los 4 casos nuevos ejercen tanto el
+> camino de estampa del FX como el de dispatch del evento.
+
+> **2. Module-isolation: import del barrel `accounts` para tipos del port.**
+> La spec del slice permite importar `FxRateProvider` (el port) y
+> `AccountCurrency` / `AccountFxCasa` (los enums) vía el barrel
+> `@/modules/accounts` en el límite de dominio. Esto coincide con el
+> contrato del §2.3 del design. Los espejos locales de
+> `AccountCurrency` / `AccountFxCasa` del slice 1 quedan en su lugar
+> (su docstring ya documenta el futuro refactor de shared-kernel); el
+> helper del slice 2 importa desde el barrel — los dos conviven por la
+> duración del cambio `transactions`.
+
+## Compuertas de aceptación del slice 2 (a completar al cierre)
+
+- [ ] `pnpm test` sale 0; tests agregados (objetivo: +16 a través de los 4 archivos de test)
+- [ ] `pnpm run typecheck` sale 0 (0 errores)
+- [ ] `pnpm test --coverage` ≥ 80% líneas en `src/modules/transactions/domain/**`
+- [ ] `git log develop..feat/transactions-fx-snapshot --oneline` muestra la secuencia atómica de commits
+- [ ] `git log develop..feat/transactions-fx-snapshot | grep -i "no-verify"` está vacío
+- [ ] `git log develop..feat/transactions-fx-snapshot | grep -iE "co-authored.*(ai|claude|gpt|gemini)|with ai help|generated by ai"` está vacío
+- [ ] `git diff --stat develop..feat/transactions-fx-snapshot | tail -1` < 600 líneas
+- [ ] `Documents-es/openspec/changes/transactions/apply-progress.md` espeja el archivo EN; 0 caracteres CJK
+- [ ] Todos los commits pasan `pnpm test`, `pnpm run typecheck`, `pnpm exec lint-staged && gga run`
+
+## Ledger de commits del slice 2 (a completar al cierre)
+
+(se completa después de que aterricen los commits de la fase GREEN)
+
+## Evidencia TDD del slice 2 (a completar al cierre)
+
+(se completa después de cada ciclo RED → GREEN)

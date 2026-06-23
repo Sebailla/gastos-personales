@@ -1,11 +1,11 @@
-# Apply Progress — `transactions` (slice 1: entity + port + factory)
+# Apply Progress — `transactions` (slices 1+2: entity, port, factory, fx-snapshot, error codes, event)
 
 **Author**: Sebastián Illa
 **Change**: `transactions`
-**Slice**: 1 of N — atomic entity slice (`Transaction` aggregate, `TransactionRepositoryPort`, `createTransaction` factory, `TransactionDirection` const, domain errors)
-**Branch**: `feat/transactions-entity`
+**Slices**: 1 (entity + port + factory) merged in `d66151c`; 2 (fx-snapshot helper + 3 error codes + `TransactionRecorded` event + factory wiring) — this file
+**Branch**: `feat/transactions-fx-snapshot`
 **Base**: `develop`
-**Status**: needs-split · **Created**: 2026-06-23 · **Last sync**: 2026-06-23 (slice 1)
+**Status**: open · **Created**: 2026-06-23 · **Last sync**: 2026-06-23 (slice 2)
 **Stack**: v3 — Next.js 16 + Node 20 + Hono catch-all + Auth.js v5 (inherited from `auth-foundation`) + Prisma 6 + PostgreSQL (Neon) + Zod + Vitest + pnpm + Tailwind v4
 **Strict TDD**: enabled per `openspec/config.yaml`; runner `pnpm test`; cycle RED → GREEN → TRIANGULATE → REFACTOR
 
@@ -174,3 +174,78 @@ Open the PR (`gh pr create`) only after the user explicitly accepts the
 over-budget. The PR title, body, and verification outputs are ready; the
 push + `gh` step was held back per the user's review-before-merge rule
 (AGENTS.md §5.2).
+
+---
+
+# Slice 2 — fx-snapshot helper + 3 error codes + `TransactionRecorded` event + factory wiring
+
+**Branch**: `feat/transactions-fx-snapshot` (worktree `../gastos-personales-transactions-fx-snapshot/`)
+**Base**: `develop` (slice 1 already merged at `d66151c`)
+**Scope**: tight — see "Slice 2 scope" below
+**Status**: in progress
+
+## Slice 2 scope (binding)
+
+| #    | File                                                            | Type | Spec REQ                     | Notes                                                                                                                                                      |
+| ---- | --------------------------------------------------------------- | ---- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S2-1 | `domain/services/fx-snapshot.ts`                                | impl | REQ-TX-12, BR-TX-6           | pure `convertAndSnapshot` + `currencyForCasa`                                                                                                              |
+| S2-2 | `domain/services/fx-snapshot.test.ts`                           | test | REQ-TX-12, BR-TX-6, DG-TX-8  | 6 cases (native=casa skip, FX call when differ, `FX_UNAVAILABLE` propagation, half-up rounding, `fxAsOfSnapshot: Date \| null`, `currencyForCasa` mapping) |
+| S2-3 | `shared/errors/error-codes.ts`                                  | impl | REQ-TX-2, REQ-TX-4, REQ-TX-7 | 3 new codes: `INVALID_AMOUNT`, `FUTURE_DATE_NOT_ALLOWED`, `ACCOUNT_ARCHIVED` + matching `ErrorStatus` entries                                              |
+| S2-4 | `shared/errors/error-codes.test.ts`                             | test | REQ-TX-2, REQ-TX-4, REQ-TX-7 | 3 cases (codes exported, `ErrorStatus` mapping, exhaustive type check)                                                                                     |
+| S2-5 | `shared/events/event-dispatcher.ts`                             | impl | REQ-TX-13, BR-TX-11          | `TransactionRecorded` variant + payload + constant                                                                                                         |
+| S2-6 | `shared/events/event-dispatcher.test.ts`                        | test | REQ-TX-13, BR-TX-11          | 3 cases (variant added, payload type exposed, subscribe+dispatch round-trip)                                                                               |
+| S2-7 | `domain/factories/create-transaction.ts`                        | impl | REQ-TX-12, REQ-TX-13         | wire `FxRateProvider` + `EventDispatcher`; stamp snapshot + dispatch event                                                                                 |
+| S2-8 | `domain/factories/create-transaction.test.ts` (UPDATE — append) | test | REQ-TX-12, REQ-TX-13         | 4 new cases (stamps convertedAmountMinor when native=casa, calls FX when differ, dispatches `TransactionRecorded`, accepts custom casa)                    |
+| S2-9 | `domain/index.ts`                                               | impl | barrel                       | re-export `convertAndSnapshot`, `FxSnapshot`, `FxSnapshotInput`, `currencyForCasa`                                                                         |
+
+**Out of scope (per slice spec):** `application/**`, `infrastructure/**`, `prisma/schema.prisma`, `app/transactions/**`, `src/modules/api/app.ts`, any file under `src/shared/` other than `error-codes.ts` and `event-dispatcher.ts`, any file under `src/modules/accounts/**`, any file under `src/modules/fx/**`.
+
+## Pre-flight baseline (2026-06-23, slice 2)
+
+| Check                             | Result                                                        |
+| --------------------------------- | ------------------------------------------------------------- |
+| `pnpm install --ignore-workspace` | OK (905 packages)                                             |
+| `pnpm prisma generate`            | OK (v7.8.0)                                                   |
+| `pnpm test` (baseline)            | **551 passed**, 4 skipped (testcontainers Postgres), 0 failed |
+| `pnpm run typecheck` (baseline)   | **0 errors**                                                  |
+| `gga run` (baseline)              | OK — "No matching files staged for commit"                    |
+
+## Slice 2 deviations (planned)
+
+> **1. Factory signature change.** The slice 1 factory
+> `createTransaction(input: NewTransactionInput): Transaction` is
+> extended to `createTransaction(input, deps, fxRateProvider)`. This
+> changes the public signature; slice 1 tests continue to pass because
+> the new parameters are optional and default to skipping the FX call
+> and the event dispatch. The 4 new cases exercise both the FX
+> stamp path and the event dispatch path.
+
+> **2. Module-isolation: `accounts` barrel import for port types.**
+> The slice spec allows importing `FxRateProvider` (the port) and
+> `AccountCurrency` / `AccountFxCasa` (the enums) via the
+> `@/modules/accounts` barrel at the domain boundary. This matches
+> the design §2.3 contract. Slice 1's local `AccountCurrency` /
+> `AccountFxCasa` mirrors remain in place (their docstring already
+> documents the future shared-kernel refactor); the slice 2 helper
+> imports from the barrel — the two coexist for the duration of the
+> `transactions` change.
+
+## Slice 2 acceptance gates (to be filled at close)
+
+- [ ] `pnpm test` exits 0; tests added (target: +16 across the 4 test files)
+- [ ] `pnpm run typecheck` exits 0 (0 errors)
+- [ ] `pnpm test --coverage` ≥ 80% lines on `src/modules/transactions/domain/**`
+- [ ] `git log develop..feat/transactions-fx-snapshot --oneline` shows the atomic commit sequence
+- [ ] `git log develop..feat/transactions-fx-snapshot | grep -i "no-verify"` is empty
+- [ ] `git log develop..feat/transactions-fx-snapshot | grep -iE "co-authored.*(ai|claude|gpt|gemini)|with ai help|generated by ai"` is empty
+- [ ] `git diff --stat develop..feat/transactions-fx-snapshot | tail -1` < 600 lines
+- [ ] `Documents-es/openspec/changes/transactions/apply-progress.md` mirrors the EN file; 0 CJK characters
+- [ ] All commits pass `pnpm test`, `pnpm run typecheck`, `pnpm exec lint-staged && gga run`
+
+## Slice 2 commit ledger (filled at close)
+
+(populated after the GREEN phase commits land)
+
+## Slice 2 TDD evidence (filled at close)
+
+(populated after each RED → GREEN cycle)
