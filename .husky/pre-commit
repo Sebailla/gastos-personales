@@ -3,6 +3,13 @@
 # so a fix is one `git add pnpm-lock.yaml` away.
 sh "$(dirname -- "$0")/../scripts/check-lockfile.sh"
 
+# Refresh the index so husky's cache-tree does not report stale
+# entries (a known husky 9.x bug with large commits). One
+# `git update-index --refresh` is cheaper than `--no-verify`.
+git update-index --refresh >/dev/null 2>&1 || true
+
 # Run lint-staged (ESLint + Prettier on staged files), then gga
-# (the project's code-quality gate).
-pnpm dlx lint-staged && gga run
+# (the project's code-quality gate). Use `pnpm exec` instead of
+# `pnpm dlx` so the locally installed lint-staged is reused and
+# the hook does not hit the network on every commit.
+pnpm exec lint-staged && gga run
