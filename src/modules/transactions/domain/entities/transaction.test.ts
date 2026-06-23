@@ -57,8 +57,8 @@ describe('Transaction aggregate invariants', () => {
     now,
   };
 
-  it('factory builds a 14-field aggregate from a valid input', () => {
-    const tx = createTransaction(validInput);
+  it('factory builds a 14-field aggregate from a valid input', async () => {
+    const tx = await createTransaction(validInput);
     // 14 readonly fields per the slice contract.
     expect(tx.id).toBe('tx-1');
     expect(tx.userId).toBe('u-1');
@@ -77,28 +77,32 @@ describe('Transaction aggregate invariants', () => {
     expect(tx.updatedAt).toEqual(now);
   });
 
-  it('factory rejects zero amountMinor (BR-TX-1)', () => {
-    expect(() => createTransaction({ ...validInput, amountMinor: 0 })).toThrow(/amount/i);
+  it('factory rejects zero amountMinor (BR-TX-1)', async () => {
+    await expect(createTransaction({ ...validInput, amountMinor: 0 })).rejects.toThrow(/amount/i);
   });
 
-  it('factory rejects negative amountMinor (BR-TX-1)', () => {
-    expect(() => createTransaction({ ...validInput, amountMinor: -100 })).toThrow(/amount/i);
+  it('factory rejects negative amountMinor (BR-TX-1)', async () => {
+    await expect(createTransaction({ ...validInput, amountMinor: -100 })).rejects.toThrow(
+      /amount/i,
+    );
   });
 
-  it('factory rejects TRANSFER direction at the boundary (BR-TX-2)', () => {
-    expect(() =>
+  it('factory rejects TRANSFER direction at the boundary (BR-TX-2)', async () => {
+    await expect(
       createTransaction({ ...validInput, direction: TransactionDirection.TRANSFER }),
-    ).toThrow(/transfer/i);
+    ).rejects.toThrow(/transfer/i);
   });
 
-  it('factory rejects future transactionDate (BR-TX-3)', () => {
-    expect(() => createTransaction({ ...validInput, transactionDate: later })).toThrow(/future/i);
+  it('factory rejects future transactionDate (BR-TX-3)', async () => {
+    await expect(createTransaction({ ...validInput, transactionDate: later })).rejects.toThrow(
+      /future/i,
+    );
   });
 
-  it('factory accepts a same-currency snapshot (fxAsOfSnapshot = null)', () => {
+  it('factory accepts a same-currency snapshot (fxAsOfSnapshot = null)', async () => {
     // BR-TX-6: when native == casa currency, the snapshot is
     // skipped. The factory accepts a fully-null snapshot pair.
-    const tx = createTransaction({
+    const tx = await createTransaction({
       ...validInput,
       currency: AccountCurrency.ARS,
       convertedCurrency: AccountCurrency.ARS,
@@ -111,10 +115,10 @@ describe('Transaction aggregate invariants', () => {
     expect(tx.convertedAmountMinor).toBe(1000);
   });
 
-  it('equals returns true for identical fields and false when id differs', () => {
-    const a = createTransaction(validInput);
-    const c = createTransaction(validInput);
-    const b = createTransaction({ ...validInput, id: 'tx-2' });
+  it('equals returns true for identical fields and false when id differs', async () => {
+    const a = await createTransaction(validInput);
+    const c = await createTransaction(validInput);
+    const b = await createTransaction({ ...validInput, id: 'tx-2' });
     // Same id from the same input → equal.
     expect(a.equals(c)).toBe(true);
     // Different id → not equal.
@@ -124,8 +128,8 @@ describe('Transaction aggregate invariants', () => {
     expect(a.equals(mutated)).toBe(false);
   });
 
-  it('withUpdates returns a new aggregate, preserves id and createdAt, advances updatedAt', () => {
-    const a = createTransaction(validInput);
+  it('withUpdates returns a new aggregate, preserves id and createdAt, advances updatedAt', async () => {
+    const a = await createTransaction(validInput);
     const advanceTime = new Date('2026-06-23T00:00:00.000Z');
     const next = a.withUpdates({ memo: 'updated' }, advanceTime);
     // New reference — immutability.
