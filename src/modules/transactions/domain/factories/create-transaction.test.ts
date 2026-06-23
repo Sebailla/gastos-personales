@@ -1,8 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import type { FxRateProvider } from '@/modules/accounts';
-import { AccountCurrency } from '@/modules/accounts';
 import { EventDispatcher, TransactionRecorded } from '@/shared/events/event-dispatcher';
 import {
+  AccountCurrency,
   AccountFxCasa,
   TransactionDirection,
   type NewTransactionInput,
@@ -13,12 +12,15 @@ import {
   InvalidDirectionError,
   FutureTransactionDateError,
 } from '../entities/transaction.errors';
+import type { FxRateProvider } from '../interfaces/fx-rate-provider.port';
 
-// The slice-1 tests use `AccountCurrency` (now imported from the
-// accounts barrel) for the input fixture. The local entity mirror
-// in `../entities/transaction.ts` carries the same string values
-// (slice 1 design §2.1 "no drift"); the barrel and the local
-// mirror are interchangeable at the type level for these tests.
+// `FxRateProvider` is the slice-2 port mirror under
+// `transactions/domain/interfaces/fx-rate-provider.port.ts`.
+// The accounts port is the source of truth; the local mirror
+// keeps the modules-isolated rule (AGENTS.md §10.5 + slice
+// prompt rule #9 "No imports from @/modules/accounts in domain
+// code"). The drift contract is documented in the local port
+// file's header.
 
 /**
  * RED: createTransaction factory contract (6 cases).
@@ -68,8 +70,8 @@ describe('createTransaction factory contract', () => {
     now,
   };
 
-  it('happy path: returns a Transaction with all 14 fields populated', () => {
-    const tx = createTransaction(validInput);
+  it('happy path: returns a Transaction with all 14 fields populated', async () => {
+    const tx = await createTransaction(validInput);
     expect(tx.id).toBe('tx-1');
     expect(tx.userId).toBe('u-1');
     expect(tx.accountId).toBe('fa-1');
@@ -85,36 +87,38 @@ describe('createTransaction factory contract', () => {
     expect(tx.casaSnapshot).toBe(AccountFxCasa.OFICIAL);
   });
 
-  it('sets createdAt = updatedAt = input.now', () => {
-    const tx = createTransaction(validInput);
+  it('sets createdAt = updatedAt = input.now', async () => {
+    const tx = await createTransaction(validInput);
     expect(tx.createdAt).toEqual(now);
     expect(tx.updatedAt).toEqual(now);
   });
 
-  it('attaches equals and withUpdates methods on the returned aggregate', () => {
-    const tx = createTransaction(validInput);
+  it('attaches equals and withUpdates methods on the returned aggregate', async () => {
+    const tx = await createTransaction(validInput);
     expect(typeof tx.equals).toBe('function');
     expect(typeof tx.withUpdates).toBe('function');
     // equals returns true for the same input built twice.
-    const same = createTransaction(validInput);
+    const same = await createTransaction(validInput);
     expect(tx.equals(same)).toBe(true);
   });
 
-  it('BR-TX-1: rejects amountMinor <= 0 with InvalidAmountError', () => {
-    expect(() => createTransaction({ ...validInput, amountMinor: 0 })).toThrow(InvalidAmountError);
-    expect(() => createTransaction({ ...validInput, amountMinor: -100 })).toThrow(
+  it('BR-TX-1: rejects amountMinor <= 0 with InvalidAmountError', async () => {
+    await expect(createTransaction({ ...validInput, amountMinor: 0 })).rejects.toThrow(
+      InvalidAmountError,
+    );
+    await expect(createTransaction({ ...validInput, amountMinor: -100 })).rejects.toThrow(
       InvalidAmountError,
     );
   });
 
-  it('BR-TX-2: rejects direction === TRANSFER with InvalidDirectionError', () => {
-    expect(() =>
+  it('BR-TX-2: rejects direction === TRANSFER with InvalidDirectionError', async () => {
+    await expect(
       createTransaction({ ...validInput, direction: TransactionDirection.TRANSFER }),
-    ).toThrow(InvalidDirectionError);
+    ).rejects.toThrow(InvalidDirectionError);
   });
 
-  it('BR-TX-3: rejects future transactionDate with FutureTransactionDateError', () => {
-    expect(() => createTransaction({ ...validInput, transactionDate: later })).toThrow(
+  it('BR-TX-3: rejects future transactionDate with FutureTransactionDateError', async () => {
+    await expect(createTransaction({ ...validInput, transactionDate: later })).rejects.toThrow(
       FutureTransactionDateError,
     );
   });
@@ -261,19 +265,25 @@ describe('createTransaction factory — slice 2 fx-snapshot + event wiring', () 
 
     // The handler received the event with the documented payload.
     expect(handler).toHaveBeenCalledTimes(1);
-    const [event] = handler.mock.calls[0]!;
-    expect(event.type).toBe(TransactionRecorded);
-    if (event.type !== TransactionRecorded) throw new Error('type guard');
-    expect(event.payload.userId).toBe('u-1');
-    expect(event.payload.transactionId).toBe(tx.id);
-    expect(event.payload.accountId).toBe('fa-1');
-    expect(event.payload.direction).toBe('EXPENSE');
-    expect(event.payload.amountMinor).toBe(1000);
-    expect(event.payload.currency).toBe('USD');
-    expect(event.payload.casa).toBe(AccountFxCasa.OFICIAL);
-    expect(event.payload.convertedAmountMinor).toBe(1100000);
-    expect(event.payload.convertedCurrency).toBe('ARS');
-    expect(event.payload.occurredAt).toBe(now.toISOString());
+    // Assert the event shape flatly without a runtime type-guard
+    // branch (AGENTS.md §10.5 "No logic in tests | Clean tests,
+    // without `if`/`else`/`for`"). toMatchObject is the
+    // type-safe shape assertion.
+    expect(handler).toHaveBeenCalledWith({
+      type: TransactionRecorded,
+      payload: {
+        userId: 'u-1',
+        transactionId: tx.id,
+        accountId: 'fa-1',
+        direction: 'EXPENSE',
+        amountMinor: 1000,
+        currency: 'USD',
+        casa: AccountFxCasa.OFICIAL,
+        convertedAmountMinor: 1100000,
+        convertedCurrency: 'ARS',
+        occurredAt: now.toISOString(),
+      },
+    });
   });
 
   it('accepts a custom casa from the input (BR-FX-3 caller-resolves)', async () => {
