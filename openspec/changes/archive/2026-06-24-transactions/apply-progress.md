@@ -358,7 +358,7 @@ was held back per the user's review-before-merge rule (AGENTS.md
 
 ### PR body
 
-`````markdown
+````markdown
 ## Summary
 
 Slice 2 of the `transactions` change. Lands the multi-currency
@@ -925,8 +925,7 @@ Slice-4 net: +14 tests (12 adapter cases + 2 §10.5 tripwire).
 ```
 
 $ git diff --stat develop..feat/transactions-persistence | tail -1
-
-`````
+````
 
 (See Step 10 sub-split check.)
 
@@ -993,20 +992,20 @@ develop baseline.
 
 ## Slice 5 scope (binding)
 
-| #     | File                                                            | Type | Spec REQ                | Notes                                                                              |
-| ----- | --------------------------------------------------------------- | ---- | ----------------------- | ---------------------------------------------------------------------------------- |
-| S5-1  | `openspec/changes/transactions/apply-progress.md`               | docs | n/a                     | This file. EN + ES append (atomic).                                                |
-| S5-2  | `Documents-es/openspec/changes/transactions/apply-progress.md`  | docs | n/a                     | Spanish mirror of S5-1.                                                            |
-| S5-3  | `src/modules/api/build-default-deps.test.ts` (NEW or extend)    | test | n/a                     | 3 cases: `transactionDeps` exposes `TransactionRepositoryPrisma`; FX provider reused. |
-| S5-4  | `src/modules/api/app.transactions.test.ts` (NEW)                | test | REQ-TX-6, REQ-TX-8..11  | ~10 cases (1 happy + 1 auth + 1 validation + 1 not-found per the 6 routes).         |
-| S5-5  | `src/modules/api/app.ts`                                        | impl | REQ-TX-8..11            | Register 6 Hono routes on `protectedApp`; extend `buildDefaultDeps` with `transactionDeps`. |
-| S5-6  | `src/modules/api/build-default-deps.ts` (NEW or extend)         | impl | n/a                     | DI factory extension: `TransactionRepositoryPrisma` + `EventDispatcher` + reused `FxRateProvider` + clock + logger. Export `transactionDeps`. |
-| S5-7  | `app/_lib/transaction-types.ts`                                 | impl | REQ-TX-15               | Wire types for the smoke UI (DTO shape + error envelope).                           |
-| S5-8  | `app/_actions/transactions-server-actions.ts` (NEW)             | impl | REQ-TX-9, REQ-TX-10, REQ-TX-11 | Server actions for create/update/delete; API-first (call Hono routes via `serverHonoRequest`, NOT the application actions directly). |
-| S5-9  | `app/transactions/page.tsx`                                     | impl | REQ-TX-8, REQ-TX-15     | List page (Server Component). Auth gate. Renders the list table + cursor pagination footer. |
-| S5-10 | `app/transactions/new/page.tsx`                                 | impl | REQ-TX-9, REQ-TX-15     | Create form page (Server Component shell + form).                                   |
-| S5-11 | `app/transactions/[id]/page.tsx`                                | impl | REQ-TX-10, REQ-TX-11, REQ-TX-15 | Detail / edit / delete page (Server Component).                                    |
-| S5-12 | `app/_components/transactions-list-table.tsx` (NEW)             | impl | REQ-TX-15               | List table Server Component.                                                       |
+| #     | File                                                           | Type | Spec REQ                        | Notes                                                                                                                                         |
+| ----- | -------------------------------------------------------------- | ---- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| S5-1  | `openspec/changes/transactions/apply-progress.md`              | docs | n/a                             | This file. EN + ES append (atomic).                                                                                                           |
+| S5-2  | `Documents-es/openspec/changes/transactions/apply-progress.md` | docs | n/a                             | Spanish mirror of S5-1.                                                                                                                       |
+| S5-3  | `src/modules/api/build-default-deps.test.ts` (NEW or extend)   | test | n/a                             | 3 cases: `transactionDeps` exposes `TransactionRepositoryPrisma`; FX provider reused.                                                         |
+| S5-4  | `src/modules/api/app.transactions.test.ts` (NEW)               | test | REQ-TX-6, REQ-TX-8..11          | ~10 cases (1 happy + 1 auth + 1 validation + 1 not-found per the 6 routes).                                                                   |
+| S5-5  | `src/modules/api/app.ts`                                       | impl | REQ-TX-8..11                    | Register 6 Hono routes on `protectedApp`; extend `buildDefaultDeps` with `transactionDeps`.                                                   |
+| S5-6  | `src/modules/api/build-default-deps.ts` (NEW or extend)        | impl | n/a                             | DI factory extension: `TransactionRepositoryPrisma` + `EventDispatcher` + reused `FxRateProvider` + clock + logger. Export `transactionDeps`. |
+| S5-7  | `app/_lib/transaction-types.ts`                                | impl | REQ-TX-15                       | Wire types for the smoke UI (DTO shape + error envelope).                                                                                     |
+| S5-8  | `app/_actions/transactions-server-actions.ts` (NEW)            | impl | REQ-TX-9, REQ-TX-10, REQ-TX-11  | Server actions for create/update/delete; API-first (call Hono routes via `serverHonoRequest`, NOT the application actions directly).          |
+| S5-9  | `app/transactions/page.tsx`                                    | impl | REQ-TX-8, REQ-TX-15             | List page (Server Component). Auth gate. Renders the list table + cursor pagination footer.                                                   |
+| S5-10 | `app/transactions/new/page.tsx`                                | impl | REQ-TX-9, REQ-TX-15             | Create form page (Server Component shell + form).                                                                                             |
+| S5-11 | `app/transactions/[id]/page.tsx`                               | impl | REQ-TX-10, REQ-TX-11, REQ-TX-15 | Detail / edit / delete page (Server Component).                                                                                               |
+| S5-12 | `app/_components/transactions-list-table.tsx` (NEW)            | impl | REQ-TX-15                       | List table Server Component.                                                                                                                  |
 
 **Out of scope (per slice spec)**: `prisma/schema.prisma` and
 migrations (slice 4), `src/modules/transactions/{domain,application,
@@ -1070,27 +1069,27 @@ does, paths are dynamic), `app/accounts/**` (read-only),
 
 ## Slice 5 commit ledger (final)
 
-| SHA       | Type | Subject                                                                          | Test count | RED → GREEN       | typecheck | Notes        |
-| --------- | ---- | -------------------------------------------------------------------------------- | ---------- | ----------------- | --------- | ------------ |
-| `79d45b8` | docs | append slice 5 section to apply-progress (EN + ES mirror)                        | 0          | n/a               | n/a       | this session |
-| `07cac17` | test | red — buildTransactionDeps factory (3 cases)                                     | 3 RED      | red commit        | n/a       | this session |
-| `3bc4c96` | test | red — /api/transactions routes (10 cases)                                        | 8 RED      | red commit        | n/a       | this session |
-| `7062fe6` | feat | wire TransactionRepositoryPrisma + deps into buildDefaultDeps                    | 3 GREEN    | greens `07cac17`  | 0 errors  | this session |
-| `44640cb` | feat | register 6 /api/transactions routes on protectedApp                              | 10 GREEN   | greens `3bc4c96`  | 0 errors  | this session |
-| `928453a` | feat | smoke UI types + server actions for transactions                                 | all GREEN  | still passing     | 0 errors  | this session |
-| `832d849` | feat | smoke UI list table component (app/_components/transactions-list-table.tsx)      | all GREEN  | still passing     | 0 errors  | this session |
-| `ef0e2d0` | feat | smoke UI list page (app/transactions/page.tsx)                                    | all GREEN  | still passing     | 0 errors  | this session |
-| `157d791` | feat | smoke UI create page (app/transactions/new/page.tsx)                              | all GREEN  | still passing     | 0 errors  | this session |
-| `3a39f9d` | feat | smoke UI detail/edit/delete page (app/transactions/[id]/page.tsx)                 | all GREEN  | still passing     | 0 errors  | this session |
+| SHA       | Type | Subject                                                                      | Test count | RED → GREEN      | typecheck | Notes        |
+| --------- | ---- | ---------------------------------------------------------------------------- | ---------- | ---------------- | --------- | ------------ |
+| `79d45b8` | docs | append slice 5 section to apply-progress (EN + ES mirror)                    | 0          | n/a              | n/a       | this session |
+| `07cac17` | test | red — buildTransactionDeps factory (3 cases)                                 | 3 RED      | red commit       | n/a       | this session |
+| `3bc4c96` | test | red — /api/transactions routes (10 cases)                                    | 8 RED      | red commit       | n/a       | this session |
+| `7062fe6` | feat | wire TransactionRepositoryPrisma + deps into buildDefaultDeps                | 3 GREEN    | greens `07cac17` | 0 errors  | this session |
+| `44640cb` | feat | register 6 /api/transactions routes on protectedApp                          | 10 GREEN   | greens `3bc4c96` | 0 errors  | this session |
+| `928453a` | feat | smoke UI types + server actions for transactions                             | all GREEN  | still passing    | 0 errors  | this session |
+| `832d849` | feat | smoke UI list table component (app/\_components/transactions-list-table.tsx) | all GREEN  | still passing    | 0 errors  | this session |
+| `ef0e2d0` | feat | smoke UI list page (app/transactions/page.tsx)                               | all GREEN  | still passing    | 0 errors  | this session |
+| `157d791` | feat | smoke UI create page (app/transactions/new/page.tsx)                         | all GREEN  | still passing    | 0 errors  | this session |
+| `3a39f9d` | feat | smoke UI detail/edit/delete page (app/transactions/[id]/page.tsx)            | all GREEN  | still passing    | 0 errors  | this session |
 
 Final test count: **658 GREEN** (slice 4 baseline 645 + 13 new). Skipped: 4 (testcontainers Postgres; pre-existing). Failed: 0.
 
 ## Slice 5 TDD evidence
 
-| File                                       | RED SHA   | GREEN SHA | RED proof                                                              | GREEN proof                                            |
-| ------------------------------------------ | --------- | --------- | ---------------------------------------------------------------------- | ------------------------------------------------------ |
-| `build-default-deps.test.ts` (NEW)         | `07cac17` | `7062fe6` | 3 failed (`buildTransactionDeps is not a function`)                    | 3 passed; full slice → 658 passed; `tsc` 0 errors       |
-| `app.transactions.test.ts` (NEW)           | `3bc4c96` | `44640cb` | 8 failed (route not registered)                                        | 10 passed; full slice → 658 passed; `tsc` 0 errors      |
+| File                               | RED SHA   | GREEN SHA | RED proof                                           | GREEN proof                                        |
+| ---------------------------------- | --------- | --------- | --------------------------------------------------- | -------------------------------------------------- |
+| `build-default-deps.test.ts` (NEW) | `07cac17` | `7062fe6` | 3 failed (`buildTransactionDeps is not a function`) | 3 passed; full slice → 658 passed; `tsc` 0 errors  |
+| `app.transactions.test.ts` (NEW)   | `3bc4c96` | `44640cb` | 8 failed (route not registered)                     | 10 passed; full slice → 658 passed; `tsc` 0 errors |
 
 The 2 routes-test cases that did NOT fail in RED (the 401-on-no-session test) were the cases that exercise the auth gate BEFORE the route runs. The RED proof is on the 8 cases that exercise the registered route. Both files followed strict TDD: RED commit wrote the failing tests; GREEN commit wrote the minimum code to make them pass.
 
@@ -1161,24 +1160,24 @@ The 2 routes-test cases that did NOT fail in RED (the 401-on-no-session test) we
 
 ## Slice 5 routes registered
 
-| Method | Path                                            | Action                      | Status codes           |
-| ------ | ----------------------------------------------- | --------------------------- | ---------------------- |
-| GET    | `/api/transactions`                             | `listTransactionsAction`    | 200, 400               |
-| GET    | `/api/transactions/account/:accountId`          | `listTransactionsAction`    | 200, 400               |
-| POST   | `/api/transactions`                             | `createTransactionAction`   | 201, 400, 409, 500, 503 |
-| GET    | `/api/transactions/:id`                         | `getTransactionAction`      | 200, 404               |
-| PATCH  | `/api/transactions/:id`                         | `updateTransactionAction`   | 200, 400, 404          |
-| DELETE | `/api/transactions/:id`                         | `deleteTransactionAction`   | 200, 404               |
+| Method | Path                                   | Action                    | Status codes            |
+| ------ | -------------------------------------- | ------------------------- | ----------------------- |
+| GET    | `/api/transactions`                    | `listTransactionsAction`  | 200, 400                |
+| GET    | `/api/transactions/account/:accountId` | `listTransactionsAction`  | 200, 400                |
+| POST   | `/api/transactions`                    | `createTransactionAction` | 201, 400, 409, 500, 503 |
+| GET    | `/api/transactions/:id`                | `getTransactionAction`    | 200, 404                |
+| PATCH  | `/api/transactions/:id`                | `updateTransactionAction` | 200, 400, 404           |
+| DELETE | `/api/transactions/:id`                | `deleteTransactionAction` | 200, 404                |
 
 All 6 routes filter by `user.id` from `c.get('user')` (BR-TX-4).
 
 ## Slice 5 smoke UI pages
 
-| Page                                       | Features                                                                  |
-| ------------------------------------------ | ------------------------------------------------------------------------- |
-| `app/transactions/page.tsx`                | List with cursor pagination footer; "New transaction" CTA; toast on success. |
-| `app/transactions/new/page.tsx`            | Create form: account select, direction, amountMinor, currency, date, memo, category. Server Action posts to `/api/transactions`. On 201 → redirect to detail with `?toast=created`. |
-| `app/transactions/[id]/page.tsx`           | Detail (`<dl>` with FX snapshot as "Rate as of: <ISO>") + edit form + delete button with confirm. Server Actions PATCH and DELETE via `serverHonoRequest`. On 404 → redirect to list with `?toast=not-found`. |
+| Page                             | Features                                                                                                                                                                                                      |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/transactions/page.tsx`      | List with cursor pagination footer; "New transaction" CTA; toast on success.                                                                                                                                  |
+| `app/transactions/new/page.tsx`  | Create form: account select, direction, amountMinor, currency, date, memo, category. Server Action posts to `/api/transactions`. On 201 → redirect to detail with `?toast=created`.                           |
+| `app/transactions/[id]/page.tsx` | Detail (`<dl>` with FX snapshot as "Rate as of: <ISO>") + edit form + delete button with confirm. Server Actions PATCH and DELETE via `serverHonoRequest`. On 404 → redirect to list with `?toast=not-found`. |
 
 ## Status
 
@@ -1228,7 +1227,7 @@ per the user's review-before-merge rule (AGENTS.md §5.2).
 
 ### PR body
 
-````markdown
+```markdown
 ## Summary
 
 Slice 5 of the `transactions` change. Lands the API surface
@@ -1327,9 +1326,11 @@ table, and the slice-5 closure block.
 - Future: shared-kernel refactor — move `FxRateProvider` and
   `AccountRepositoryPort` to `@/shared/domain/ports/` and
   collapse the local mirrors.
-`````
-`````
+```
+
+````
 
 ```
 
 ```
+````

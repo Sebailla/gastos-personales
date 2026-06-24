@@ -1,7 +1,8 @@
 # Explore — `transactions`
 
-**Status**: research · **Author**: Sebastián Illa
-**Created**: 2026-06-22 · **Target slice**: MVP-2 (transaction ledger)
+**Status**: research (archived) · **Author**: Sebastián Illa
+**Created**: 2026-06-22 · **Archived**: 2026-06-24 (research locked in at pre-propose grill; downstream proposal/design/tasks implemented slices 1-5 via #59-#63)
+**Target slice**: MVP-2 (transaction ledger)
 **Upstream**: global SDD preflight (interactive, both, auto-forecast, 400 lines)
 
 > **Research document.** This is the `sdd-explore` output for

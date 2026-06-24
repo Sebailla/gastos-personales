@@ -1,7 +1,7 @@
 # Design — `transactions`
 
-**Status**: draft · **Author**: Sebastián Illa
-**Created**: 2026-06-22 · **Change**: `transactions`
+**Status**: implemented · **Author**: Sebastián Illa · **Created**: 2026-06-22 · **Implemented**: 2026-06-24 (slices 1-5 merged on `develop` via #59-#63; archived as 2026-06-24-transactions)
+**Change**: `transactions`
 **Proposal**: `openspec/changes/transactions/proposal.md` (v1, 2026-06-22, DG-TX-1 to DG-TX-15 closed)
 **Spec (delta)**: `openspec/changes/transactions/specs/transactions/spec.md` (REQ-TX-1 to REQ-TX-15)
 **Sibling delta spec**: `openspec/changes/transactions/specs/accounts/spec.md` (REQ-ACC-X1 cross-link)
