@@ -53,10 +53,9 @@ import type {
 
 // Row shape produced by the narrow delegate. The shared
 // `PrismaFinancialAccountDelegate` (see `@/shared/db/prisma-types`)
-// is `any`-typed on purpose so the composition root's
-// `asPrismaDelegateView` cast works; the row type alias
-// here re-introduces the minimum structural shape the
-// mapper needs.
+// returns `Promise<unknown>` after the slice-4 §10.5 refactor
+// (no `any`); the row type alias here re-introduces the
+// minimum structural shape the mapper needs.
 type PrismaFinancialAccountRow = Record<string, unknown> & { userId: string };
 
 export class AccountRepositoryPrisma implements AccountRepositoryPort {
@@ -67,13 +66,23 @@ export class AccountRepositoryPrisma implements AccountRepositoryPort {
     if (opts.archivedAt === null) {
       where.archivedAt = null;
     }
+    // Slice-4 refactor: the narrow delegate (no `any` —
+    // §10.5) accepts `object` inputs. The literal below
+    // is structurally an `object`; the cast is a no-op
+    // at runtime.
     const rows = await this.prisma.financialAccount.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       take: opts.limit + 1, // +1 to detect a nextCursor
       ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
-    });
-    const data = rows.slice(0, opts.limit).map(mapRow);
+    } as object);
+    // Slice-4 refactor: `findMany` returns `Promise<unknown[]>`
+    // — narrower than the prior `Promise<any[]>`. Each row is
+    // mapped back to the domain via `mapRow`; the array
+    // element type is widened to `unknown` at the call site.
+    const data = (rows as unknown as PrismaFinancialAccountRow[])
+      .slice(0, opts.limit)
+      .map(mapRow);
     const nextCursor = rows.length > opts.limit ? (data[data.length - 1]?.id ?? null) : null;
     return { data, nextCursor };
   }
@@ -85,7 +94,7 @@ export class AccountRepositoryPrisma implements AccountRepositoryPort {
     } else if (opts.archivedAt && 'not' in opts.archivedAt) {
       where.archivedAt = { not: null };
     }
-    return this.prisma.financialAccount.count({ where });
+    return this.prisma.financialAccount.count({ where } as object);
   }
 
   async findById(userId: string, id: string): Promise<FinancialAccount | null> {
@@ -94,7 +103,7 @@ export class AccountRepositoryPrisma implements AccountRepositoryPort {
     // type signature forces the caller to pass userId.
     const row = await this.prisma.financialAccount.findFirst({
       where: { id, userId },
-    });
+    } as object);
     if (!row) return null;
     return mapRow(row);
   }
@@ -126,7 +135,7 @@ export class AccountRepositoryPrisma implements AccountRepositoryPort {
           // `account.repository.prisma.test.ts` in T2.7.
           ...(input.casa !== undefined ? { casa: input.casa } : {}),
         },
-      });
+      } as object);
       return mapRow(row);
     } catch (err) {
       if (isPrismaP2002(err)) {
@@ -148,7 +157,7 @@ export class AccountRepositoryPrisma implements AccountRepositoryPort {
     const result = await this.prisma.financialAccount.updateMany({
       where: { id, userId },
       data: patch as Prisma.FinancialAccountUncheckedUpdateInput,
-    });
+    } as object);
     if (result.count === 0) return null;
     return this.findById(userId, id);
   }
@@ -161,7 +170,7 @@ export class AccountRepositoryPrisma implements AccountRepositoryPort {
     const result = await this.prisma.financialAccount.updateMany({
       where: { id, userId, archivedAt: null },
       data: { archivedAt: clock.now() },
-    });
+    } as object);
     if (result.count === 0) {
       // Either the row does not exist, is owned by another user,
       // or it was already archived. Distinguish: re-read with the
@@ -183,7 +192,7 @@ export class AccountRepositoryPrisma implements AccountRepositoryPort {
     const result = await this.prisma.financialAccount.updateMany({
       where: { id, userId, archivedAt: { not: null } },
       data: { archivedAt: null },
-    });
+    } as object);
     if (result.count === 0) {
       const current = await this.findById(userId, id);
       if (current && current.archivedAt === null) {
@@ -204,31 +213,37 @@ function isPrismaP2002(err: unknown): boolean {
   );
 }
 
-function mapRow(row: PrismaFinancialAccountRow): FinancialAccount {
+function mapRow(row: unknown): FinancialAccount {
+  // Slice-4 refactor: the narrow `PrismaFinancialAccountDelegate`
+  // returns `Promise<unknown>` (§10.5 — no `any`). The mapper
+  // accepts `unknown` and narrows to `PrismaFinancialAccountRow`
+  // internally; the cast is safe because the caller (this
+  // adapter) only feeds rows the Prisma client produced.
+  const r = row as PrismaFinancialAccountRow;
   return {
-    id: row['id'] as string,
-    userId: row['userId'] as string,
-    type: row['type'] as AccountType,
-    name: row['name'] as string,
-    currency: row['currency'] as AccountCurrency,
-    openingBalanceMinor: row['openingBalanceMinor'] as number,
-    openingBalanceMode: row['openingBalanceMode'] as OpeningBalanceMode,
-    openingBalanceDate: (row['openingBalanceDate'] as Date | null) ?? null,
-    archivedAt: (row['archivedAt'] as Date | null) ?? null,
-    bankName: (row['bankName'] as string | null) ?? null,
-    accountKind: (row['accountKind'] as AccountKind | null) ?? null,
-    issuer: (row['issuer'] as string | null) ?? null,
-    creditLimitMinor: (row['creditLimitMinor'] as number | null) ?? null,
-    statementDay: (row['statementDay'] as number | null) ?? null,
-    paymentDueDay: (row['paymentDueDay'] as number | null) ?? null,
-    broker: (row['broker'] as string | null) ?? null,
-    investmentType: (row['investmentType'] as InvestmentType | null) ?? null,
-    walletAddress: (row['walletAddress'] as string | null) ?? null,
+    id: r['id'] as string,
+    userId: r['userId'] as string,
+    type: r['type'] as AccountType,
+    name: r['name'] as string,
+    currency: r['currency'] as AccountCurrency,
+    openingBalanceMinor: r['openingBalanceMinor'] as number,
+    openingBalanceMode: r['openingBalanceMode'] as OpeningBalanceMode,
+    openingBalanceDate: (r['openingBalanceDate'] as Date | null) ?? null,
+    archivedAt: (r['archivedAt'] as Date | null) ?? null,
+    bankName: (r['bankName'] as string | null) ?? null,
+    accountKind: (r['accountKind'] as AccountKind | null) ?? null,
+    issuer: (r['issuer'] as string | null) ?? null,
+    creditLimitMinor: (r['creditLimitMinor'] as number | null) ?? null,
+    statementDay: (r['statementDay'] as number | null) ?? null,
+    paymentDueDay: (r['paymentDueDay'] as number | null) ?? null,
+    broker: (r['broker'] as string | null) ?? null,
+    investmentType: (r['investmentType'] as InvestmentType | null) ?? null,
+    walletAddress: (r['walletAddress'] as string | null) ?? null,
     // fx-cache PR-2 — REQ-FX-9: `casa IS NULL` maps to `null`
     // in the domain shape. Existing rows pre-migration land on
     // `null` and inherit the global default.
-    casa: (row['casa'] as FinancialAccount['casa']) ?? null,
-    createdAt: row['createdAt'] as Date,
-    updatedAt: row['updatedAt'] as Date,
+    casa: (r['casa'] as FinancialAccount['casa']) ?? null,
+    createdAt: r['createdAt'] as Date,
+    updatedAt: r['updatedAt'] as Date,
   };
 }
