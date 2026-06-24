@@ -72,14 +72,12 @@ import { toFinancialAccountDto } from '@/modules/accounts/application/dto/financ
 import { toBalanceDto } from '@/modules/accounts/application/dto/financial-account-balance.dto';
 import { assertWithinRateLimit, rateLimitIdentifier } from '@/shared/rate-limit/rate-limit';
 import { systemClock } from '@/shared/clock/system-clock';
-import {
-  DolarApiClient,
-  FxRateProviderDolarApi,
-  UpstashFxRateCache,
-  withLock,
-} from '@/modules/fx';
+import { DolarApiClient, FxRateProviderDolarApi, UpstashFxRateCache, withLock } from '@/modules/fx';
 import { env } from '@/shared/env/env.schema';
+import { logger } from '@/shared/logger/logger';
 import type { AuthUser } from './middlewares/variables';
+import { TransactionRepositoryPrisma } from '@/modules/transactions/infrastructure/repositories/transaction.repository.prisma';
+import type { TransactionActionDeps } from '@/modules/transactions/application/actions/_shared';
 
 export type AuthjsAuthFn = () => Promise<{ user: AuthUser | null } | null>;
 
@@ -96,6 +94,16 @@ export interface HonoAppDeps {
   // matches the production intent.
   fxRateProvider: FxRateProvider;
   accountService?: AccountService;
+  // Slice 5: the transactions capability's action-layer deps
+  // bag. The factory builds the real one (Prisma adapter +
+  // shared dispatcher + clock + logger + FX provider); tests
+  // inject a fake one with an in-memory repository to keep
+  // the route integration tests hermetic (no Prisma round-
+  // trip). Optional so existing accounts-only test setups
+  // (app.accounts.test.ts, app.deps.test.ts) keep compiling
+  // unchanged — slice 5 routes are registered only when this
+  // is supplied.
+  transactionDeps?: TransactionActionDeps;
 }
 
 /** Variables stored on the Hono context by the auth middleware. */
@@ -321,6 +329,56 @@ export function createHonoApp(deps: HonoAppDeps): OpenAPIHono<{ Variables: HonoC
   return app;
 }
 
+/**
+ * Build the `TransactionActionDeps` bag the slice-5 Hono routes
+ * consume.
+ *
+ * Composition (slice 5 binding):
+ * - `repo`: `TransactionRepositoryPrisma` wired against
+ *   `asPrismaDelegateView(prisma()).transaction` (the slice-4
+ *   §10.5 narrow Prisma delegate). The cast goes through
+ *   `unknown` for the same generic-vs-structural reason as
+ *   `accountService` below — see `createHonoApp` for the
+ *   long-form rationale.
+ * - `fxRateProvider`: reuses the SAME `FxRateProviderDolarApi`
+ *   instance the accounts service consumes when supplied. A
+ *   second instance would double the Upstash cache reads and
+ *   miss the cross-cutting stampede lock (the slice-1 design
+ *   §5.2 invariant).
+ * - `clock`, `logger`, `dispatcher`: process-wide singletons
+ *   (`systemClock`, `@/shared/logger/logger`, the
+ *   `EventDispatcher` instance).
+ *
+ * The factory builds the FX provider with the real DolarAPI
+ * wiring when none is supplied (the test seam in
+ * `build-default-deps.test.ts` calls with no args). The
+ * production `buildDefaultDeps` passes the same instance the
+ * `AccountService` consumes.
+ *
+ * Exported separately from `buildDefaultDeps` so the
+ * `build-default-deps.test.ts` file can observe the factory's
+ * return value directly (no need to instantiate the Hono app
+ * to assert the shape).
+ */
+export function buildTransactionDeps(fxRateProvider?: FxRateProvider): TransactionActionDeps {
+  const fx: FxRateProvider =
+    fxRateProvider ??
+    new FxRateProviderDolarApi({
+      cache: new UpstashFxRateCache(),
+      lock: withLock,
+      dolarApi: new DolarApiClient(),
+    });
+  const prismaClientForView = prisma() as unknown as Parameters<typeof asPrismaDelegateView>[0];
+  const prismaView = asPrismaDelegateView(prismaClientForView);
+  return {
+    repo: new TransactionRepositoryPrisma({ transaction: prismaView.transaction }),
+    clock: () => new Date(),
+    logger,
+    dispatcher,
+    fxRateProvider: fx,
+  };
+}
+
 function buildDefaultDeps(): HonoAppDeps {
   // The PrismaClient satisfies the narrow port structurally
   // (it has a `user` delegate with the four methods the
@@ -354,6 +412,15 @@ function buildDefaultDeps(): HonoAppDeps {
     lock: withLock,
     dolarApi: new DolarApiClient(),
   });
+  // Slice 5: wire the same FX provider into the transactions
+  // deps bag (no second instance — see `buildTransactionDeps`
+  // rationale). The `accountRepository` is NOT supplied here;
+  // the production composition root is a slice-6 follow-up
+  // (a separate `buildFullDeps` that plumbs the
+  // `AccountRepositoryPrisma` instance). The slice-5 routes
+  // are gated on `transactionDeps` being supplied; without it
+  // the routes are NOT registered (see `createHonoApp`).
+  const transactionDeps = buildTransactionDeps(fxProvider);
   return {
     authService,
     // The real `auth()` is loaded by the production route
@@ -363,6 +430,7 @@ function buildDefaultDeps(): HonoAppDeps {
     // crash; production mounts MUST pass the real `auth`.
     authjsAuth: async () => null,
     fxRateProvider: fxProvider,
+    transactionDeps,
   };
 }
 

@@ -31,10 +31,7 @@ import { EventDispatcher } from '@/shared/events/event-dispatcher';
 import { systemClock } from '@/shared/clock/system-clock';
 import { FxRateProviderStub } from '@/modules/accounts/infrastructure/external/fx-rate-provider.stub';
 import { InMemoryTransactionRepository } from '@/modules/transactions/application/fixtures/in-memory-transaction.repository';
-import {
-  AccountCurrency as TxCurrency,
-  type Transaction,
-} from '@/modules/transactions/domain/entities/transaction';
+import { AccountCurrency as TxCurrency } from '@/modules/transactions/domain/entities/transaction';
 import type { TransactionActionDeps } from '@/modules/transactions/application/actions/_shared';
 import { logger } from '@/shared/logger/logger';
 
@@ -52,30 +49,6 @@ function buildAuthSvc(): AuthService {
     verify: vi.fn(),
   };
   return new AuthService(users, hasher, new EventDispatcher(), systemClock);
-}
-
-function makeTxRow(overrides: Partial<Transaction> = {}): Transaction {
-  const base = {
-    id: 'tx-1',
-    userId: TEST_USER_ID,
-    accountId: 'fa-1',
-    direction: 'EXPENSE' as const,
-    amountMinor: 1000,
-    currency: TxCurrency.ARS,
-    memo: null,
-    category: null,
-    transactionDate: new Date('2026-06-18T00:00:00.000Z'),
-    convertedAmountMinor: 1000,
-    convertedCurrency: TxCurrency.ARS,
-    fxAsOfSnapshot: null,
-    casaSnapshot: null,
-    createdAt: new Date('2026-06-18T00:00:00.000Z'),
-    updatedAt: new Date('2026-06-18T00:00:00.000Z'),
-  };
-  return {
-    ...base,
-    ...overrides,
-  } as unknown as Transaction;
 }
 
 function buildDeps(txDeps: TransactionActionDeps): HonoAppDeps {
@@ -197,73 +170,9 @@ describe('POST /api/transactions', () => {
 describe('GET /api/transactions/:id', () => {
   it('returns 200 with the row when found', async () => {
     const repo = new InMemoryTransactionRepository();
-    const tx = makeTxRow();
-    // Manually inject via the repo's internal map by going
-    // through `create`. The fixture's create is keyed by
-    // userId+id, so we must pre-set the id.
-    const inserted = await repo.create(TEST_USER_ID, {
-      id: tx.id,
-      accountId: tx.accountId,
-      direction: tx.direction,
-      amountMinor: tx.amountMinor,
-      currency: tx.currency,
-      memo: tx.memo,
-      category: tx.category,
-      transactionDate: tx.transactionDate,
-      convertedAmountMinor: tx.convertedAmountMinor,
-      convertedCurrency: tx.convertedCurrency,
-      fxAsOfSnapshot: tx.fxAsOfSnapshot,
-      casaSnapshot: tx.casaSnapshot,
-    });
-    void inserted;
-    const app = createHonoApp(buildDeps(buildTxDeps({ repo })));
-    const res = await app.request('/api/transactions/tx-1');
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.data.id).toBe('tx-1');
-  });
-
-  it('returns 404 when the row is missing', async () => {
-    const app = createHonoApp(buildDeps(buildTxDeps()));
-    const res = await app.request('/api/transactions/missing');
-    expect(res.status).toBe(404);
-  });
-});
-
-describe('PATCH /api/transactions/:id', () => {
-  it('returns 200 with the updated row on a valid partial body', async () => {
-    const repo = new InMemoryTransactionRepository();
-    await repo.create(TEST_USER_ID, {
-      id: 'tx-1',
-      accountId: 'fa-1',
-      direction: 'EXPENSE',
-      amountMinor: 1000,
-      currency: TxCurrency.ARS,
-      memo: 'old',
-      category: null,
-      transactionDate: new Date('2026-06-18T00:00:00.000Z'),
-      convertedAmountMinor: 1000,
-      convertedCurrency: TxCurrency.ARS,
-      fxAsOfSnapshot: null,
-      casaSnapshot: null,
-    });
-    const app = createHonoApp(buildDeps(buildTxDeps({ repo })));
-    const res = await app.request('/api/transactions/tx-1', {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ memo: 'updated memo' }),
-    });
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.data.memo).toBe('updated memo');
-  });
-});
-
-describe('DELETE /api/transactions/:id', () => {
-  it('returns 200 (or 204) on a successful hard delete', async () => {
-    const repo = new InMemoryTransactionRepository();
-    await repo.create(TEST_USER_ID, {
-      id: 'tx-1',
+    // The fixture's `create` generates the id; we capture it
+    // for the route call below.
+    const created = await repo.create(TEST_USER_ID, {
       accountId: 'fa-1',
       direction: 'EXPENSE',
       amountMinor: 1000,
@@ -277,7 +186,65 @@ describe('DELETE /api/transactions/:id', () => {
       casaSnapshot: null,
     });
     const app = createHonoApp(buildDeps(buildTxDeps({ repo })));
-    const res = await app.request('/api/transactions/tx-1', { method: 'DELETE' });
+    const res = await app.request(`/api/transactions/${created.id}`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.id).toBe(created.id);
+  });
+
+  it('returns 404 when the row is missing', async () => {
+    const app = createHonoApp(buildDeps(buildTxDeps()));
+    const res = await app.request('/api/transactions/missing');
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('PATCH /api/transactions/:id', () => {
+  it('returns 200 with the updated row on a valid partial body', async () => {
+    const repo = new InMemoryTransactionRepository();
+    const created = await repo.create(TEST_USER_ID, {
+      accountId: 'fa-1',
+      direction: 'EXPENSE',
+      amountMinor: 1000,
+      currency: TxCurrency.ARS,
+      memo: 'old',
+      category: null,
+      transactionDate: new Date('2026-06-18T00:00:00.000Z'),
+      convertedAmountMinor: 1000,
+      convertedCurrency: TxCurrency.ARS,
+      fxAsOfSnapshot: null,
+      casaSnapshot: null,
+    });
+    const app = createHonoApp(buildDeps(buildTxDeps({ repo })));
+    const res = await app.request(`/api/transactions/${created.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ memo: 'updated memo' }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.memo).toBe('updated memo');
+  });
+});
+
+describe('DELETE /api/transactions/:id', () => {
+  it('returns 200 (or 204) on a successful hard delete', async () => {
+    const repo = new InMemoryTransactionRepository();
+    const created = await repo.create(TEST_USER_ID, {
+      accountId: 'fa-1',
+      direction: 'EXPENSE',
+      amountMinor: 1000,
+      currency: TxCurrency.ARS,
+      memo: null,
+      category: null,
+      transactionDate: new Date('2026-06-18T00:00:00.000Z'),
+      convertedAmountMinor: 1000,
+      convertedCurrency: TxCurrency.ARS,
+      fxAsOfSnapshot: null,
+      casaSnapshot: null,
+    });
+    const app = createHonoApp(buildDeps(buildTxDeps({ repo })));
+    const res = await app.request(`/api/transactions/${created.id}`, { method: 'DELETE' });
     expect([200, 204]).toContain(res.status);
   });
 });
