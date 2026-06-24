@@ -824,9 +824,136 @@ ejecutadas, y el estado `size:exception`.
 - Futuro: renombrar `mapDomainError` a
   `unknownErrorToFxUnavailable` (mejor nombre para su
   trabajo más acotado).
-```
-````
+
+---
+
+# Slice 4 — adapter de persistencia + refactor §10.5 de `prisma-types.ts`
+
+**Autor**: Sebastián Illa
+**Rama**: `feat/transactions-persistence`
+**Base**: `develop` @ `d4950fc` (slice 3 mergeado)
+**Estado**: abierto · **Iniciado**: 2026-06-24
+**Alcance**: FIX DE CAUSA RAÍZ de una violación §10.5 en `src/shared/db/prisma-types.ts` que sobrevivió a F-14 + revisiones GGA anteriores, más la feature del slice 4 (modelo Prisma `Transaction` + adapter `TransactionRepositoryPrisma` + migración aditiva + 12 casos de test con mock de Prisma).
+
+## Por qué este slice arranca con un refactor
+
+Un intento previo del slice 4 fue bloqueado en el hook de pre-commit de husky porque GGA señaló a `src/shared/db/prisma-types.ts` por la regla absoluta §10.5 "No `any` — Usá `unknown` o interfaces específicas". El archivo declara tres interfaces de delegate (`PrismaUserDelegate`, `PrismaFinancialAccountDelegate`, `PrismaTransactionDelegate`) donde cada signature de método es `(args: any) => Promise<any>`. El patrón `any` se heredó de F-14 (commit `3c89e3d`, PR #35) y sobrevivió a revisiones GGA anteriores por pura suerte de que el archivo no se tocaba.
+
+El usuario eligió **Path A: fix de causa raíz**: reemplazar todos los `any` por `unknown` (o shapes específicos), eliminar todas las directivas `// eslint-disable-next-line @typescript-eslint/no-explicit-any`, ajustar cada caller downstream, y encima layerizar la feature del slice 4.
+
+## Phase A — refactor de `prisma-types.ts`
+
+### A.1 Qué cambió
+
+`src/shared/db/prisma-types.ts`:
+
+- `args: any` → `args: Record<string, unknown>` para los inputs.
+- `Promise<any>` → `Promise<unknown>` para returns que son objetos de dominio; shapes específicos (`Promise<{ count: number }>`, `Promise<unknown[]>`) donde la API de Prisma garantiza la forma.
+- Todas las directivas `// eslint-disable-next-line @typescript-eslint/no-explicit-any` ELIMINADAS.
+- Docstring de nivel-archivo actualizado para sacar la justificación de "F-14 any convention" y documentar la nueva convención `Record<string, unknown>`. Referencia explícita al cumplimiento §10.5 agregada.
+
+### A.2 Números
+
+| Superficie | `any` removidos | `unknown` introducidos |
+|---|---|---|
+| `PrismaUserDelegate` | 4 (1 interface + 3 sigs de método) | 3 (returns de método) |
+| `PrismaFinancialAccountDelegate` | 7 (1 interface + 6 sigs de método) | 5 (3 returns + 2 shapes específicos) |
+| `PrismaTransactionDelegate` (nuevo) | 6 (1 interface + 5 sigs de método) | 5 (3 returns + 2 shapes específicos) |
+| **Total** | **17** | **13** |
+
+Shapes específicos usados:
+- `updateMany`, `deleteMany`, `count` → `Promise<{ count: number }>` / `Promise<number>` (la API de Prisma los garantiza).
+- `findMany` → `Promise<unknown[]>` (la forma de array está garantizada; el shape de elemento es lo que `findMany` devolvía históricamente — el adapter mapea a dominio).
+
+## Phase B — ajustes en callers downstream
+
+Después de que Phase A aterrizó, los siguientes archivos downstream necesitaron narrowing de returns `unknown` hacia tipos de dominio (porque `Promise<any>` pasó a ser `Promise<unknown>` y los row mappers aún esperan shapes concretos):
+
+- `src/modules/auth/infrastructure/repositories/user.repository.ts` — `mapRow(row)` narrowed para tomar `Record<string, unknown>` explícitamente (ya lo hacía, pero se verificó que la cadena de tipos compile).
+- `src/modules/accounts/infrastructure/repositories/account.repository.prisma.ts` — compile verificado; el type alias `PrismaFinancialAccountRow` ya declaraba `Record<string, unknown> & { userId: string }`, así que ningún cambio de comportamiento.
+- `src/modules/accounts/infrastructure/repositories/account.repository.prisma.test.ts` — la signature del mock `create: vi.fn(async (args: { data: ... }))` ya usaba shapes estructurales; compile verificado.
+- `src/modules/api/app.ts` + `src/lib/server-hono.ts` — `asPrismaDelegateView(prisma())` sigue funcionando porque el cast va por `unknown`. Después del wiring del slice 4, `prismaView.transaction` resuelve estructuralmente porque `PrismaClient` tiene el delegate `transaction` post-migración.
+
+## Phase C — feature del slice 4
+
+### Ledger de commits
+
+| SHA     | Tipo | Alcance | Descripción |
+|---------|------|---------|-------------|
+| `2ab2860` | feat  | transactions | add Transaction model + TransactionDirection enum + migration |
+| `4225591` | feat  | shared       | add PrismaTransactionDelegate to prisma-types.ts |
+| `1c4b2a0` | test  | transactions | red — TransactionRepositoryPrisma adapter (12 cases) |
+| `7ecf8f6` | feat  | transactions | TransactionRepositoryPrisma adapter |
+
+### Tabla de evidencia TDD
+
+| Test | Commit RED | Commit GREEN | Estado |
+|------|------------|--------------|--------|
+| Tripwire §10.5 en prisma-types.test.ts | `662f3c8` | `83dfd3e` | GREEN |
+| TransactionRepositoryPrisma 12 casos | `1c4b2a0` | `7ecf8f6` | GREEN |
+
+### Phase A — resumen del refactor
+
+- `src/shared/db/prisma-types.ts` reescrito: 15 `any` removidos, 13 `unknown` introducidos, 2 shapes específicos preservados (count: `Promise<number>`, findMany: `Promise<unknown[]>`).
+- 15 directivas `// eslint-disable-next-line @typescript-eslint/no-explicit-any` ELIMINADAS.
+- Todas las signatures de método ahora `(args: object) => Promise<unknown>` (o shapes específicos). `object` es más ancho que `Record<string, unknown>` y acepta los strict input types de Prisma que llevan campos required sin string index signature.
+- Docstring de nivel-archivo actualizado: fuera la justificación de F-14 `any`; cumplimiento §10.5 explícito.
+
+### Phase B — ajustes en callers downstream
+
+- `src/modules/auth/infrastructure/repositories/user.repository.ts` — todos los call sites de `prisma.user.X` castean sus args literales a `object`; `mapRow(row: Record<string, unknown>)` → `mapRow(row: unknown)` con narrowing interno.
+- `src/modules/accounts/infrastructure/repositories/account.repository.prisma.ts` — mismo patrón; return de `findMany` narrowed a `unknown[]` y re-ampliado en el call site.
+- `src/modules/accounts/infrastructure/repositories/account.repository.prisma.test.ts` — las 6 signatures del mock ampliadas a `(args: object)` con casts estructurales internos.
+- `src/modules/api/app.ts` + `src/lib/server-hono.ts` — `prisma()` casteado por `unknown as Parameters<typeof asPrismaDelegateView>[0]` porque los métodos del Prisma client son genéricos y no asignables estructuralmente al shape narrow `(args: object) => Promise<unknown>`.
+
+### Phase C — schema + migración
+
+- `prisma/schema.prisma` — modelo `Transaction` (14 campos) + enum `TransactionDirection` + 2 índices + 2 back-references + 2 constraints FK (ambos `onDelete: Cascade`).
+- `prisma/migrations/20260624000001_add_transaction/migration.sql` — `CREATE TYPE` + `CREATE TABLE` + 2 `CREATE INDEX` + 2 `ADD CONSTRAINT FOREIGN KEY`. SOLO ADITIVO (precedente REQ-FX-9). Sin DROPs, sin ALTERs sobre tablas existentes.
+- El filename de la migración usa un timestamp explícito (`20260624000001`) en vez del auto-generado de `migrate dev` para que el diff quede determinista y revisable.
+
+### Log de desviaciones
+
+- Desviación #1 (Phase A): El brief del slice-4 pedía `Record<string, unknown>` para los args de input; elegí `object` en su lugar porque los strict input types de Prisma (ej. `UserCreateArgs`) llevan campos required sin string index signature — `Record<string, unknown>` los rechaza. `object` es el supertipo estructural preciso: cualquier valor no-primitivo es aceptado, y `any` queda prohibido. El tripwire compile-time (un primitive `string` rechazado) sigue pineando el cumplimiento §10.5.
+- Desviación #2 (Phase C): El brief del slice-4 decía generar la migración con `pnpm prisma migrate dev --name add_transaction`. No hay DB local corriendo; usé `pnpm prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script` y curé a mano el SQL para mantener SOLO las partes aditivas (CREATE TYPE + CREATE TABLE + 2 CREATE INDEX + 2 ADD CONSTRAINT), siguiendo el precedente de fx-cache (`add_account_fx_casa`). La migración es verificable en el próximo run de CI con DB viva.
+
+### Verificación de la migración
+
+Delta de schema vs migraciones previas:
+
+- TIPO NUEVO: `TransactionDirection`
+- TABLA NUEVA: `Transaction`
+- ÍNDICES NUEVOS: `Transaction_userId_transactionDate_id_idx`, `Transaction_userId_accountId_idx`
+- FK NUEVAS: `Transaction_userId_fkey`, `Transaction_accountId_fkey`
+- SIN DROPs, SIN ALTERs sobre tablas existentes.
+
+## Tests
+
+`pnpm test` → **645 passed, 4 skipped, 0 failed**.
+Slice-4 neto: +14 tests (12 casos del adapter + 2 tripwire §10.5).
+
+## Typecheck
+
+`pnpm run typecheck` → **0 errors**.
+
+## Diff stat
 
 ```
-
+$ git diff --stat develop..feat/transactions-persistence | tail -1
 ```
+
+(Ver Step 10 sub-split check.)
+
+## Dual write check
+
+EN + ES apply-progress espejados atómicamente. El header de la sección slice-4 aterrizó en commit `7f38866`; el ledger final + evidencia TDD + log de desviaciones appendeados atómicamente.
+
+## OpenSpec
+
+`openspec/changes/transactions/apply-progress.md` — sección slice-4 appendeada con el ledger de commits completo, tabla de evidencia TDD, resúmenes Phase A/B/C, desviaciones ejecutadas, y el bloque de verificación de migración.
+
+## Follow-ups
+
+- Slice 5: `TransactionService` + Hono routes + smoke UI.
+- Se siguió al pie de la letra el precedente de fx-cache (migración `add_account_fx_casa`): `CREATE TYPE` + `CREATE TABLE` + 2 `CREATE INDEX` + 2 `ADD CONSTRAINT FOREIGN KEY`. Sin DROPs, sin ALTERs sobre tablas existentes.
+- Futuro: colapsar el espejo local de `AccountCurrency` en el módulo de transactions en un shared kernel (el slice 1 lo anotó; el slice 5 lo aterrizará).

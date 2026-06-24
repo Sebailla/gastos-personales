@@ -54,7 +54,13 @@ function buildAccountsDeps(): Omit<HonoAppDeps, 'authjsAuth'> {
   // F-14: use the narrow delegate view instead of
   // `as any`. The structural cast happens once inside
   // `asPrismaDelegateView`.
-  const prismaView = asPrismaDelegateView(prisma());
+  // Slice-4 refactor: cast `prisma()` through `unknown` first
+  // because the Prisma client's methods are generic
+  // (`<T extends UserCreateArgs>(args: ...) => ...`) — not
+  // directly assignable to the narrow `(args: object) => Promise<unknown>`
+  // shape. The runtime contract is preserved.
+  const prismaClientForView = prisma() as unknown as Parameters<typeof asPrismaDelegateView>[0];
+  const prismaView = asPrismaDelegateView(prismaClientForView);
   const userRepo = new UserRepository({ user: prismaView.user });
   const hasher = new Argon2idHasher();
   const authService = new AuthService(userRepo, hasher, dispatcher, systemClock);

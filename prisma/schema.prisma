@@ -34,6 +34,7 @@ model User {
   accounts          Account[]
   sessions          Session[]
   financialAccounts FinancialAccount[]
+  transactions      Transaction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -213,7 +214,67 @@ model FinancialAccount {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  transactions Transaction[]
+
   @@unique([userId, type, name])
   @@index([userId, archivedAt])
   @@index([userId, createdAt])
+}
+
+// ============================================================================
+// transactions capability — added by transactions (slice 4)
+// See: openspec/changes/transactions/specs/transactions/spec.md §"Entities"
+// See: openspec/changes/transactions/design.md §7
+//
+// One row per manual ledger entry. Mirrors the slice-1 domain
+// `Transaction` aggregate one-to-one (REQ-TX-1 + REQ-TX-5: 14 fields).
+// The aggregate holds 14 readonly fields; the 3 generator-managed
+// timestamps (`id`, `createdAt`, `updatedAt`) are stamped here by
+// Prisma; the rest are supplied by the application.
+//
+// Cross-module invariant (BR-TX-4): every row carries `userId`
+// AND `accountId`. The application layer always filters by
+// `userId` first; the `accountId` filter is added on the list
+// endpoint (REQ-TX-10) when the caller scopes to one account.
+// The application layer NEVER trusts a `userId` from a request
+// body; the session is the source of truth (mirrors the
+// `FinancialAccount` invariant above).
+//
+// Index strategy (from the spec §"Indexes" + design §7.3):
+//   @@index([userId, transactionDate(sort: Desc), id]) — list cursor
+//   @@index([userId, accountId])                      — list filter
+//
+// `transactionDate` is the user-visible ordering (the spec's
+// "order by transactionDate DESC, then id DESC for tie-break").
+// `id` is the second sort key for stable pagination under
+// concurrent writes.
+// ============================================================================
+
+enum TransactionDirection {
+  INCOME
+  EXPENSE
+}
+
+model Transaction {
+  id                    String                   @id @default(cuid())
+  userId                String
+  accountId             String
+  direction             TransactionDirection
+  amountMinor           Int
+  currency              AccountCurrency
+  memo                  String?
+  category              String?
+  transactionDate       DateTime
+  convertedAmountMinor  Int
+  convertedCurrency     AccountCurrency
+  fxAsOfSnapshot        DateTime?
+  casaSnapshot          AccountFxCasa?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account FinancialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([userId, transactionDate(sort: Desc), id])
+  @@index([userId, accountId])
 }

@@ -113,11 +113,18 @@ export function createHonoApp(deps: HonoAppDeps): OpenAPIHono<{ Variables: HonoC
   // worker) does NOT require editing this file. Tests
   // inject `accountService` directly to mock the service
   // surface; both paths reach the same routes.
+  // Slice-4 refactor: the structural cast goes through
+  // `unknown` because the Prisma client's methods are
+  // GENERIC (e.g. `<T extends UserCreateArgs>(args: ...) => ...`)
+  // — not directly assignable to the narrow `(args: object)
+  // => Promise<unknown>` signature. The runtime contract is
+  // preserved; the cast is purely a type-system convenience.
+  const prismaClientForView = prisma() as unknown as Parameters<typeof asPrismaDelegateView>[0];
   const accountService =
     deps.accountService ??
     new AccountService(
       new AccountRepositoryPrisma({
-        financialAccount: asPrismaDelegateView(prisma()).financialAccount,
+        financialAccount: asPrismaDelegateView(prismaClientForView).financialAccount,
       }),
       deps.fxRateProvider,
       systemClock,
@@ -322,7 +329,15 @@ function buildDefaultDeps(): HonoAppDeps {
   // keeps `app.ts` from importing the full
   // PrismaClientOptions type for what is, in practice, a
   // structural compat check, and avoids `as any`.
-  const prismaView = asPrismaDelegateView(prisma());
+  // Slice-4 refactor: the PrismaClient's method signatures
+  // are GENERIC (e.g. `<T extends UserCreateArgs>(args: ...) => ...`),
+  // which is not structurally assignable to the narrow
+  // `(args: object) => Promise<unknown>` shape — the generic
+  // function's parameter type is narrower than `object` at
+  // the call site. The cast through `unknown` re-aligns the
+  // shape; the runtime call is identical.
+  const prismaClientForView = prisma() as unknown as Parameters<typeof asPrismaDelegateView>[0];
+  const prismaView = asPrismaDelegateView(prismaClientForView);
   const userRepo = new UserRepository({ user: prismaView.user });
   const hasher = new Argon2idHasher();
   const authService = new AuthService(userRepo, hasher, dispatcher, systemClock);
