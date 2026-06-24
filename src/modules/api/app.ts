@@ -78,6 +78,12 @@ import { logger } from '@/shared/logger/logger';
 import type { AuthUser } from './middlewares/variables';
 import { TransactionRepositoryPrisma } from '@/modules/transactions/infrastructure/repositories/transaction.repository.prisma';
 import type { TransactionActionDeps } from '@/modules/transactions/application/actions/_shared';
+import { listTransactionsAction } from '@/modules/transactions/application/actions/list-transactions.action';
+import { getTransactionAction } from '@/modules/transactions/application/actions/get-transaction.action';
+import { createTransactionAction } from '@/modules/transactions/application/actions/create-transaction.action';
+import { updateTransactionAction } from '@/modules/transactions/application/actions/update-transaction.action';
+import { deleteTransactionAction } from '@/modules/transactions/application/actions/delete-transaction.action';
+import { ErrorStatus } from '@/shared/errors/error-codes';
 
 export type AuthjsAuthFn = () => Promise<{ user: AuthUser | null } | null>;
 
@@ -319,6 +325,94 @@ export function createHonoApp(deps: HonoAppDeps): OpenAPIHono<{ Variables: HonoC
     }
     return c.json({ error: res.error }, res.status as 400 | 404 | 409 | 503);
   });
+
+  // -- Slice 5: /api/transactions routes --
+  // The 6 routes wrap the 5 slice-3 actions. Every route
+  // filters by `user.id` from `c.get('user')` (BR-TX-4). The
+  // `transactionDeps` bag is supplied via `createHonoApp` (the
+  // production factory builds it; tests inject a fake one).
+  // When `transactionDeps` is not supplied (legacy accounts-
+  // only test setups), the routes are NOT registered — the
+  // existing accounts routes still work, the new routes 404.
+
+  if (deps.transactionDeps) {
+    const txDeps = deps.transactionDeps;
+    // `c.json(body, status)` is generic over `StatusCode` (Hono's
+    // literal type). `ErrorStatus[code]` is a plain `number`,
+    // so cast through `as never` to bridge the literal-type gap.
+    // The runtime value is correct; the cast is purely a
+    // type-system convenience.
+    const statusFor = (code: string): never =>
+      ErrorStatus[code as keyof typeof ErrorStatus] as never;
+
+    // 1. List transactions (cursor pagination; optional accountId).
+    protectedApp.get('/api/transactions', async (c) => {
+      const user = c.get('user');
+      const query = Object.fromEntries(new URL(c.req.url).searchParams);
+      const res = await listTransactionsAction(txDeps, user.id, query);
+      if (res.ok) {
+        return c.json({ data: res.value.items, nextCursor: res.value.nextCursor }, 200);
+      }
+      return c.json({ error: res.error }, statusFor(res.error.code));
+    });
+
+    // 2. Per-account list (the 6th route — REQ-TX-8 with accountId pre-filled).
+    protectedApp.get('/api/transactions/account/:accountId', async (c) => {
+      const user = c.get('user');
+      const accountId = c.req.param('accountId');
+      const query = Object.fromEntries(new URL(c.req.url).searchParams);
+      const res = await listTransactionsAction(txDeps, user.id, { ...query, accountId });
+      if (res.ok) {
+        return c.json({ data: res.value.items, nextCursor: res.value.nextCursor }, 200);
+      }
+      return c.json({ error: res.error }, statusFor(res.error.code));
+    });
+
+    // 3. Create transaction.
+    protectedApp.post('/api/transactions', async (c) => {
+      const user = c.get('user');
+      const body = await c.req.json().catch(() => null);
+      const res = await createTransactionAction(txDeps, user.id, body);
+      if (res.ok) {
+        return c.json({ data: res.value }, 201);
+      }
+      return c.json({ error: res.error }, statusFor(res.error.code));
+    });
+
+    // 4. Get one transaction.
+    protectedApp.get('/api/transactions/:id', async (c) => {
+      const user = c.get('user');
+      const id = c.req.param('id');
+      const res = await getTransactionAction(txDeps, user.id, id);
+      if (res.ok) {
+        return c.json({ data: res.value }, 200);
+      }
+      return c.json({ error: res.error }, statusFor(res.error.code));
+    });
+
+    // 5. Partial update.
+    protectedApp.patch('/api/transactions/:id', async (c) => {
+      const user = c.get('user');
+      const id = c.req.param('id');
+      const body = await c.req.json().catch(() => null);
+      const res = await updateTransactionAction(txDeps, user.id, { ...body, id });
+      if (res.ok) {
+        return c.json({ data: res.value }, 200);
+      }
+      return c.json({ error: res.error }, statusFor(res.error.code));
+    });
+
+    // 6. Hard delete.
+    protectedApp.delete('/api/transactions/:id', async (c) => {
+      const user = c.get('user');
+      const id = c.req.param('id');
+      const res = await deleteTransactionAction(txDeps, user.id, id);
+      if (res.ok) {
+        return c.json({ data: res.value }, 200);
+      }
+      return c.json({ error: res.error }, statusFor(res.error.code));
+    });
+  }
 
   // Mount the protected sub-app under the same path prefix
   // as before. The `requireSession` middleware was registered

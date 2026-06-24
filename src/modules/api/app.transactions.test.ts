@@ -34,6 +34,7 @@ import { InMemoryTransactionRepository } from '@/modules/transactions/applicatio
 import { AccountCurrency as TxCurrency } from '@/modules/transactions/domain/entities/transaction';
 import type { TransactionActionDeps } from '@/modules/transactions/application/actions/_shared';
 import { logger } from '@/shared/logger/logger';
+import type { AccountRepositoryPortMirror } from '@/modules/transactions/domain/interfaces/account.repository.port.mirror';
 
 const TEST_USER_ID = 'u-1';
 
@@ -62,8 +63,22 @@ function buildDeps(txDeps: TransactionActionDeps): HonoAppDeps {
 
 function buildTxDeps(opts: { repo?: InMemoryTransactionRepository } = {}): TransactionActionDeps {
   const repo = opts.repo ?? new InMemoryTransactionRepository();
+  // The BR-TX-5 archived pre-check on the create path loads the
+  // parent account via `accountRepository.findById(userId, id)`.
+  // The fixture returns a live, non-archived account so the
+  // happy-path POST passes the check.
+  const accountRepository: AccountRepositoryPortMirror = {
+    findById: vi.fn(async () => ({
+      id: '00000000-0000-4000-8000-000000000001',
+      userId: TEST_USER_ID,
+      currency: 'ARS' as const,
+      casa: null,
+      archivedAt: null,
+    })),
+  };
   return {
     repo,
+    accountRepository,
     clock: () => new Date('2026-06-18T00:00:00.000Z'),
     logger,
     dispatcher: new EventDispatcher(),
@@ -108,8 +123,9 @@ describe('GET /api/transactions', () => {
 describe('GET /api/transactions/account/:accountId', () => {
   it('returns 200 with the per-account filtered list', async () => {
     const repo = new InMemoryTransactionRepository();
+    const ACCOUNT_UUID = '00000000-0000-4000-8000-000000000001';
     await repo.create(TEST_USER_ID, {
-      accountId: 'fa-1',
+      accountId: ACCOUNT_UUID,
       direction: 'EXPENSE',
       amountMinor: 1000,
       currency: TxCurrency.ARS,
@@ -122,7 +138,7 @@ describe('GET /api/transactions/account/:accountId', () => {
       casaSnapshot: null,
     });
     const app = createHonoApp(buildDeps(buildTxDeps({ repo })));
-    const res = await app.request('/api/transactions/account/fa-1');
+    const res = await app.request(`/api/transactions/account/${ACCOUNT_UUID}`);
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data).toHaveLength(1);
@@ -136,7 +152,7 @@ describe('POST /api/transactions', () => {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        accountId: 'fa-1',
+        accountId: '00000000-0000-4000-8000-000000000001',
         direction: 'EXPENSE',
         amountMinor: 1000,
         originalCurrency: 'ARS',
