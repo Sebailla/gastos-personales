@@ -3,7 +3,7 @@
 **Autor**: Sebastián Illa
 **Cambio**: `transactions`
 **Capacidad**: `transactions` (nueva — primera escritura del spec + design canónicos) + un delta en `accounts` (solo enlace cruzado)
-**Estado**: draft · **Creado**: 2026-06-22 · **Última sincronización**: 2026-06-22 (transactions)
+**Estado**: implemented · **Creado**: 2026-06-22 · **Última sincronización**: 2026-06-24 (slices 1-5 mergeados en `develop` vía #59-#63; archivado como 2026-06-24-transactions)
 **Stack**: v3 — Next.js 16 + Node 20 + Hono catch-all + Auth.js v5 (heredado de `auth-foundation`) + Prisma 6 + PostgreSQL (Neon) + Zod + Vitest + pnpm + Tailwind v4
 **Artefactos fuente**: `openspec/changes/transactions/proposal.md` (v1, 657 líneas, DG-TX-1..15 cerrados) · `openspec/changes/transactions/specs/transactions/spec.md` (986 líneas, REQ-TX-1..15, 32 escenarios) · `openspec/changes/transactions/specs/accounts/spec.md` (107 líneas, delta de enlace REQ-ACC-X1) · `openspec/changes/transactions/design.md` (2280 líneas, 21 secciones)
 **PRs encadenados**: 2 (`feat/transactions-1A` y `feat/transactions-1B` → `develop`). Cada PR excede el presupuesto de revisión de 400 líneas; el design §17 recomienda sub-PRs apilados en cada rama umbrella, pero la fase apply también PUEDE mantener los PRs umbrella como están si el revisor confirma que el diff por archivo es pequeño.

@@ -3,7 +3,7 @@
 **Author**: Sebastián Illa
 **Change**: `transactions`
 **Capability**: `transactions` (new — first write of the canonical spec + design) + one delta on `accounts` (cross-link only)
-**Status**: draft · **Created**: 2026-06-22 · **Last sync**: 2026-06-22 (transactions)
+**Status**: implemented · **Created**: 2026-06-22 · **Last sync**: 2026-06-24 (slices 1-5 merged on `develop` via #59-#63; archived as 2026-06-24-transactions)
 **Stack**: v3 — Next.js 16 + Node 20 + Hono catch-all + Auth.js v5 (inherited from `auth-foundation`) + Prisma 6 + PostgreSQL (Neon) + Zod + Vitest + pnpm + Tailwind v4
 **Source artifacts**: `openspec/changes/transactions/proposal.md` (v1, 657 lines, DG-TX-1..15 closed) · `openspec/changes/transactions/specs/transactions/spec.md` (986 lines, REQ-TX-1..15, 32 scenarios) · `openspec/changes/transactions/specs/accounts/spec.md` (107 lines, REQ-ACC-X1 cross-link delta) · `openspec/changes/transactions/design.md` (2280 lines, 21 sections)
 **Chained PRs**: 2 (`feat/transactions-1A` and `feat/transactions-1B` → `develop`). Each PR exceeds the 400-line review budget; the design §17 recommends stacked sub-PRs on each umbrella branch, but the apply phase MAY also choose to keep the umbrella PRs as-is if the reviewer confirms the per-file diff is small.

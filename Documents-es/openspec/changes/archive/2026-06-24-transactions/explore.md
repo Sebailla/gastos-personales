@@ -1,7 +1,8 @@
 # Exploración — `transactions`
 
-**Estado**: investigación · **Autor**: Sebastián Illa
-**Creado**: 2026-06-22 · **Slice objetivo**: MVP-2 (libro mayor de transacciones)
+**Estado**: investigación (archivado) · **Autor**: Sebastián Illa
+**Creado**: 2026-06-22 · **Archivado**: 2026-06-24 (investigación consolidada en el grill de pre-propose; propuesta/diseño/tareas implementaron slices 1-5 vía #59-#63)
+**Slice objetivo**: MVP-2 (libro mayor de transacciones)
 **Upstream**: preflight SDD global (interactive, both, auto-forecast, 400 líneas)
 
 > **Documento de investigación.** Este es el output de
