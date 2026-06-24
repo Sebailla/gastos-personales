@@ -831,14 +831,15 @@ The user chose **Path A: root-cause fix**: replace all `any` with `unknown` (or 
 
 ### A.2 Numbers
 
-| Surface | `any` removed | `unknown` introduced |
-|---|---|---|
-| `PrismaUserDelegate` | 4 (1 interface + 3 method sigs) | 3 (method returns) |
-| `PrismaFinancialAccountDelegate` | 7 (1 interface + 6 method sigs) | 5 (3 returns + 2 specific shapes) |
+| Surface                           | `any` removed                   | `unknown` introduced              |
+| --------------------------------- | ------------------------------- | --------------------------------- |
+| `PrismaUserDelegate`              | 4 (1 interface + 3 method sigs) | 3 (method returns)                |
+| `PrismaFinancialAccountDelegate`  | 7 (1 interface + 6 method sigs) | 5 (3 returns + 2 specific shapes) |
 | `PrismaTransactionDelegate` (new) | 6 (1 interface + 5 method sigs) | 5 (3 returns + 2 specific shapes) |
-| **Total** | **17** | **13** |
+| **Total**                         | **17**                          | **13**                            |
 
 Specific shapes used:
+
 - `updateMany`, `deleteMany`, `count` → `Promise<{ count: number }>` / `Promise<number>` (the Prisma API guarantees these).
 - `findMany` → `Promise<unknown[]>` (the array shape is guaranteed; the element shape is whatever `findMany` returned historically — adapter maps to domain).
 
@@ -855,19 +856,19 @@ After Phase A landed, the following downstream files needed narrowing of `unknow
 
 ### Commit ledger
 
-| SHA     | Type | Scope | Description |
-|---------|------|-------|-------------|
-| `2ab2860` | feat  | transactions | add Transaction model + TransactionDirection enum + migration |
-| `4225591` | feat  | shared       | add PrismaTransactionDelegate to prisma-types.ts |
-| `1c4b2a0` | test  | transactions | red — TransactionRepositoryPrisma adapter (12 cases) |
-| `7ecf8f6` | feat  | transactions | TransactionRepositoryPrisma adapter |
+| SHA       | Type | Scope        | Description                                                   |
+| --------- | ---- | ------------ | ------------------------------------------------------------- |
+| `2ab2860` | feat | transactions | add Transaction model + TransactionDirection enum + migration |
+| `4225591` | feat | shared       | add PrismaTransactionDelegate to prisma-types.ts              |
+| `1c4b2a0` | test | transactions | red — TransactionRepositoryPrisma adapter (12 cases)          |
+| `7ecf8f6` | feat | transactions | TransactionRepositoryPrisma adapter                           |
 
 ### TDD evidence table
 
-| Test | RED commit | GREEN commit | Status |
-|------|------------|--------------|--------|
-| §10.5 tripwire in prisma-types.test.ts | `662f3c8` | `83dfd3e` | GREEN |
-| TransactionRepositoryPrisma 12 cases | `1c4b2a0` | `7ecf8f6` | GREEN |
+| Test                                   | RED commit | GREEN commit | Status |
+| -------------------------------------- | ---------- | ------------ | ------ |
+| §10.5 tripwire in prisma-types.test.ts | `662f3c8`  | `83dfd3e`    | GREEN  |
+| TransactionRepositoryPrisma 12 cases   | `1c4b2a0`  | `7ecf8f6`    | GREEN  |
 
 ### Phase A — refactor summary
 
@@ -895,10 +896,11 @@ After Phase A landed, the following downstream files needed narrowing of `unknow
 - Deviation #2 (Phase C): The slice-4 brief said to generate the migration via `pnpm prisma migrate dev --name add_transaction`. Local DB is not running; I used `pnpm prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script` and hand-curated the SQL to keep ONLY the additive parts (CREATE TYPE + CREATE TABLE + 2 CREATE INDEX + 2 ADD CONSTRAINT), following the fx-cache precedent (`add_account_fx_casa`). The migration is verifiable on the next CI run with a live DB.
 
 ### Migration verification
-
 ```
+
 $ git diff prisma/migrations/20260622010704_add_account_fx_casa/migration.sql \
-    prisma/migrations/20260624000001_add_transaction/migration.sql
+ prisma/migrations/20260624000001_add_transaction/migration.sql
+
 ```
 
 Schema delta vs previous migrations:
@@ -921,7 +923,9 @@ Slice-4 net: +14 tests (12 adapter cases + 2 §10.5 tripwire).
 ## Diff stat
 
 ```
+
 $ git diff --stat develop..feat/transactions-persistence | tail -1
+
 ```
 
 (See Step 10 sub-split check.)
@@ -939,3 +943,129 @@ EN + ES apply-progress mirrored atomically. The slice-4 section header landed in
 - Slice 5: `TransactionService` + Hono routes + smoke UI.
 - The fx-cache precedent (`add_account_fx_casa` migration) was followed exactly: `CREATE TYPE` + `CREATE TABLE` + 2 `CREATE INDEX` + 2 `ADD CONSTRAINT FOREIGN KEY`. No DROPs, no ALTERs of existing tables.
 - Future: collapse the local `AccountCurrency` mirror in the transactions module into a shared kernel (slice 1 noted this; slice 5 will land it).
+
+---
+
+# Slice 5 — Hono routes + DI wiring + smoke UI
+
+**Author**: Sebastián Illa
+**Branch**: `feat/transactions-api`
+**Base**: `develop` @ `941bf0a` (slice 4 merged)
+**Status**: open · **Started**: 2026-06-24
+**Scope**: end-to-end API surface (Hono routes + DI factory extension + 3 smoke UI pages + 1 list table component + 1 types file + 1 server-actions file) + tests for the new route surface and the DI factory extension.
+
+## Why no `TransactionService` (deviation from design §5)
+
+The slice-1 design called for a `TransactionService` orchestrator
+(slice 4 named it as the home for the FX call, the event dispatch,
+the logger events). After three slices of working through the
+application layer, the **action layer already handles orchestration
+end-to-end**:
+
+- The factory (`createTransaction`) is the only place that calls the
+  FX provider and dispatches `TransactionRecorded`.
+- The action (`createTransactionAction`) is the only place that calls
+  the factory, the repository, and the logger.
+- A `TransactionService` between the action and the factory would add
+  a layer that does no work the action does not already do.
+
+The Hono route layer calls the actions directly. Skipping
+`TransactionService` is a slice-5 deviation. The slice-1 design
+predicted a `TransactionService` would exist; the design is wrong on
+this point. A future ADR can codify "actions are the orchestrator
+for capability-thin domains; a service layer appears when the
+orchestration cannot fit in a single function."
+
+## Pre-flight baseline (2026-06-24, slice 5)
+
+| Check                             | Result                                              |
+| --------------------------------- | --------------------------------------------------- |
+| `pnpm install --ignore-workspace` | OK (905 packages)                                   |
+| `pnpm prisma generate`            | OK (v7.8.0)                                         |
+| `pnpm test` (baseline)            | **645 passed**, 4 skipped (testcontainers Postgres) |
+| `pnpm run typecheck` (baseline)   | **0 errors**                                        |
+| `gga run` (baseline, no staged)   | OK — informational                                  |
+
+Note: `pnpm prisma generate` had to be re-run inside the worktree
+because the Prisma client is generated into `./node_modules` (not a
+worktree-shared path). The generated client is identical to the
+develop baseline.
+
+## Slice 5 scope (binding)
+
+| #     | File                                                            | Type | Spec REQ                | Notes                                                                              |
+| ----- | --------------------------------------------------------------- | ---- | ----------------------- | ---------------------------------------------------------------------------------- |
+| S5-1  | `openspec/changes/transactions/apply-progress.md`               | docs | n/a                     | This file. EN + ES append (atomic).                                                |
+| S5-2  | `Documents-es/openspec/changes/transactions/apply-progress.md`  | docs | n/a                     | Spanish mirror of S5-1.                                                            |
+| S5-3  | `src/modules/api/build-default-deps.test.ts` (NEW or extend)    | test | n/a                     | 3 cases: `transactionDeps` exposes `TransactionRepositoryPrisma`; FX provider reused. |
+| S5-4  | `src/modules/api/app.transactions.test.ts` (NEW)                | test | REQ-TX-6, REQ-TX-8..11  | ~10 cases (1 happy + 1 auth + 1 validation + 1 not-found per the 6 routes).         |
+| S5-5  | `src/modules/api/app.ts`                                        | impl | REQ-TX-8..11            | Register 6 Hono routes on `protectedApp`; extend `buildDefaultDeps` with `transactionDeps`. |
+| S5-6  | `src/modules/api/build-default-deps.ts` (NEW or extend)         | impl | n/a                     | DI factory extension: `TransactionRepositoryPrisma` + `EventDispatcher` + reused `FxRateProvider` + clock + logger. Export `transactionDeps`. |
+| S5-7  | `app/_lib/transaction-types.ts`                                 | impl | REQ-TX-15               | Wire types for the smoke UI (DTO shape + error envelope).                           |
+| S5-8  | `app/_actions/transactions-server-actions.ts` (NEW)             | impl | REQ-TX-9, REQ-TX-10, REQ-TX-11 | Server actions for create/update/delete; API-first (call Hono routes via `serverHonoRequest`, NOT the application actions directly). |
+| S5-9  | `app/transactions/page.tsx`                                     | impl | REQ-TX-8, REQ-TX-15     | List page (Server Component). Auth gate. Renders the list table + cursor pagination footer. |
+| S5-10 | `app/transactions/new/page.tsx`                                 | impl | REQ-TX-9, REQ-TX-15     | Create form page (Server Component shell + form).                                   |
+| S5-11 | `app/transactions/[id]/page.tsx`                                | impl | REQ-TX-10, REQ-TX-11, REQ-TX-15 | Detail / edit / delete page (Server Component).                                    |
+| S5-12 | `app/_components/transactions-list-table.tsx` (NEW)             | impl | REQ-TX-15               | List table Server Component.                                                       |
+
+**Out of scope (per slice spec)**: `prisma/schema.prisma` and
+migrations (slice 4), `src/modules/transactions/{domain,application,
+infrastructure}/**` (slices 1–4 done, read-only),
+`src/shared/{db,errors,events,logger}/**` (slices 2+4 done, read-only),
+`src/modules/accounts/**` (read-only), `src/lib/server-hono.ts` (only
+adjust if `serverHonoRequest` does not yet support the new paths — it
+does, paths are dynamic), `app/accounts/**` (read-only),
+`src/modules/api/middlewares/**` (read-only).
+
+## Slice 5 deviations (planned)
+
+> **1. No `TransactionService`.** Documented above. The action
+> layer is the orchestrator; the route layer calls the actions
+> directly. The slice-1 design's `TransactionService` layer is
+> removed.
+
+> **2. DI factory extension lives in `src/modules/api/app.ts`
+> inline, not a separate `build-default-deps.ts` file.** The
+> existing `buildDefaultDeps` function in `app.ts` is the factory;
+> slice 5 extends it. A separate `build-default-deps.ts` would
+> split one function across two files (cross-file refactor, not in
+> scope). The slice prompt listed `build-default-deps.ts` as the
+> target "or wherever the factory lives" — the factory lives
+> inside `app.ts:buildDefaultDeps`, so slice 5 extends it.
+
+> **3. Server actions call the Hono routes via `serverHonoRequest`,
+> not the application actions directly.** The smoke UI is
+> API-first. The auth gate (`requireSession`) is enforced at the
+> route layer; calling the actions directly would skip it.
+
+> **4. Smoke UI uses inline `<form>` POSTs (no client component for
+> edit/delete).** The accounts slice uses
+> `CreateAccountForm` / `BalanceWidget` as Client Components for
+> the form state. For slice 5, the create / edit / delete forms
+> are Server Actions invoked via plain `<form action={…}>`
+> posts. The smoke UI is hand-verified; the form-state discipline
+> from BR-ACC-15 is honored by keeping all state in the form
+> inputs (the Server Action does the redirect on success).
+
+## Slice 5 acceptance gates (to be filled at close)
+
+- [ ] `pnpm test` exits 0; tests added (target: ~13 — 3 in
+      `build-default-deps.test.ts` + 10 in `app.transactions.test.ts`)
+- [ ] `pnpm run typecheck` exits 0 (0 errors)
+- [ ] `pnpm run build` succeeds (Next.js production build — the smoke
+      UI must build for production per the slice prompt hard rule)
+- [ ] `git log develop..feat/transactions-api --oneline` shows the
+      atomic commit sequence
+- [ ] `git log develop..feat/transactions-api | grep -i "no-verify"` empty
+- [ ] `git log develop..feat/transactions-api | grep -iE "co-authored.*(ai|claude|gpt|gemini)|with ai help|generated by ai|el gentleman"` empty
+- [ ] `git diff --stat develop..feat/transactions-api | tail -1` — `size:exception` declared per slices 1+2+3+4 precedent
+- [ ] `Documents-es/openspec/changes/transactions/apply-progress.md` mirrors the EN file; 0 CJK characters
+- [ ] All commits pass `pnpm test`, `pnpm run typecheck`, `pnpm exec lint-staged && gga run`
+- [ ] No `any` in slice diff (§10.5 absolute rule)
+- [ ] No new `eslint-disable-next-line @typescript-eslint/no-explicit-any` directives
+- [ ] All routes filter by `user.id` from `c.get('user')` (BR-TX-4)
+- [ ] All smoke UI pages have header `// smoke-minimal, not production`
+- [ ] Smoke UI calls Hono via `serverHonoRequest`, NOT application actions directly
+- [ ] Mock Prisma (no testcontainers); 0 skipped tests in the new files
+```
+````

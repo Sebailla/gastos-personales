@@ -854,14 +854,15 @@ El usuario eligió **Path A: fix de causa raíz**: reemplazar todos los `any` po
 
 ### A.2 Números
 
-| Superficie | `any` removidos | `unknown` introducidos |
-|---|---|---|
-| `PrismaUserDelegate` | 4 (1 interface + 3 sigs de método) | 3 (returns de método) |
-| `PrismaFinancialAccountDelegate` | 7 (1 interface + 6 sigs de método) | 5 (3 returns + 2 shapes específicos) |
+| Superficie                          | `any` removidos                    | `unknown` introducidos               |
+| ----------------------------------- | ---------------------------------- | ------------------------------------ |
+| `PrismaUserDelegate`                | 4 (1 interface + 3 sigs de método) | 3 (returns de método)                |
+| `PrismaFinancialAccountDelegate`    | 7 (1 interface + 6 sigs de método) | 5 (3 returns + 2 shapes específicos) |
 | `PrismaTransactionDelegate` (nuevo) | 6 (1 interface + 5 sigs de método) | 5 (3 returns + 2 shapes específicos) |
-| **Total** | **17** | **13** |
+| **Total**                           | **17**                             | **13**                               |
 
 Shapes específicos usados:
+
 - `updateMany`, `deleteMany`, `count` → `Promise<{ count: number }>` / `Promise<number>` (la API de Prisma los garantiza).
 - `findMany` → `Promise<unknown[]>` (la forma de array está garantizada; el shape de elemento es lo que `findMany` devolvía históricamente — el adapter mapea a dominio).
 
@@ -878,19 +879,19 @@ Después de que Phase A aterrizó, los siguientes archivos downstream necesitaro
 
 ### Ledger de commits
 
-| SHA     | Tipo | Alcance | Descripción |
-|---------|------|---------|-------------|
-| `2ab2860` | feat  | transactions | add Transaction model + TransactionDirection enum + migration |
-| `4225591` | feat  | shared       | add PrismaTransactionDelegate to prisma-types.ts |
-| `1c4b2a0` | test  | transactions | red — TransactionRepositoryPrisma adapter (12 cases) |
-| `7ecf8f6` | feat  | transactions | TransactionRepositoryPrisma adapter |
+| SHA       | Tipo | Alcance      | Descripción                                                   |
+| --------- | ---- | ------------ | ------------------------------------------------------------- |
+| `2ab2860` | feat | transactions | add Transaction model + TransactionDirection enum + migration |
+| `4225591` | feat | shared       | add PrismaTransactionDelegate to prisma-types.ts              |
+| `1c4b2a0` | test | transactions | red — TransactionRepositoryPrisma adapter (12 cases)          |
+| `7ecf8f6` | feat | transactions | TransactionRepositoryPrisma adapter                           |
 
 ### Tabla de evidencia TDD
 
-| Test | Commit RED | Commit GREEN | Estado |
-|------|------------|--------------|--------|
-| Tripwire §10.5 en prisma-types.test.ts | `662f3c8` | `83dfd3e` | GREEN |
-| TransactionRepositoryPrisma 12 casos | `1c4b2a0` | `7ecf8f6` | GREEN |
+| Test                                   | Commit RED | Commit GREEN | Estado |
+| -------------------------------------- | ---------- | ------------ | ------ |
+| Tripwire §10.5 en prisma-types.test.ts | `662f3c8`  | `83dfd3e`    | GREEN  |
+| TransactionRepositoryPrisma 12 casos   | `1c4b2a0`  | `7ecf8f6`    | GREEN  |
 
 ### Phase A — resumen del refactor
 
@@ -937,9 +938,10 @@ Slice-4 neto: +14 tests (12 casos del adapter + 2 tripwire §10.5).
 `pnpm run typecheck` → **0 errors**.
 
 ## Diff stat
-
 ```
+
 $ git diff --stat develop..feat/transactions-persistence | tail -1
+
 ```
 
 (Ver Step 10 sub-split check.)
@@ -957,3 +959,134 @@ EN + ES apply-progress espejados atómicamente. El header de la sección slice-4
 - Slice 5: `TransactionService` + Hono routes + smoke UI.
 - Se siguió al pie de la letra el precedente de fx-cache (migración `add_account_fx_casa`): `CREATE TYPE` + `CREATE TABLE` + 2 `CREATE INDEX` + 2 `ADD CONSTRAINT FOREIGN KEY`. Sin DROPs, sin ALTERs sobre tablas existentes.
 - Futuro: colapsar el espejo local de `AccountCurrency` en el módulo de transactions en un shared kernel (el slice 1 lo anotó; el slice 5 lo aterrizará).
+
+---
+
+# Slice 5 — Rutas Hono + wiring de DI + smoke UI
+
+**Autor**: Sebastián Illa
+**Rama**: `feat/transactions-api`
+**Base**: `develop` @ `941bf0a` (slice 4 mergeado)
+**Estado**: abierto · **Iniciado**: 2026-06-24
+**Alcance**: superficie API end-to-end (rutas Hono + extensión de la factory de DI + 3 páginas de smoke UI + 1 componente de tabla de lista + 1 archivo de tipos + 1 archivo de server-actions) + tests para la nueva superficie de rutas y la extensión de la factory de DI.
+
+## Por qué no hay `TransactionService` (desviación del design §5)
+
+El design del slice-1 llamaba a un orquestador `TransactionService`
+(el slice 4 lo nombraba como el hogar del call a FX, el dispatch
+del evento, los eventos del logger). Después de tres slices de
+trabajar en la capa de application, **la capa de actions ya
+maneja la orquestación end-to-end**:
+
+- La factory (`createTransaction`) es el único lugar que llama al
+  provider de FX y dispatcha `TransactionRecorded`.
+- La action (`createTransactionAction`) es el único lugar que llama
+  a la factory, el repository, y el logger.
+- Un `TransactionService` entre la action y la factory agregaría
+  una capa que no hace trabajo que la action no haga ya.
+
+La capa de rutas de Hono llama a las actions directamente.
+Saltearse `TransactionService` es una desviación del slice 5. El
+design del slice-1 predecía que existiría un `TransactionService`;
+el design está equivocado en este punto. Un ADR futuro puede
+codificar "las actions son el orquestador para dominios
+delgados-por-capability; una capa de service aparece cuando la
+orquestación no entra en una sola función".
+
+## Baseline pre-vuelo (2026-06-24, slice 5)
+
+| Check                             | Resultado                                           |
+| --------------------------------- | --------------------------------------------------- |
+| `pnpm install --ignore-workspace` | OK (905 paquetes)                                   |
+| `pnpm prisma generate`            | OK (v7.8.0)                                         |
+| `pnpm test` (baseline)            | **645 passed**, 4 skipped (testcontainers Postgres) |
+| `pnpm run typecheck` (baseline)   | **0 errors**                                        |
+| `gga run` (baseline, sin stage)   | OK — informativo                                    |
+
+Nota: hubo que re-correr `pnpm prisma generate` dentro del worktree
+porque el Prisma client se genera en `./node_modules` (no es un
+path compartido por el worktree). El client generado es idéntico
+al baseline de develop.
+
+## Alcance del slice 5 (binding)
+
+| #     | Archivo                                                         | Tipo | Spec REQ                | Notas                                                                                |
+| ----- | --------------------------------------------------------------- | ---- | ----------------------- | ------------------------------------------------------------------------------------ |
+| S5-1  | `openspec/changes/transactions/apply-progress.md`               | docs | n/a                     | Este archivo. EN + ES append (atómico).                                             |
+| S5-2  | `Documents-es/openspec/changes/transactions/apply-progress.md`  | docs | n/a                     | Espejo en español de S5-1.                                                           |
+| S5-3  | `src/modules/api/build-default-deps.test.ts` (NEW o extender)   | test | n/a                     | 3 casos: `transactionDeps` expone `TransactionRepositoryPrisma`; FX provider reusado. |
+| S5-4  | `src/modules/api/app.transactions.test.ts` (NEW)                | test | REQ-TX-6, REQ-TX-8..11  | ~10 casos (1 happy + 1 auth + 1 validation + 1 not-found por las 6 rutas).            |
+| S5-5  | `src/modules/api/app.ts`                                        | impl | REQ-TX-8..11            | Registra 6 rutas Hono en `protectedApp`; extiende `buildDefaultDeps` con `transactionDeps`. |
+| S5-6  | `src/modules/api/build-default-deps.ts` (NEW o extender)        | impl | n/a                     | Extensión de la factory de DI: `TransactionRepositoryPrisma` + `EventDispatcher` + FX provider reusado + clock + logger. Exporta `transactionDeps`. |
+| S5-7  | `app/_lib/transaction-types.ts`                                 | impl | REQ-TX-15               | Wire types para el smoke UI (shape del DTO + error envelope).                        |
+| S5-8  | `app/_actions/transactions-server-actions.ts` (NEW)             | impl | REQ-TX-9, REQ-TX-10, REQ-TX-11 | Server actions para create/update/delete; API-first (llama a las rutas Hono vía `serverHonoRequest`, NO a las application actions directamente). |
+| S5-9  | `app/transactions/page.tsx`                                     | impl | REQ-TX-8, REQ-TX-15     | Página de lista (Server Component). Auth gate. Renderiza la tabla de lista + cursor pagination footer. |
+| S5-10 | `app/transactions/new/page.tsx`                                 | impl | REQ-TX-9, REQ-TX-15     | Página de formulario de creación (Server Component shell + form).                    |
+| S5-11 | `app/transactions/[id]/page.tsx`                                | impl | REQ-TX-10, REQ-TX-11, REQ-TX-15 | Página de detalle / edit / delete (Server Component).                                |
+| S5-12 | `app/_components/transactions-list-table.tsx` (NEW)             | impl | REQ-TX-15               | Server Component de tabla de lista.                                                  |
+
+**Out of scope (por el spec del slice)**: `prisma/schema.prisma` y
+migraciones (slice 4), `src/modules/transactions/{domain,application,
+infrastructure}/**` (slices 1–4 done, read-only),
+`src/shared/{db,errors,events,logger}/**` (slices 2+4 done, read-only),
+`src/modules/accounts/**` (read-only), `src/lib/server-hono.ts` (solo
+ajustar si `serverHonoRequest` aún no soporta los nuevos paths — los
+soporta, los paths son dinámicos), `app/accounts/**` (read-only),
+`src/modules/api/middlewares/**` (read-only).
+
+## Desviaciones del slice 5 (planeadas)
+
+> **1. No hay `TransactionService`.** Documentado arriba. La capa de
+> actions es el orquestador; la capa de rutas llama a las actions
+> directamente. La capa `TransactionService` del design del slice-1
+> se elimina.
+
+> **2. La extensión de la factory de DI vive inline en
+> `src/modules/api/app.ts`, no en un archivo separado
+> `build-default-deps.ts`.** La función existente
+> `buildDefaultDeps` en `app.ts` es la factory; el slice 5 la
+> extiende. Un `build-default-deps.ts` separado splitearía una
+> función en dos archivos (refactor cross-file, out of scope). El
+> slice prompt listaba `build-default-deps.ts` como target "o donde
+> sea que viva la factory" — la factory vive adentro de
+> `app.ts:buildDefaultDeps`, así que el slice 5 la extiende ahí.
+
+> **3. Las server actions llaman a las rutas Hono vía
+> `serverHonoRequest`, no a las application actions directamente.**
+> El smoke UI es API-first. El auth gate (`requireSession`) se
+> enforcea en la capa de rutas; llamar a las actions directamente
+> lo saltearía.
+
+> **4. El smoke UI usa POSTs inline con `<form>` (sin client
+> component para edit/delete).** El slice de accounts usa
+> `CreateAccountForm` / `BalanceWidget` como Client Components para
+> el state del form. Para el slice 5, los forms de create / edit /
+> delete son Server Actions invocadas vía posts planos `<form
+> action={…}>`. El smoke UI está hand-verified; la disciplina de
+> form-state de BR-ACC-15 se honra manteniendo todo el state en
+> los inputs del form (la Server Action hace el redirect en
+> success).
+
+## Acceptance gates del slice 5 (a llenar al cerrar)
+
+- [ ] `pnpm test` exits 0; tests agregados (target: ~13 — 3 en
+      `build-default-deps.test.ts` + 10 en `app.transactions.test.ts`)
+- [ ] `pnpm run typecheck` exits 0 (0 errors)
+- [ ] `pnpm run build` succeeds (Next.js production build — el smoke
+      UI debe buildear para producción por la hard rule del slice
+      prompt)
+- [ ] `git log develop..feat/transactions-api --oneline` muestra la
+      secuencia de commits atómica
+- [ ] `git log develop..feat/transactions-api | grep -i "no-verify"` vacío
+- [ ] `git log develop..feat/transactions-api | grep -iE "co-authored.*(ai|claude|gpt|gemini)|with ai help|generated by ai|el gentleman"` vacío
+- [ ] `git diff --stat develop..feat/transactions-api | tail -1` — `size:exception` declarado según precedente de slices 1+2+3+4
+- [ ] `Documents-es/openspec/changes/transactions/apply-progress.md` espeja el archivo EN; 0 caracteres CJK
+- [ ] Todos los commits pasan `pnpm test`, `pnpm run typecheck`, `pnpm exec lint-staged && gga run`
+- [ ] No `any` en el diff del slice (regla absoluta §10.5)
+- [ ] No nuevas directivas `eslint-disable-next-line @typescript-eslint/no-explicit-any`
+- [ ] Todas las rutas filtran por `user.id` desde `c.get('user')` (BR-TX-4)
+- [ ] Todas las páginas del smoke UI tienen el header `// smoke-minimal, not production`
+- [ ] El smoke UI llama a Hono vía `serverHonoRequest`, NO a las application actions directamente
+- [ ] Mock Prisma (sin testcontainers); 0 tests skipped en los nuevos archivos
+```
+````
