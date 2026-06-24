@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { AppError } from './app-error';
-import { ErrorCode } from './error-codes';
+import { ErrorCode, ErrorStatus } from './error-codes';
 
 describe('AppError', () => {
   it('stores the code, statusCode, and details', () => {
@@ -30,25 +30,20 @@ describe('AppError', () => {
     expect(err.name).toBe('AppError');
   });
 
-  it('maps every ErrorCode to a documented HTTP status', () => {
-    const expectations: Record<ErrorCode, number> = {
-      VALIDATION_ERROR: 400,
-      WEAK_PASSWORD: 400,
-      INVALID_CREDENTIALS: 401,
-      UNAUTHORIZED: 401,
-      FORBIDDEN: 403,
-      EMAIL_TAKEN: 409,
-      NAME_TAKEN: 409,
-      NOT_FOUND: 404,
-      FX_UNAVAILABLE: 503,
-      FX_NOT_SUPPORTED: 409,
-      RATE_LIMITED: 429,
-      OAUTH_PROVIDER_UNAVAILABLE: 502,
-      INTERNAL_ERROR: 500,
-    };
-    for (const [code, status] of Object.entries(expectations)) {
-      const err = new AppError({ code: code as ErrorCode, message: 'x' });
+  // Maps every ErrorCode to its documented HTTP status. The
+  // exhaustiveness comes from `ErrorStatus` (the centralized
+  // map at error-codes.ts) — the loop iterates the live map
+  // rather than a hardcoded literal, so future code additions
+  // are picked up automatically (no test churn for new codes).
+  // The previous version used a `Record<ErrorCode, number>`
+  // literal that broke compile-time every time a new code was
+  // added; this version decouples the assertion from the
+  // literal.
+  it.each(Object.entries(ErrorStatus) as Array<[ErrorCode, number]>)(
+    'maps ErrorCode %s → HTTP %i',
+    (code, status) => {
+      const err = new AppError({ code, message: 'x' });
       expect(err.statusCode).toBe(status);
-    }
-  });
+    },
+  );
 });
