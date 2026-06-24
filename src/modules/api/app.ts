@@ -1,30 +1,41 @@
 /**
- * honoApp — the OpenAPIHono app for the application API
+ * honoApp - the OpenAPIHono app for the application API
  * (non-Auth.js routes). Mounted at
  * `app/api/[...path]/route.ts` in Slice B-T-025.
  *
- * Composition:
- * - Global `requestIdMiddleware` (Slice A) — every request
- *   has a `requestId` available on the context.
- * - Global `errorHandler` (Slice A) — every thrown error
- *   becomes the `{ error: { code, message, details? } }`
- *   envelope.
- * - Global `authMiddleware` — calls the injected `authjsAuth`
- *   function once per request, sets
- *   `c.set('user', session?.user ?? null)`.
- * - Three routes:
- *   - `GET /health` — public, calls `healthAction`.
- *   - `GET /me` — calls `meAction`; returns 401
- *     `UNAUTHORIZED` if no session.
- *   - `POST /auth/register` — runs through `originCheck`
- *     (mutating routes only), calls `registerAction`.
+ * Wiring only. This file is the §10.5 "Modules isolated"
+ * exception for the api module: it imports from the
+ * composition root and from each module's barrel, but
+ * NOT from any module's internals (infra/application).
  *
- * The dependencies (`authService`, `authjsAuth`) are wired
- * via a factory function so this module does NOT import
- * `next-auth` (which has a known module-resolution bug with
- * `next@15.1.0` — see Slice A apply-progress.md, deviation
- * #4). Production wires the real Auth.js `auth` via
- * `app/api/[...path]/route.ts` (T-025). Tests inject fakes.
+ * Composition (in order, top to bottom):
+ * - Global `requestIdMiddleware` - every request has a
+ *   `requestId` available on the context.
+ * - Global `errorHandler` - every thrown error becomes the
+ *   `{ error: { code, message, details? } }` envelope.
+ * - Global `authMiddleware` - calls the injected
+ *   `authjsAuth` function once per request, sets
+ *   `c.set('user', session?.user ?? null)`.
+ * - Public routes (no `requireSession`): the auth barrel
+ *   mounts `/api/health`, `/api/readyz`, and
+ *   `/api/auth/register` (with originCheck + rate limit).
+ * - Protected sub-app (every route wrapped in
+ *   `requireSession`); the sub-app is mounted on the main
+ *   app under `/`. Inside the sub-app `c.get('user')` is
+ *   narrowed to `AuthUser` (not `AuthUser | null`), so
+ *   handlers read the user with no `if (!user)` guard.
+ *   The auth barrel mounts `/api/me`. The accounts barrel
+ *   mounts the 7 account routes. The transactions
+ *   application barrel mounts the 6 transaction routes
+ *   (gated on `transactionDeps` being supplied).
+ *
+ * The dependencies are wired via a factory function
+ * `createHonoApp(deps)` so this module does NOT import
+ * `next-auth` (which has a known module-resolution bug
+ * with `next@15.1.0` - see Slice A apply-progress.md,
+ * deviation #4). Production wires the real Auth.js
+ * `auth` via `app/api/[...path]/route.ts` (T-025). Tests
+ * inject fakes.
  *
  * The app instance is exposed as a function
  * `createHonoApp(deps)` so multiple test suites can build
@@ -34,29 +45,45 @@
  */
 
 import { OpenAPIHono } from '@hono/zod-openapi';
-import { AuthService } from '@/modules/auth/domain/services/auth.service';
-import { Argon2idHasher } from '@/modules/auth/infrastructure/external/argon2.hasher';
-import { dispatcher } from '@/shared/events/event-dispatcher';
-import { UserRepository } from '@/modules/auth/infrastructure/repositories/user.repository';
-import { prisma } from '@/shared/db/prisma';
 import { requestIdMiddleware } from '@/shared/http/request-id';
 import { errorHandler } from '@/shared/http/error-handler';
-import { registerAction } from '@/modules/auth/application/actions/register.action';
-import { meAction } from '@/modules/auth/application/actions/me.action';
-import { healthAction } from '@/modules/auth/application/actions/health.action';
-import { originCheck } from './middlewares/origin-check';
+import { requireSession } from './middlewares/require-session';
 import type { MiddlewareHandler } from 'hono';
+import { mountAuthRoutes } from '@/modules/auth';
+import { mountAccountsRoutes } from '@/modules/accounts';
+import { mountTransactionsRoutes } from '@/modules/transactions/application';
+import { env } from '@/shared/env/env.schema';
+import type { AuthUser } from './middlewares/variables';
+import { buildAppDeps, type HonoAppDeps } from '@/composition/build-app-deps';
 
-export type AuthjsAuthFn = () => Promise<{ user: { id: string; email: string } | null } | null>;
+/** Re-export the deps-bag type from the composition root. */
+export type { HonoAppDeps } from '@/composition/build-app-deps';
 
-export interface HonoAppDeps {
-  authService: AuthService;
-  authjsAuth: AuthjsAuthFn;
+/** Variables stored on the Hono context by the auth middleware. */
+export interface HonoContextVariables {
+  user: AuthUser | null;
+  requestId: string;
 }
 
-/** Test seam: build a fresh app with custom deps. */
-export function createHonoApp(deps: HonoAppDeps): OpenAPIHono {
-  const app = new OpenAPIHono();
+/**
+ * Test seam: build a fresh app with custom deps. The
+ * function builds the public app and the protected
+ * sub-app and then delegates route registration to the
+ * per-module `mountXxxRoutes` functions exposed on each
+ * module's barrel.
+ *
+ * `accountService` is REQUIRED in the deps bag (F-05: the
+ * production composition root builds it from
+ * `fxRateProvider`; tests that want to mock the service
+ * surface inject a fake). The previous
+ * "build-from-fxRateProvider" fallback was removed
+ * because it forced this file to import
+ * `AccountRepositoryPrisma` from
+ * `@/modules/accounts/infrastructure/...` - a §10.5
+ * violation. The composition root now owns that wiring.
+ */
+export function createHonoApp(deps: HonoAppDeps): OpenAPIHono<{ Variables: HonoContextVariables }> {
+  const app = new OpenAPIHono<{ Variables: HonoContextVariables }>();
 
   app.use('*', requestIdMiddleware);
   app.onError(errorHandler);
@@ -68,54 +95,66 @@ export function createHonoApp(deps: HonoAppDeps): OpenAPIHono {
     await next();
   };
 
-  app.use('*', authMiddleware);
+  // F-03: these routes are registered BEFORE the
+  // `app.use('/api/*', authMiddleware)` call below so they
+  // bypass the Auth.js session lookup. The
+  // orchestrator's liveness probe MUST NOT touch the
+  // Session table (a DB-down incident would otherwise
+  // cascade into a process restart). The public
+  // registration endpoint is here for the same reason.
 
-  app.get('/health', async (c) => {
-    const res = await healthAction();
-    return c.json({ data: res.data }, res.status as 200);
+  // ---- Protected sub-app ----
+  // Built first so we can pass it to mountAuthRoutes for
+  // the protected /api/me registration.
+  const protectedApp = new OpenAPIHono<{
+    Variables: { user: AuthUser; requestId: string };
+  }>();
+
+  // Register the session gate BEFORE the protected routes
+  // so Hono applies it to every subsequent route on this
+  // sub-app. The `requireSession` middleware is the
+  // cross-cutting session gate for all protected routes.
+  protectedApp.use('*', requireSession);
+
+  // Mount all auth-domain routes (public on `app`,
+  // protected on `protectedApp`) via a single call. The
+  // auth barrel registers originCheck + rate limit on
+  // the register route internally; the api module just
+  // hosts the app instances.
+  mountAuthRoutes(app, protectedApp, { authService: deps.authService });
+
+  // F-03: register `authMiddleware` for `/api/*` AFTER
+  // the public routes above.
+  app.use('/api/*', authMiddleware);
+
+  // Mount the 7 account-domain routes. `accountService`
+  // is required in the deps bag (the composition root
+  // builds it from `fxRateProvider`; tests inject fakes).
+  if (!deps.accountService) {
+    throw new Error(
+      'createHonoApp: deps.accountService is required. ' +
+        'The composition root (buildAppDeps) builds it from fxRateProvider.',
+    );
+  }
+  mountAccountsRoutes(protectedApp, {
+    accountService: deps.accountService,
+    defaultCasa: env.FX_DEFAULT_CASA,
   });
 
-  app.get('/me', async (c) => {
-    const res = await meAction(deps.authService, c);
-    if (res.status === 200) {
-      return c.json({ data: res.data }, 200);
-    }
-    return c.json({ error: res.error }, res.status as 401);
-  });
+  // Mount the 6 transaction-domain routes (gated on
+  // transactionDeps being supplied).
+  mountTransactionsRoutes(protectedApp, { transactionDeps: deps.transactionDeps });
 
-  app.use('/auth/register', originCheck());
-  app.post('/auth/register', async (c) => {
-    const body = await c.req.json().catch(() => null);
-    const res = await registerAction(deps.authService, body);
-    if (res.status === 201) {
-      return c.json({ data: res.data }, 201);
-    }
-    return c.json({ error: res.error }, res.status as 400 | 409 | 500);
-  });
+  // Mount the protected sub-app under the same path
+  // prefix as before. The `requireSession` middleware
+  // was registered before the routes above so it applies
+  // to every protected route.
+  app.route('/', protectedApp);
 
   return app;
 }
 
-function buildDefaultDeps(): HonoAppDeps {
-  // The PrismaClient satisfies the narrow port structurally
-  // (it has a `user` delegate with the four methods the
-  // repository uses). The cast keeps `app.ts` from
-  // importing the full PrismaClientOptions type for what
-  // is, in practice, a structural compat check.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const userRepo = new UserRepository(prisma() as any);
-  const hasher = new Argon2idHasher();
-  return {
-    authService: new AuthService(userRepo, hasher, dispatcher),
-    // The real `auth()` is loaded by the production route
-    // file (app/api/[...path]/route.ts) and passed in via
-    // `createHonoApp`. The default `honoApp` below uses a
-    // `null` session resolver so dev-mode boots do not
-    // crash; production mounts MUST pass the real `auth`.
-    authjsAuth: async () => null,
-  };
-}
-
-export const honoApp: OpenAPIHono = createHonoApp(buildDefaultDeps());
+export const honoApp: OpenAPIHono<{ Variables: HonoContextVariables }> =
+  createHonoApp(buildAppDeps());
 
 export type AppType = typeof honoApp;

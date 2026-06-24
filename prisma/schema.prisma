@@ -9,7 +9,8 @@
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // The connection URL is no longer in the schema in Prisma 7;
+  // it lives in prisma.config.ts (see `datasource.url` there).
 }
 
 generator client {
@@ -19,22 +20,24 @@ generator client {
 // --- Auth.js Prisma adapter canonical models ---
 
 model User {
-  id              String    @id @default(cuid())
-  name            String?
-  email           String    @unique
-  emailVerified   DateTime?
-  image           String?
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
 
   // --- Additions on top of the Auth.js canonical schema ---
   passwordHash    String?
   defaultProvider String    @default("local")
   lastLoginAt     DateTime?
 
-  accounts        Account[]
-  sessions        Session[]
+  accounts          Account[]
+  sessions          Session[]
+  financialAccounts FinancialAccount[]
+  transactions      Transaction[]
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([createdAt]) // for the future user-deletion change's bulk queries
 }
@@ -45,12 +48,20 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  // OAuth tokens are stored as encrypted Bytes (AES-256-GCM
+  // envelope, see docs/adr/0009-oauth-token-encryption.md and
+  // src/shared/crypto/envelope-encryption.ts). The DB only ever
+  // sees ciphertext; plaintext lives in the app process keyed by
+  // OAUTH_TOKEN_ENCRYPTION_KEY. Migration 20260620_encrypt_oauth_tokens
+  // converts existing plaintext rows to ciphertext (dev only;
+  // production must run the backfill script in a controlled
+  // window — see the ADR for the rollout plan).
+  refresh_token     Bytes?
+  access_token      Bytes?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          Bytes?
   session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -74,4 +85,196 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// ============================================================================
+// accounts capability — added by accounts-ledger (PR-A, task T-A1)
+// See: openspec/changes/accounts-ledger/specs/accounts/spec.md §"Enums"
+// See: openspec/changes/accounts-ledger/design.md §3
+//
+// Pure enum declarations for the FinancialAccount model. The model
+// itself lands in T-A2. These enums are the source of truth; the
+// domain layer in src/modules/accounts/domain/entities/financial-account.ts
+// mirrors them as plain TypeScript const objects (no Prisma import
+// in the domain layer — architecture-standards rule).
+// ============================================================================
+
+enum AccountType {
+  BANK
+  CREDIT
+  INVESTMENT
+  CRYPTO
+  CASH
+  OTHER
+}
+
+enum AccountKind {
+  SAVINGS
+  CHECKING
+}
+
+enum InvestmentType {
+  STOCKS
+  BONDS
+  MUTUAL_FUNDS
+  CERTS_OF_DEPOSIT
+  OTHER
+}
+
+enum OpeningBalanceMode {
+  FRESH // balance starts at zero on creation date
+  HISTORICAL // balance is back-dated to openingBalanceDate
+}
+
+enum AccountCurrency {
+  ARS
+  USD
+  EUR
+}
+
+// --- fx-cache (PR-2) — per-account casa (nullable) ---
+// Values match the DolarAPI casa names in uppercase (Prisma's
+// enum convention). The DolarAPI wire format uses lowercase
+// (`/dolares/oficial`); the lowercase ↔ uppercase mapping lives
+// in the Zod schema at
+// `src/modules/accounts/application/validation/account-fx-casa.schema.ts`
+// and the DTO mapper at
+// `src/modules/accounts/application/dto/financial-account.dto.ts`.
+// The `fx` module's `fxCasaStringSchema`
+// (`src/modules/fx/domain/entities/fx-casa-string.schema.ts`) is
+// the lowercase mirror. Adding a casa is a multi-file change:
+// update this enum, the lowercase Zod enum, the create-account
+// form's `<select>`, and the AccountFxCasa mirror in the domain
+// entity. The Prisma migration is non-destructive (nullable, no
+// default, no backfill); existing rows go from "no column" to
+// `casa IS NULL` after `add_account_fx_casa` runs.
+enum AccountFxCasa {
+  OFICIAL
+  BLUE
+  MEP
+  CCL
+  CRIPTO
+  TARJETA
+}
+
+// ============================================================================
+// FinancialAccount model — added by accounts-ledger (PR-A, task T-A2)
+// See: openspec/changes/accounts-ledger/specs/accounts/spec.md §"Entities"
+// See: openspec/changes/accounts-ledger/design.md §3
+//
+// Cross-module invariant: FinancialAccount.userId references User.id
+// (defined by auth-foundation in openspec/specs/auth/spec.md, BR-AUTH-1)
+// with onDelete: Cascade. The application layer MUST NOT trust any
+// userId from a request body; the session is the source of truth
+// (openspec/changes/accounts-ledger/specs/accounts/spec.md,
+// "All endpoints require an authenticated session").
+//
+// Index strategy (from the spec §"Indexes"):
+//   @@unique([userId, type, name])   -- names unique per user per type
+//   @@index([userId, archivedAt])    -- list: live accounts first
+//   @@index([userId, createdAt])     -- list: order by recency
+// ============================================================================
+
+model FinancialAccount {
+  id                  String             @id @default(cuid())
+  userId              String
+  type                AccountType
+  name                String
+  currency            AccountCurrency
+  openingBalanceMinor Int
+  openingBalanceMode  OpeningBalanceMode
+  openingBalanceDate  DateTime?
+  archivedAt          DateTime?
+
+  // Type-specific fields (only the relevant set is populated per type).
+  // The Zod create schema (application/validation/account-create.schema.ts
+  // in PR-B) enforces that the wrong-type field set is rejected at the API.
+  bankName         String?
+  accountKind      AccountKind?
+  issuer           String?
+  creditLimitMinor Int?
+  statementDay     Int?
+  paymentDueDay    Int?
+  broker           String?
+  investmentType   InvestmentType?
+  walletAddress    String?
+
+  // --- fx-cache (PR-2) — per-account casa selection ---
+  // Nullable. `NULL` means "inherit the global default"
+  // (`env.FX_DEFAULT_CASA`, defaulting to `'oficial'`). The
+  // value is passed through to the `FxRateProvider` on every
+  // `GET /api/accounts/:id/balance` call; the provider itself
+  // does not consult the env var (REQ-FX-3). See
+  // `docs/runbooks/fx-casa-migration.md` for the operator
+  // runbook.
+  casa AccountFxCasa?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  transactions Transaction[]
+
+  @@unique([userId, type, name])
+  @@index([userId, archivedAt])
+  @@index([userId, createdAt])
+}
+
+// ============================================================================
+// transactions capability — added by transactions (slice 4)
+// See: openspec/changes/transactions/specs/transactions/spec.md §"Entities"
+// See: openspec/changes/transactions/design.md §7
+//
+// One row per manual ledger entry. Mirrors the slice-1 domain
+// `Transaction` aggregate one-to-one (REQ-TX-1 + REQ-TX-5: 14 fields).
+// The aggregate holds 14 readonly fields; the 3 generator-managed
+// timestamps (`id`, `createdAt`, `updatedAt`) are stamped here by
+// Prisma; the rest are supplied by the application.
+//
+// Cross-module invariant (BR-TX-4): every row carries `userId`
+// AND `accountId`. The application layer always filters by
+// `userId` first; the `accountId` filter is added on the list
+// endpoint (REQ-TX-10) when the caller scopes to one account.
+// The application layer NEVER trusts a `userId` from a request
+// body; the session is the source of truth (mirrors the
+// `FinancialAccount` invariant above).
+//
+// Index strategy (from the spec §"Indexes" + design §7.3):
+//   @@index([userId, transactionDate(sort: Desc), id]) — list cursor
+//   @@index([userId, accountId])                      — list filter
+//
+// `transactionDate` is the user-visible ordering (the spec's
+// "order by transactionDate DESC, then id DESC for tie-break").
+// `id` is the second sort key for stable pagination under
+// concurrent writes.
+// ============================================================================
+
+enum TransactionDirection {
+  INCOME
+  EXPENSE
+}
+
+model Transaction {
+  id                    String                   @id @default(cuid())
+  userId                String
+  accountId             String
+  direction             TransactionDirection
+  amountMinor           Int
+  currency              AccountCurrency
+  memo                  String?
+  category              String?
+  transactionDate       DateTime
+  convertedAmountMinor  Int
+  convertedCurrency     AccountCurrency
+  fxAsOfSnapshot        DateTime?
+  casaSnapshot          AccountFxCasa?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account FinancialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([userId, transactionDate(sort: Desc), id])
+  @@index([userId, accountId])
 }

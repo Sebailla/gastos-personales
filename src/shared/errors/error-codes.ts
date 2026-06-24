@@ -14,6 +14,10 @@ export const ErrorCode = {
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   WEAK_PASSWORD: 'WEAK_PASSWORD',
 
+  // --- transactions (REQ-TX-2, REQ-TX-4) — NEW in slice 2 ---
+  INVALID_AMOUNT: 'INVALID_AMOUNT', // amountMinor <= 0 or non-finite
+  FUTURE_DATE_NOT_ALLOWED: 'FUTURE_DATE_NOT_ALLOWED', // transactionDate > Clock.now()
+
   // --- Auth (401) ---
   INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
   UNAUTHORIZED: 'UNAUTHORIZED',
@@ -23,6 +27,16 @@ export const ErrorCode = {
 
   // --- Conflict (409) ---
   EMAIL_TAKEN: 'EMAIL_TAKEN',
+  NAME_TAKEN: 'NAME_TAKEN', // accounts: (userId, type, name) unique violation
+  // --- transactions (REQ-TX-7) — NEW in slice 2 ---
+  ACCOUNT_ARCHIVED: 'ACCOUNT_ARCHIVED', // parent FinancialAccount is archived
+
+  // --- Not found (404) ---
+  NOT_FOUND: 'NOT_FOUND', // accounts: cross-user or non-existent row
+
+  // --- FX (503 / 409) ---
+  FX_UNAVAILABLE: 'FX_UNAVAILABLE', // accounts: no FxRateProvider registered (PR-B stub)
+  FX_NOT_SUPPORTED: 'FX_NOT_SUPPORTED', // accounts: provider does not support the pair
 
   // --- Rate (429) ---
   RATE_LIMITED: 'RATE_LIMITED',
@@ -44,10 +58,17 @@ export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
 export const ErrorStatus: Record<ErrorCode, number> = {
   VALIDATION_ERROR: 400,
   WEAK_PASSWORD: 400,
+  INVALID_AMOUNT: 400,
+  FUTURE_DATE_NOT_ALLOWED: 400,
   INVALID_CREDENTIALS: 401,
   UNAUTHORIZED: 401,
   FORBIDDEN: 403,
   EMAIL_TAKEN: 409,
+  NAME_TAKEN: 409,
+  ACCOUNT_ARCHIVED: 409,
+  NOT_FOUND: 404,
+  FX_UNAVAILABLE: 503,
+  FX_NOT_SUPPORTED: 409,
   RATE_LIMITED: 429,
   OAUTH_PROVIDER_UNAVAILABLE: 502,
   INTERNAL_ERROR: 500,

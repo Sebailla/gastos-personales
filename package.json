@@ -12,25 +12,34 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint .",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:coverage:enforced": "vitest run --coverage --coverage.thresholds.lines=80 --coverage.thresholds.branches=80 --coverage.thresholds.functions=80 --coverage.thresholds.statements=80",
     "prisma": "prisma",
-    "prepare": "husky"
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose stop",
+    "db:reset": "docker compose down -v && docker compose up -d postgres",
+    "db:logs": "docker compose logs -f postgres",
+    "prepare": "husky",
+    "docs:obsidian": "tsx scripts/sync-obsidian.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "2.11.2",
     "@hono/zod-openapi": "0.18.1",
     "@hono/zod-validator": "0.4.1",
-    "@prisma/client": "6.0.1",
+    "@prisma/adapter-pg": "7.8.0",
+    "@prisma/client": "7.8.0",
     "@sentry/nextjs": "^10.58.0",
+    "@types/pg": "8.20.0",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
     "hono": "4.6.13",
     "next": "16.2.9",
     "next-auth": "5.0.0-beta.31",
+    "pg": "8.22.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "zod": "3.23.8"
@@ -39,6 +48,7 @@
     "@commitlint/cli": "19.6.0",
     "@commitlint/config-conventional": "19.6.0",
     "@node-rs/argon2": "2.0.2",
+    "@tailwindcss/postcss": "^4.3.1",
     "@testing-library/dom": "10.4.0",
     "@types/node": "22.10.2",
     "@types/react": "19.0.1",
@@ -50,8 +60,10 @@
     "eslint-config-prettier": "9.1.0",
     "husky": "9.1.7",
     "lint-staged": "15.2.11",
+    "postcss": "^8.5.15",
     "prettier": "3.4.2",
-    "prisma": "6.0.1",
+    "prisma": "7.8.0",
+    "tailwindcss": "^4.3.1",
     "tsx": "4.19.2",
     "typescript": "5.7.2",
     "vitest": "2.1.8"
@@ -63,6 +75,13 @@
     ],
     "*.{md,json,yml,yaml}": [
       "prettier --write"
+    ]
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma"
     ]
   }
 }

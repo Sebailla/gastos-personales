@@ -1,0 +1,72 @@
+/**
+ * updateAccountAction — `PATCH /api/accounts/:id`.
+ *
+ * Validates the partial body, calls
+ * `AccountService.update`. Cross-user or non-existent
+ * rows return 404 via the service.
+ */
+
+import type { AccountActionDeps, ActionResult } from './_shared';
+import type { FinancialAccount } from '../../domain/entities/financial-account';
+import type { UpdateFinancialAccountPatch } from '../../domain/interfaces/account.repository.port';
+import { accountUpdateSchema } from '../validation/account-update.schema';
+import { zodErrorToActionError, appErrorToActionError } from './_shared';
+import { AppError } from '@/shared/errors/app-error';
+
+export async function updateAccountAction(
+  deps: AccountActionDeps,
+  userId: string,
+  id: string,
+  rawBody: unknown,
+): Promise<ActionResult<FinancialAccount>> {
+  const parsed = accountUpdateSchema.safeParse(rawBody);
+  if (!parsed.success) return zodErrorToActionError(parsed.error);
+  const patch = toPatch(parsed.data);
+  try {
+    const row = await deps.accountService.update(userId, id, patch);
+    return { ok: true, data: row };
+  } catch (err) {
+    if (err instanceof AppError) return appErrorToActionError(err);
+    throw err;
+  }
+}
+
+function toPatch(
+  body: import('../validation/account-update.schema').AccountUpdateInput,
+): UpdateFinancialAccountPatch {
+  const patch: UpdateFinancialAccountPatch = {};
+  if (body.name !== undefined) patch.name = body.name;
+  if (body.currency !== undefined) patch.currency = body.currency;
+  if (body.openingBalance !== undefined) {
+    if (body.openingBalance.amountMinor !== undefined) {
+      patch.openingBalanceMinor = body.openingBalance.amountMinor;
+    }
+    if (body.openingBalance.mode !== undefined) {
+      patch.openingBalanceMode = body.openingBalance.mode;
+    }
+    if (body.openingBalance.date !== undefined) {
+      patch.openingBalanceDate = body.openingBalance.date ?? null;
+    }
+  }
+  // fx-cache PR-2 T2.8 — REQ-FX-9. Forward casa. `undefined`
+  // means "do not touch this column"; `null` means "set the
+  // column to NULL" (user reverts to inheriting the global
+  // default). The two cases are distinct on the wire and the
+  // repository honours them.
+  if (body.casa !== undefined) patch.casa = body.casa;
+  if (body.type === 'BANK') {
+    if (body.bankName !== undefined) patch.bankName = body.bankName;
+    if (body.accountKind !== undefined) patch.accountKind = body.accountKind;
+  } else if (body.type === 'CREDIT') {
+    if (body.issuer !== undefined) patch.issuer = body.issuer;
+    if (body.creditLimitMinor !== undefined) patch.creditLimitMinor = body.creditLimitMinor;
+    if (body.statementDay !== undefined) patch.statementDay = body.statementDay;
+    if (body.paymentDueDay !== undefined) patch.paymentDueDay = body.paymentDueDay;
+  } else if (body.type === 'INVESTMENT') {
+    if (body.broker !== undefined) patch.broker = body.broker;
+    if (body.investmentType !== undefined) patch.investmentType = body.investmentType;
+  } else if (body.type === 'CRYPTO') {
+    if (body.walletAddress !== undefined) patch.walletAddress = body.walletAddress;
+  }
+  return patch;
+}

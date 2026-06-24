@@ -78,9 +78,21 @@ jobs:
           cache: pnpm
       - run: pnpm install --ignore-scripts --frozen-lockfile
       - run: pnpm prisma generate
+      # The CI DB is fresh per job (postgres:16 service container).
+      # All Auth.js canonical tables (User, Account, Session,
+      # VerificationToken) and project additions are committed
+      # migrations under prisma/migrations/. `migrate deploy` applies
+      # them in order. This replaced a `db push --accept-data-loss`
+      # + `migrate resolve --applied` workaround once the
+      # migrations-bootstrap chore landed.
       - run: pnpm prisma migrate deploy
       - name: Run unit + integration tests (excludes the slow timing test on CI for stability)
-        run: SKIP_TIMING=true npx vitest run --coverage
+        # Uses `test:coverage:enforced` so coverage thresholds (80% lines/branches/
+        # functions/statements, defined in vitest.config.ts) are enforced as a
+        # build-failing gate. With `vitest run --coverage` alone, Vitest 2.x
+        # reports coverage but does NOT exit non-zero when thresholds are not met.
+        # Keep the threshold values in sync with vitest.config.ts.
+        run: SKIP_TIMING=true pnpm test:coverage:enforced
       - uses: actions/upload-artifact@v4
         with:
           name: coverage
@@ -170,5 +182,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --ignore-scripts --frozen-lockfile
       - run: pnpm prisma generate
+      # See the comment in the test job above; this also uses
+      # `migrate deploy` now that the migrations are committed.
       - run: pnpm prisma migrate deploy
       - run: SKIP_TIMING=true npx vitest run src/modules/auth/__tests__/security/

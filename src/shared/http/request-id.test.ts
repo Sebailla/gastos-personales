@@ -18,16 +18,31 @@ const fakeContext = (headers: Record<string, string> = {}) =>
   }) as unknown as Parameters<typeof requestIdMiddleware>[0];
 
 describe('requestIdMiddleware', () => {
-  it('echoes an incoming X-Request-Id header', async () => {
-    let captured: string | undefined;
-    const c = fakeContext({ 'x-request-id': 'req-from-client' });
-    const next = async () => {
-      captured = undefined;
+  it('echoes an incoming X-Request-Id header (F7)', async () => {
+    // Capture both the c.set('requestId', ...) and
+    // c.header('X-Request-Id', ...) calls so we can assert
+    // the middleware actually echoes the client-supplied
+    // id. The previous version of this test had
+    // `expect(true).toBe(true)` and asserted nothing; this
+    // version captures the calls and asserts on them.
+    const captured: { set: string[]; header: Array<[string, string]> } = {
+      set: [],
+      header: [],
     };
+    const c = fakeContext({ 'x-request-id': 'req-from-client' });
+    (c as unknown as { set: (k: string, v: string) => void }).set = (k, v) => {
+      if (k === 'requestId') captured.set.push(v);
+    };
+    (c as unknown as { header: (k: string, v: string) => void }).header = (k, v) => {
+      captured.header.push([k, v]);
+    };
+    const next = async () => undefined;
     await requestIdMiddleware(c, next);
-    // After running, the middleware should have set the id.
-    expect(captured).toBeUndefined(); // sanity
-    expect(true).toBe(true); // see assertion below
+    // The middleware should have set the id to the
+    // client-supplied value AND echoed it on the response
+    // header.
+    expect(captured.set).toEqual(['req-from-client']);
+    expect(captured.header).toEqual([['X-Request-Id', 'req-from-client']]);
   });
 
   it('generates a fresh uuid v7 when the header is missing', async () => {

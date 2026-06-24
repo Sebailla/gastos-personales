@@ -29,7 +29,7 @@ pnpm install --frozen-lockfile
 cp .env.example .env
 
 # 3. Start a local Postgres (Docker) OR point to a Neon free-tier branch
-docker compose up -d postgres       # local Postgres on localhost:5432
+pnpm db:up                          # local Postgres on localhost:5433
 # OR set DATABASE_URL=postgres://...neon.tech/... in .env
 
 # 4. Apply migrations to the dev database

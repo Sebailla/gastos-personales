@@ -106,15 +106,18 @@ describe('signInCallback', () => {
     expect(error).not.toHaveBeenCalled();
   });
 
-  it('logs an error and still returns true when prisma throws', async () => {
-    updateMany.mockRejectedValueOnce(new Error('db down'));
+  it('logs retries and an error and still returns true when prisma throws on every attempt', async () => {
+    updateMany.mockRejectedValue(new Error('db down'));
     const result = await signInCallback({ user: { email: 'a@b.com' } });
     expect(result).toBe(true);
+    // withRetry attempts 3 times: 1 initial + 2 retries, so 2 warn
+    // calls (one per retry) + 1 final error after all attempts fail.
+    expect(warn).toHaveBeenCalledTimes(2);
+    expect(warn).toHaveBeenCalledWith('signIn_callback_retry', expect.objectContaining({ email: 'a@b.com' }));
     expect(error).toHaveBeenCalledWith('signIn_callback_failed', {
       email: 'a@b.com',
       error: 'db down',
     });
-    expect(warn).not.toHaveBeenCalled();
   });
 
   it('returns true without touching the DB when email is missing', async () => {

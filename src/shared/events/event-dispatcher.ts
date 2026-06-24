@@ -2,7 +2,8 @@ import { logger } from '@/shared/logger/logger';
 
 export type DomainEvent =
   | { type: 'UserRegistered'; payload: UserRegisteredPayload }
-  | { type: 'UserSignedIn'; payload: UserSignedInPayload };
+  | { type: 'UserSignedIn'; payload: UserSignedInPayload }
+  | { type: 'TransactionRecorded'; payload: TransactionRecordedPayload };
 
 export interface UserRegisteredPayload {
   userId: string;
@@ -17,9 +18,30 @@ export interface UserSignedInPayload {
   occurredAt: string;
 }
 
+/**
+ * Payload of the `TransactionRecorded` event. The transaction
+ * service dispatches this once per successful create (REQ-TX-13,
+ * BR-TX-11). No subscriber ships in v1; the union membership is
+ * the contract — future `reports` and `snapshots` consumers can
+ * subscribe without an interface change.
+ */
+export interface TransactionRecordedPayload {
+  userId: string;
+  transactionId: string;
+  accountId: string;
+  direction: 'INCOME' | 'EXPENSE';
+  amountMinor: number;
+  currency: 'ARS' | 'USD' | 'EUR';
+  casa: 'OFICIAL' | 'BLUE' | 'MEP' | 'CCL' | 'CRIPTO' | 'TARJETA' | null;
+  convertedAmountMinor: number;
+  convertedCurrency: 'ARS' | 'USD' | 'EUR';
+  occurredAt: string;
+}
+
 /** String constants for type-safe subscribers. */
 export const UserRegistered = 'UserRegistered' as const;
 export const UserSignedIn = 'UserSignedIn' as const;
+export const TransactionRecorded = 'TransactionRecorded' as const;
 
 type Handler<E extends DomainEvent> = (event: E) => void | Promise<void>;
 

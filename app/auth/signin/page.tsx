@@ -23,7 +23,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { z } from 'zod';
 
-import { signIn } from '@/modules/auth';
+import { signIn } from '@/modules/auth/nextauth';
 import { mapAuthErrorToMessage } from '@/modules/auth/application/auth-error-map';
 
 interface SignInPageProps {

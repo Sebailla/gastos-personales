@@ -1,18 +1,15 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
-# ESLint 9 still supports the legacy .eslintrc.cjs config when this
-# env var is set. The project migrates to the flat config in a
-# follow-up; until then, every ESLint invocation (lint, lint-staged)
-# needs the flag. Set it once here so lint-staged can spawn ESLint
-# correctly on staged .ts/.tsx files.
-export ESLINT_USE_FLAT_CONFIG=false
-
 # pnpm-lock.yaml policy check (AGENTS.md §5.3): if package.json is
 # staged, the lockfile must be staged too. Runs before lint-staged
 # so a fix is one `git add pnpm-lock.yaml` away.
 sh "$(dirname -- "$0")/../scripts/check-lockfile.sh"
 
+# Refresh the index so husky's cache-tree does not report stale
+# entries (a known husky 9.x bug with large commits). One
+# `git update-index --refresh` is cheaper than `--no-verify`.
+git update-index --refresh >/dev/null 2>&1 || true
+
 # Run lint-staged (ESLint + Prettier on staged files), then gga
-# (the project's code-quality gate).
-pnpm dlx lint-staged && gga run
+# (the project's code-quality gate). Use `pnpm exec` instead of
+# `pnpm dlx` so the locally installed lint-staged is reused and
+# the hook does not hit the network on every commit.
+pnpm exec lint-staged && gga run

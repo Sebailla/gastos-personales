@@ -9,7 +9,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { Hono } from 'hono';
-import { originCheck } from '@/modules/api/middlewares/origin-check';
+import { originCheck } from '@/shared/http/origin-check';
 import { errorHandler } from '@/shared/http/error-handler';
 
 const ALLOWED_ORIGIN = process.env.APP_URL ?? 'http://localhost:3000';

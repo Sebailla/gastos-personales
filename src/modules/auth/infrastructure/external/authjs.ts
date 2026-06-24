@@ -24,7 +24,7 @@
 import NextAuth, { type NextAuthConfig } from 'next-auth';
 import Google from 'next-auth/providers/google';
 import Credentials from 'next-auth/providers/credentials';
-import { PrismaAdapter } from '@auth/prisma-adapter';
+import { createEncryptedPrismaAdapter } from '../adapters/encrypted-prisma-adapter';
 import { z } from 'zod';
 
 import { env } from '@/shared/env/env.schema';
@@ -88,14 +88,38 @@ export function normalizeEmail(email: string): string {
  */
 export async function signInCallback(params: {
   user?: { email?: string | null };
+  clock?: { now: () => Date };
 }): Promise<boolean> {
   const email = params.user?.email ? normalizeEmail(params.user.email) : null;
   if (!email) return true;
+  const clock = params.clock ?? { now: () => new Date() };
   try {
-    const result = await prisma().user.updateMany({
-      where: { email },
-      data: { lastLoginAt: new Date() },
-    });
+    // withRetry gives the audit-trail write a chance to survive
+    // transient Prisma outages (connection blip, brief failover,
+    // lock wait). The policy is bounded: 3 attempts, exponential
+    // backoff with 20% jitter. After 3 attempts the call falls
+    // through to the catch-and-log branch (best-effort by design
+    // — a tracking write must not block an already-successful
+    // sign-in). The error is logged with the last attempt's
+    // error message. Fixes 4R-R4 C-1 (withRetry was dead code).
+    const result = await withRetry(
+      () =>
+        prisma().user.updateMany({
+          where: { email },
+          data: { lastLoginAt: clock.now() },
+        }),
+      {
+        attempts: 3,
+        baseDelayMs: 100,
+        onRetry: (err: unknown, next: number, delayMs: number) =>
+          logger.warn('signIn_callback_retry', {
+            email,
+            next,
+            delayMs,
+            error: err instanceof Error ? err.message : String(err),
+          }),
+      },
+    );
     if (result.count === 0) {
       logger.warn('signIn_callback_user_not_found', { email });
     }
@@ -109,7 +133,7 @@ export async function signInCallback(params: {
 }
 
 export const authConfig: NextAuthConfig = {
-  adapter: PrismaAdapter(prisma()),
+  adapter: createEncryptedPrismaAdapter(prisma()),
   session: {
     strategy: 'database',
     maxAge: 30 * 24 * 60 * 60, // 30 days, per BR-AUTH-7
@@ -175,17 +199,33 @@ export const authConfig: NextAuthConfig = {
     async session({ session, user }) {
       if (session.user && user?.id) {
         session.user.id = user.id;
-        const dbUser = await prisma().user.findUnique({
-          where: { id: user.id },
-          select: { defaultProvider: true, lastLoginAt: true },
-        });
-        if (dbUser) {
-          // The Auth.js Session type doesn't know about our custom
-          // fields; we attach them via the same `user` object so
-          // the client can read them through `useSession()`.
-          Object.assign(session.user, {
-            defaultProvider: dbUser.defaultProvider,
-            lastLoginAt: dbUser.lastLoginAt ? dbUser.lastLoginAt.toISOString() : null,
+        // Graceful degradation: if the DB lookup fails (Prisma
+        // outage, transient connection blip), we still return the
+        // session with `session.user.id` already set above. The
+        // custom fields (`defaultProvider`, `lastLoginAt`) are
+        // optional additive extensions — the client can fall back
+        // to its default state when they're missing. We log the
+        // error for observability but never propagate it: a
+        // session callback rejection surfaces as a 500 to the
+        // client instead of a usable session.
+        try {
+          const dbUser = await prisma().user.findUnique({
+            where: { id: user.id },
+            select: { defaultProvider: true, lastLoginAt: true },
+          });
+          if (dbUser) {
+            // The Auth.js Session type doesn't know about our custom
+            // fields; we attach them via the same `user` object so
+            // the client can read them through `useSession()`.
+            Object.assign(session.user, {
+              defaultProvider: dbUser.defaultProvider,
+              lastLoginAt: dbUser.lastLoginAt ? dbUser.lastLoginAt.toISOString() : null,
+            });
+          }
+        } catch (err) {
+          logger.error('session_callback_db_lookup_failed', {
+            userId: user.id,
+            errorMessage: err instanceof Error ? err.message : String(err),
           });
         }
       }
