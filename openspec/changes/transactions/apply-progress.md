@@ -801,9 +801,62 @@ status.
 - Future: rename `mapDomainError` to
   `unknownErrorToFxUnavailable` (better name for its
   narrower job).
-```
-````
 
-```
+---
 
-```
+# Slice 4 — persistence adapter + §10.5 `prisma-types.ts` refactor
+
+**Author**: Sebastián Illa
+**Branch**: `feat/transactions-persistence`
+**Base**: `develop` @ `d4950fc` (slice 3 merged)
+**Status**: open · **Started**: 2026-06-24
+**Scope**: ROOT-CAUSE FIX of an §10.5 violation in `src/shared/db/prisma-types.ts` that survived F-14 + earlier GGA reviews, plus the slice-4 feature (Prisma `Transaction` model + `TransactionRepositoryPrisma` adapter + additive migration + 12 mock-Prisma test cases).
+
+## Why this slice has a refactor first
+
+A previous slice-4 attempt was blocked at the husky pre-commit hook because GGA flagged `src/shared/db/prisma-types.ts` for the §10.5 absolute rule "No `any` — Use `unknown` or specific interfaces". The file declares three delegate interfaces (`PrismaUserDelegate`, `PrismaFinancialAccountDelegate`, `PrismaTransactionDelegate`) where every method signature is `(args: any) => Promise<any>`. The `any` pattern was inherited from F-14 (commit `3c89e3d`, PR #35) and survived earlier GGA reviews by sheer luck of the file not being touched.
+
+The user chose **Path A: root-cause fix**: replace all `any` with `unknown` (or specific shapes), remove all `eslint-disable-next-line @typescript-eslint/no-explicit-any` directives, adjust every downstream caller, then layer the slice-4 feature on top.
+
+## Phase A — refactor `prisma-types.ts`
+
+### A.1 What changed
+
+`src/shared/db/prisma-types.ts`:
+
+- `args: any` → `args: Record<string, unknown>` for inputs.
+- `Promise<any>` → `Promise<unknown>` for returns that are domain objects; specific shapes (`Promise<{ count: number }>`, `Promise<unknown[]>`) where the Prisma API guarantees the shape.
+- All `// eslint-disable-next-line @typescript-eslint/no-explicit-any` directives REMOVED.
+- File-level docstring updated to remove the "F-14 any convention" justification and document the new `Record<string, unknown>` convention. Explicit §10.5 compliance reference added.
+
+### A.2 Numbers
+
+| Surface | `any` removed | `unknown` introduced |
+|---|---|---|
+| `PrismaUserDelegate` | 4 (1 interface + 3 method sigs) | 3 (method returns) |
+| `PrismaFinancialAccountDelegate` | 7 (1 interface + 6 method sigs) | 5 (3 returns + 2 specific shapes) |
+| `PrismaTransactionDelegate` (new) | 6 (1 interface + 5 method sigs) | 5 (3 returns + 2 specific shapes) |
+| **Total** | **17** | **13** |
+
+Specific shapes used:
+- `updateMany`, `deleteMany`, `count` → `Promise<{ count: number }>` / `Promise<number>` (the Prisma API guarantees these).
+- `findMany` → `Promise<unknown[]>` (the array shape is guaranteed; the element shape is whatever `findMany` returned historically — adapter maps to domain).
+
+## Phase B — downstream caller adjustments
+
+After Phase A landed, the following downstream files needed narrowing of `unknown` returns back to domain types (because `Promise<any>` became `Promise<unknown>` and the row mappers still expect concrete field shapes):
+
+- `src/modules/auth/infrastructure/repositories/user.repository.ts` — narrowed `mapRow(row)` to take `Record<string, unknown>` explicitly (it already did, but verified the type chain compiles).
+- `src/modules/accounts/infrastructure/repositories/account.repository.prisma.ts` — verified compile; the existing `PrismaFinancialAccountRow` type alias already declared `Record<string, unknown> & { userId: string }` so no behavioural change.
+- `src/modules/accounts/infrastructure/repositories/account.repository.prisma.test.ts` — the mock signature `create: vi.fn(async (args: { data: ... }))` already used structural shapes; verified compile.
+- `src/modules/api/app.ts` + `src/lib/server-hono.ts` — `asPrismaDelegateView(prisma())` continues to work because the cast goes through `unknown`. After slice-4 wiring, `prismaView.transaction` resolves structurally because `PrismaClient` has the `transaction` delegate post-migration.
+
+## Phase C — slice-4 feature
+
+(ledger populated as commits land)
+
+## Follow-ups
+
+- Slice 5: `TransactionService` + Hono routes + smoke UI.
+- The fx-cache precedent (`add_account_fx_casa` migration) was followed exactly: `CREATE TYPE` + `CREATE TABLE` + 2 `CREATE INDEX` + 2 `ADD CONSTRAINT FOREIGN KEY`. No DROPs, no ALTERs of existing tables.
+- Future: collapse the local `AccountCurrency` mirror in the transactions module into a shared kernel (slice 1 noted this; slice 5 will land it).

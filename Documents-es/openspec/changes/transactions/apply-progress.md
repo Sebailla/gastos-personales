@@ -824,9 +824,62 @@ ejecutadas, y el estado `size:exception`.
 - Futuro: renombrar `mapDomainError` a
   `unknownErrorToFxUnavailable` (mejor nombre para su
   trabajo más acotado).
-```
-````
 
-```
+---
 
-```
+# Slice 4 — adapter de persistencia + refactor §10.5 de `prisma-types.ts`
+
+**Autor**: Sebastián Illa
+**Rama**: `feat/transactions-persistence`
+**Base**: `develop` @ `d4950fc` (slice 3 mergeado)
+**Estado**: abierto · **Iniciado**: 2026-06-24
+**Alcance**: FIX DE CAUSA RAÍZ de una violación §10.5 en `src/shared/db/prisma-types.ts` que sobrevivió a F-14 + revisiones GGA anteriores, más la feature del slice 4 (modelo Prisma `Transaction` + adapter `TransactionRepositoryPrisma` + migración aditiva + 12 casos de test con mock de Prisma).
+
+## Por qué este slice arranca con un refactor
+
+Un intento previo del slice 4 fue bloqueado en el hook de pre-commit de husky porque GGA señaló a `src/shared/db/prisma-types.ts` por la regla absoluta §10.5 "No `any` — Usá `unknown` o interfaces específicas". El archivo declara tres interfaces de delegate (`PrismaUserDelegate`, `PrismaFinancialAccountDelegate`, `PrismaTransactionDelegate`) donde cada signature de método es `(args: any) => Promise<any>`. El patrón `any` se heredó de F-14 (commit `3c89e3d`, PR #35) y sobrevivió a revisiones GGA anteriores por pura suerte de que el archivo no se tocaba.
+
+El usuario eligió **Path A: fix de causa raíz**: reemplazar todos los `any` por `unknown` (o shapes específicos), eliminar todas las directivas `// eslint-disable-next-line @typescript-eslint/no-explicit-any`, ajustar cada caller downstream, y encima layerizar la feature del slice 4.
+
+## Phase A — refactor de `prisma-types.ts`
+
+### A.1 Qué cambió
+
+`src/shared/db/prisma-types.ts`:
+
+- `args: any` → `args: Record<string, unknown>` para los inputs.
+- `Promise<any>` → `Promise<unknown>` para returns que son objetos de dominio; shapes específicos (`Promise<{ count: number }>`, `Promise<unknown[]>`) donde la API de Prisma garantiza la forma.
+- Todas las directivas `// eslint-disable-next-line @typescript-eslint/no-explicit-any` ELIMINADAS.
+- Docstring de nivel-archivo actualizado para sacar la justificación de "F-14 any convention" y documentar la nueva convención `Record<string, unknown>`. Referencia explícita al cumplimiento §10.5 agregada.
+
+### A.2 Números
+
+| Superficie | `any` removidos | `unknown` introducidos |
+|---|---|---|
+| `PrismaUserDelegate` | 4 (1 interface + 3 sigs de método) | 3 (returns de método) |
+| `PrismaFinancialAccountDelegate` | 7 (1 interface + 6 sigs de método) | 5 (3 returns + 2 shapes específicos) |
+| `PrismaTransactionDelegate` (nuevo) | 6 (1 interface + 5 sigs de método) | 5 (3 returns + 2 shapes específicos) |
+| **Total** | **17** | **13** |
+
+Shapes específicos usados:
+- `updateMany`, `deleteMany`, `count` → `Promise<{ count: number }>` / `Promise<number>` (la API de Prisma los garantiza).
+- `findMany` → `Promise<unknown[]>` (la forma de array está garantizada; el shape de elemento es lo que `findMany` devolvía históricamente — el adapter mapea a dominio).
+
+## Phase B — ajustes en callers downstream
+
+Después de que Phase A aterrizó, los siguientes archivos downstream necesitaron narrowing de returns `unknown` hacia tipos de dominio (porque `Promise<any>` pasó a ser `Promise<unknown>` y los row mappers aún esperan shapes concretos):
+
+- `src/modules/auth/infrastructure/repositories/user.repository.ts` — `mapRow(row)` narrowed para tomar `Record<string, unknown>` explícitamente (ya lo hacía, pero se verificó que la cadena de tipos compile).
+- `src/modules/accounts/infrastructure/repositories/account.repository.prisma.ts` — compile verificado; el type alias `PrismaFinancialAccountRow` ya declaraba `Record<string, unknown> & { userId: string }`, así que ningún cambio de comportamiento.
+- `src/modules/accounts/infrastructure/repositories/account.repository.prisma.test.ts` — la signature del mock `create: vi.fn(async (args: { data: ... }))` ya usaba shapes estructurales; compile verificado.
+- `src/modules/api/app.ts` + `src/lib/server-hono.ts` — `asPrismaDelegateView(prisma())` sigue funcionando porque el cast va por `unknown`. Después del wiring del slice 4, `prismaView.transaction` resuelve estructuralmente porque `PrismaClient` tiene el delegate `transaction` post-migración.
+
+## Phase C — feature del slice 4
+
+(ledger poblado a medida que aterricen los commits)
+
+## Follow-ups
+
+- Slice 5: `TransactionService` + Hono routes + smoke UI.
+- Se siguió al pie de la letra el precedente de fx-cache (migración `add_account_fx_casa`): `CREATE TYPE` + `CREATE TABLE` + 2 `CREATE INDEX` + 2 `ADD CONSTRAINT FOREIGN KEY`. Sin DROPs, sin ALTERs sobre tablas existentes.
+- Futuro: colapsar el espejo local de `AccountCurrency` en el módulo de transactions en un shared kernel (el slice 1 lo anotó; el slice 5 lo aterrizará).
