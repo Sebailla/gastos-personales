@@ -18,7 +18,7 @@ import { TransactionUpdateSchema } from './transaction-update.schema';
 describe('TransactionUpdateSchema', () => {
   it('accepts a valid partial update', () => {
     const result = TransactionUpdateSchema.safeParse({
-      id: 'tx-1b9e3c0a-1234-4567-89ab-cdef01234567',
+      id: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
       memo: 'updated memo',
     });
     expect(result.success).toBe(true);
@@ -26,7 +26,7 @@ describe('TransactionUpdateSchema', () => {
 
   it('rejects an unknown field', () => {
     const result = TransactionUpdateSchema.safeParse({
-      id: 'tx-1b9e3c0a-1234-4567-89ab-cdef01234567',
+      id: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
       memo: 'x',
       notAField: 'nope',
     });

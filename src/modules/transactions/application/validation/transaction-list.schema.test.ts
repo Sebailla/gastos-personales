@@ -20,24 +20,22 @@ describe('TransactionListQuerySchema', () => {
     const result = TransactionListQuerySchema.safeParse({
       cursor: 'opaque-cursor',
       limit: 50,
-      accountId: 'fa-1b9e3c0a-1234-4567-89ab-cdef01234567',
+      accountId: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
     });
     expect(result.success).toBe(true);
   });
 
   it('clamps limit > 100 down to 100', () => {
-    const result = TransactionListQuerySchema.safeParse({ limit: 999 });
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.limit).toBe(100);
-    }
+    expect(TransactionListQuerySchema.safeParse({ limit: 999 })).toEqual({
+      success: true,
+      data: { limit: 100, cursor: undefined, accountId: undefined },
+    });
   });
 
   it('clamps limit below 1 up to 1', () => {
-    const result = TransactionListQuerySchema.safeParse({ limit: 0 });
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.limit).toBe(1);
-    }
+    expect(TransactionListQuerySchema.safeParse({ limit: 0 })).toEqual({
+      success: true,
+      data: { limit: 1, cursor: undefined, accountId: undefined },
+    });
   });
 });

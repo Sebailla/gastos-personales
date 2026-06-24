@@ -25,7 +25,7 @@ import { TransactionCreateSchema } from './transaction-create.schema';
 const today = new Date().toISOString();
 
 const valid = {
-  accountId: 'fa-1b9e3c0a-1234-4567-89ab-cdef01234567',
+  accountId: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
   direction: 'EXPENSE',
   amountMinor: 1000,
   originalCurrency: 'USD',
@@ -49,7 +49,10 @@ describe('TransactionCreateSchema', () => {
   });
 
   it('rejects a future transactionDate (REQ-TX-4)', () => {
-    const future = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    // One day in ms — chosen so the test always falls strictly after
+    // `Date.now()` regardless of timezone offset.
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+    const future = new Date(Date.now() + ONE_DAY_MS).toISOString();
     const result = TransactionCreateSchema.safeParse({ ...valid, transactionDate: future });
     expect(result.success).toBe(false);
   });
