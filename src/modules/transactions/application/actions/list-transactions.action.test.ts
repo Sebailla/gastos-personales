@@ -117,7 +117,7 @@ describe('listTransactionsAction', () => {
 
   it('filters by accountId when supplied', async () => {
     await repo.create('u-1', {
-      accountId: 'fa-1',
+      accountId: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
       direction: TransactionDirection.EXPENSE,
       amountMinor: 1,
       currency: AccountCurrency.USD,
@@ -130,7 +130,7 @@ describe('listTransactionsAction', () => {
       casaSnapshot: null,
     });
     await repo.create('u-1', {
-      accountId: 'fa-2',
+      accountId: 'b2c3d4e5-f6a7-8901-2345-678901bcdef0',
       direction: TransactionDirection.EXPENSE,
       amountMinor: 2,
       currency: AccountCurrency.USD,
@@ -144,10 +144,10 @@ describe('listTransactionsAction', () => {
     });
     const result = await listTransactionsAction(deps, 'u-1', {
       limit: 20,
-      accountId: 'fa-1',
+      accountId: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
     });
     assertOk(result);
     expect(result.value.items).toHaveLength(1);
-    expect(result.value.items[0]?.accountId).toBe('fa-1');
+    expect(result.value.items[0]?.accountId).toBe('a1b2c3d4-e5f6-7890-1234-567890abcdef');
   });
 });
