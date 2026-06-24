@@ -21,6 +21,8 @@ import { logger } from '@/shared/logger/logger';
 import { dispatcher } from '@/shared/events/event-dispatcher';
 import type { FxRateProvider } from '../../domain/interfaces/fx-rate-provider.port';
 
+const ACCOUNT_ID = 'a1b2c3d4-e5f6-7890-1234-567890abcdef';
+
 function makeDeps(): {
   deps: TransactionActionDeps;
   repo: InMemoryTransactionRepository;
@@ -48,7 +50,7 @@ describe('deleteTransactionAction', () => {
 
   it('returns the id on successful delete', async () => {
     const created = await repo.create('u-1', {
-      accountId: 'fa-1',
+      accountId: ACCOUNT_ID,
       direction: TransactionDirection.EXPENSE,
       amountMinor: 1000,
       currency: AccountCurrency.USD,
@@ -76,7 +78,7 @@ describe('deleteTransactionAction', () => {
 
   it('returns NOT_FOUND on cross-user access', async () => {
     const created = await repo.create('u-1', {
-      accountId: 'fa-1',
+      accountId: ACCOUNT_ID,
       direction: TransactionDirection.EXPENSE,
       amountMinor: 1000,
       currency: AccountCurrency.USD,
