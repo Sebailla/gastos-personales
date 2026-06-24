@@ -421,4 +421,106 @@ EN + ES apply-progress mirrored (atomic commit `cbb8a9f`).
 
 - Slice 3: Prisma adapter, InMemory repository, transaction service.
 - Future: shared-kernel refactor — move `FxRateProvider` to `@/shared/domain/ports/` and collapse the local mirror.
+
+---
+
+# Slice 3 — actions + Zod schemas + InMemoryRepository
+
+**Branch**: `feat/transactions-actions` (worktree `../gastos-personales-transactions-actions/`)
+**Base**: `develop` (slice 1 merged at `d66151c`; slice 2 merged at `e896c81`)
+**Scope**: tight — see "Slice 3 scope" below
+**Status**: in progress
+
+## Slice 3 scope (binding)
+
+| #     | File                                                       | Type | Spec REQ                                 | Notes                                                                                                      |
+| ----- | ---------------------------------------------------------- | ---- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| S3-1  | `application/dto/transaction.dto.ts`                       | impl | REQ-TX-9..11                             | `TransactionDTO` + `toTransactionDto` mapper (ISO dates, lowercase casa)                                   |
+| S3-2  | `application/validation/transaction-create.schema.ts`      | impl | REQ-TX-2..5, REQ-TX-9                    | `TransactionCreateSchema` (Zod) + `CreateTransactionInput`                                                 |
+| S3-3  | `application/validation/transaction-update.schema.ts`      | impl | REQ-TX-10                                | `TransactionUpdateSchema` (Zod, `.strict()`) + `UpdateTransactionInput`                                    |
+| S3-4  | `application/validation/transaction-list.schema.ts`        | impl | REQ-TX-8, BR-TX-10                       | `TransactionListQuerySchema` (cursor + clamped limit + accountId) + `TransactionListQuery`                 |
+| S3-5  | `application/actions/_shared.ts`                           | impl | n/a                                      | `TransactionActionDeps` (repo, clock, logger, dispatcher, fxRateProvider) + `ActionResult` + error mappers |
+| S3-6  | `application/actions/list-transactions.action.ts`          | impl | REQ-TX-8                                 | cursor-paginated list                                                                                      |
+| S3-7  | `application/actions/get-transaction.action.ts`            | impl | REQ-TX-6, BR-TX-4                        | single-row read; cross-user → `NOT_FOUND`                                                                  |
+| S3-8  | `application/actions/create-transaction.action.ts`         | impl | REQ-TX-9, REQ-TX-7, REQ-TX-12, REQ-TX-13 | Zod → account pre-check → factory (async) → event dispatch                                                 |
+| S3-9  | `application/actions/update-transaction.action.ts`         | impl | REQ-TX-10, REQ-TX-12                     | FX recompute when amount or currency changes                                                               |
+| S3-10 | `application/actions/delete-transaction.action.ts`         | impl | REQ-TX-11, DG-TX-15                      | hard delete                                                                                                |
+| S3-11 | `application/fixtures/in-memory-transaction.repository.ts` | impl | REQ-TX-1, BR-TX-4                        | in-memory `Map<string, Transaction>` keyed by `${userId}:${id}`; pure (no I/O)                             |
+| S3-12 | `application/index.ts`                                     | impl | barrel                                   | exports the 5 actions, 3 Zod schemas, DTO, deps, InMemory repo, domain surface                             |
+
+**Out of scope (per slice spec)**: `src/modules/accounts/**`, `src/modules/fx/**`,
+`src/shared/errors/**`, `src/shared/events/**`, `src/shared/logger/**`,
+`src/modules/transactions/infrastructure/**` (Prisma adapter — slice 4),
+`prisma/schema.prisma`, `app/transactions/**`, `src/modules/api/app.ts`,
+slice 1 and 2 files (only touch if a test absolutely requires it).
+
+## Pre-flight baseline (2026-06-23, slice 3)
+
+| Check                             | Result                                              |
+| --------------------------------- | --------------------------------------------------- |
+| `pnpm install --ignore-workspace` | OK (905 packages)                                   |
+| `pnpm prisma generate`            | OK (v7.8.0)                                         |
+| `pnpm test` (baseline)            | **587 passed**, 4 skipped (testcontainers Postgres) |
+| `pnpm run typecheck` (baseline)   | **0 errors**                                        |
+| `gga run` (baseline, no staged)   | OK — informational                                  |
+
+## Slice 3 deviations (planned)
+
+> **1. `clock: () => Date` deps field, not the `Clock` interface.** The
+> slice spec pins `TransactionActionDeps.clock: () => Date` (a
+> function). The project's existing convention is the `Clock`
+> interface (`src/shared/clock/clock.port.ts`). The action layer
+> treats `clock()` as a thin adapter; the service layer (slice 4)
+> uses the full `Clock` interface. The slice-3 code is the minimum
+> surface for the action layer to be testable.
+
+> **2. `Logger` shape is the bare minimum (one method, three of four).**
+> The slice spec says `logger: Logger` for the deps bag. The shared
+> `logger.ts` exports `logger` (the concrete singleton) with
+> `debug/info/warn/error` methods. The action layer logs only `info`
+> and `warn`; the test fixtures pass a `vi.fn()` for `info` +
+> `warn` (slice 3 does not use `debug` or `error`).
+
+> **3. Cross-user `NOT_FOUND` mapping.** The design says the action
+> returns `404 NOT_FOUND` on cross-user reads. Slice 3 implements
+> this via `findById(userId, id) === null` → `AppError(NOT_FOUND)`
+> at the action layer (no `TransactionService` yet — slice 4 adds
+> the domain service). The InMemoryRepository follows the same
+> `userId`-scoped `findById` pattern as the accounts repository.
+
+## Slice 3 acceptance gates (to be filled at close)
+
+- [ ] `pnpm test` exits 0; tests added (target: ~46 across 10 files)
+- [ ] `pnpm run typecheck` exits 0 (0 errors)
+- [ ] `pnpm test --coverage` ≥ 80% lines on `src/modules/transactions/application/**`
+- [ ] `git log develop..feat/transactions-actions --oneline` shows the atomic commit sequence
+- [ ] `git log develop..feat/transactions-actions | grep -i "no-verify"` is empty
+- [ ] `git log develop..feat/transactions-actions | grep -iE "co-authored.*(ai|claude|gpt|gemini)|with ai help|generated by ai"` is empty
+- [ ] `git diff --stat develop..feat/transactions-actions | tail -1` < 600 lines OR `size:exception` declared (slices 1+2 precedent)
+- [ ] `Documents-es/openspec/changes/transactions/apply-progress.md` mirrors the EN file; 0 CJK characters
+- [ ] All commits pass `pnpm test`, `pnpm run typecheck`, `pnpm exec lint-staged && gga run`
+
+## Slice 3 commit ledger (filled at close)
+
+(filled at close)
+
+## Slice 3 TDD evidence
+
+(filled at close)
+
+## Slice 3 acceptance gates (closed)
+
+(filled at close)
+
+## Slice 3 deviations (executed)
+
+(filled at close)
+
+## Status
+
+(filled at close)
+
+## Next step
+
+(filled at close)
 ```
