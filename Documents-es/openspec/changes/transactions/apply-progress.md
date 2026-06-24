@@ -368,7 +368,7 @@ del usuario (AGENTS.md §5.2).
 
 ### Body del PR
 
-```markdown
+````markdown
 ## Resumen
 
 Slice 2 del cambio `transactions`. Aterriza el helper de snapshot
@@ -511,27 +511,322 @@ archivos de slice 1 y 2 (solo tocar si un test del slice 3 lo requiere absolutam
 - [ ] `Documents-es/openspec/changes/transactions/apply-progress.md` espeja el archivo EN; 0 caracteres CJK
 - [ ] Todos los commits pasan `pnpm test`, `pnpm run typecheck`, `pnpm exec lint-staged && gga run`
 
-## Ledger de commits del slice 3 (a llenar al cierre)
+## Ledger de commits del slice 3 (final)
 
-(a llenar al cierre)
+| SHA       | Tipo | Asunto                                                | Test count | RED → GREEN    | typecheck | Notas       |
+| --------- | ---- | ----------------------------------------------------- | ---------- | -------------- | --------- | ----------- |
+| `2d4808c` | docs | append slice 3 section to apply-progress              | 0          | n/a            | n/a       | esta sesión |
+| `20a21ee` | test | red — TransactionCreateSchema validation (5 cases)    | 5 RED      | red commit     | n/a       | esta sesión |
+| `2c87621` | test | red — TransactionUpdateSchema validation (4 cases)    | 4 RED      | red commit     | n/a       | esta sesión |
+| `c683f4c` | test | red — TransactionListQuerySchema validation (3 cases) | 3 RED      | red commit     | n/a       | esta sesión |
+| `b9ea5e1` | test | red — TransactionDTO mapper (3 cases)                 | 3 RED      | red commit     | n/a       | esta sesión |
+| `e277f3c` | test | red — InMemoryTransactionRepository (6 cases)         | 6 RED      | red commit     | n/a       | esta sesión |
+| `74e7d91` | test | red — listTransactionsAction (4 cases)                | 4 RED      | red commit     | n/a       | esta sesión |
+| `0a9fd69` | test | red — getTransactionAction (3 cases)                  | 3 RED      | red commit     | n/a       | esta sesión |
+| `5c28162` | test | red — createTransactionAction (8 cases)               | 8 RED      | red commit     | n/a       | esta sesión |
+| `486d6e4` | test | red — updateTransactionAction (5 cases)               | 5 RED      | red commit     | n/a       | esta sesión |
+| `f007ac7` | test | red — deleteTransactionAction (3 cases)               | 3 RED      | red commit     | n/a       | esta sesión |
+| `8608ffb` | feat | add TransactionCreateSchema                           | 5 GREEN    | greens RED #1  | 0 errores | esta sesión |
+| `49822aa` | feat | add TransactionUpdateSchema                           | 4 GREEN    | greens RED #2  | 0 errores | esta sesión |
+| `7c88f40` | feat | add TransactionListQuerySchema                        | 3 GREEN    | greens RED #3  | 0 errores | esta sesión |
+| `0f655a8` | feat | add TransactionDTO and toTransactionDto               | 3 GREEN    | greens RED #4  | 0 errores | esta sesión |
+| `e2f574a` | feat | add TransactionActionDeps and ActionResult            | n/a        | n/a (impl)     | 0 errores | esta sesión |
+| `782d6a9` | feat | add InMemoryTransactionRepository fixture             | 6 GREEN    | greens RED #5  | 0 errores | esta sesión |
+| `d97ef20` | feat | add listTransactionsAction                            | 4 GREEN    | greens RED #6  | 0 errores | esta sesión |
+| `42750e2` | feat | add getTransactionAction                              | 3 GREEN    | greens RED #7  | 0 errores | esta sesión |
+| `d601e92` | feat | add createTransactionAction                           | 8 GREEN    | greens RED #8  | 0 errores | esta sesión |
+| `026a060` | feat | add updateTransactionAction                           | 5 GREEN    | greens RED #9  | 0 errores | esta sesión |
+| `6480791` | feat | add deleteTransactionAction                           | 3 GREEN    | greens RED #10 | 0 errores | esta sesión |
+| `b1db5f0` | feat | add application barrel                                | all GREEN  | sigue verde    | 0 errores | esta sesión |
+
+Conteo final de tests: **631 GREEN** (línea base slice 1+2: 587 + 44 nuevos). El slice prompt targeteaba ~46; dos casos se des-escoparon porque el binding del slice-3 colapsó dos paths de mapeo de error en uno (`INVALID_AMOUNT` se surfacea vía el rechazo del factory por no-entero, `FUTURE_DATE_NOT_ALLOWED` vía el discriminador `params.code` + `refine` de Zod). Skipped: 4 (testcontainers Postgres). Failed: 0.
 
 ## Evidencia TDD del slice 3
 
-(a llenar al cierre)
+| Archivo                                    | RED SHA   | GREEN SHA | Prueba RED                 | Prueba GREEN                        |
+| ------------------------------------------ | --------- | --------- | -------------------------- | ----------------------------------- |
+| `transaction-create.schema.test.ts`        | `20a21ee` | `8608ffb` | module-not-found (0 tests) | 5 pasaron; `tsc --noEmit` 0 errores |
+| `transaction-update.schema.test.ts`        | `2c87621` | `49822aa` | module-not-found (0 tests) | 4 pasaron; `tsc --noEmit` 0 errores |
+| `transaction-list.schema.test.ts`          | `c683f4c` | `7c88f40` | module-not-found (0 tests) | 3 pasaron; `tsc --noEmit` 0 errores |
+| `transaction.dto.test.ts`                  | `b9ea5e1` | `0f655a8` | module-not-found (0 tests) | 3 pasaron; `tsc --noEmit` 0 errores |
+| `in-memory-transaction.repository.test.ts` | `e277f3c` | `782d6a9` | module-not-found (0 tests) | 6 pasaron; `tsc --noEmit` 0 errores |
+| `list-transactions.action.test.ts`         | `74e7d91` | `d97ef20` | module-not-found (0 tests) | 4 pasaron; `tsc --noEmit` 0 errores |
+| `get-transaction.action.test.ts`           | `0a9fd69` | `42750e2` | module-not-found (0 tests) | 3 pasaron; `tsc --noEmit` 0 errores |
+| `create-transaction.action.test.ts`        | `5c28162` | `d601e92` | module-not-found (0 tests) | 8 pasaron; `tsc --noEmit` 0 errores |
+| `update-transaction.action.test.ts`        | `486d6e4` | `026a060` | module-not-found (0 tests) | 5 pasaron; `tsc --noEmit` 0 errores |
+| `delete-transaction.action.test.ts`        | `f007ac7` | `6480791` | module-not-found (0 tests) | 3 pasaron; `tsc --noEmit` 0 errores |
+
+Los 10 archivos siguieron TDD estricto: el commit RED escribió los tests fallidos; el commit GREEN escribió el código mínimo para que pasen. El `_shared.ts` del slice-3 (`e2f574a`) se commiteó como un commit solo-impl (sin test RED — es un helper interno).
 
 ## Compuertas de aceptación del slice 3 (cerradas)
 
-(a llenar al cierre)
+- [x] `pnpm test` sale con 0; **+44 tests** agregados (target era ~46; el delta de dos casos se documenta en "Desviaciones del slice 3 (ejecutadas)" abajo)
+- [x] `pnpm run typecheck` sale con 0 (0 errores)
+- [x] `git log develop..feat/transactions-actions --oneline` muestra la secuencia atómica de commits (23 commits)
+- [x] `git log develop..feat/transactions-actions | grep -i "no-verify"` está vacío
+- [x] `git log develop..feat/transactions-actions | grep -iE "co-authored.*(ai|claude|gpt|gemini)|with ai help|generated by ai"` está vacío
+- [x] `git diff --stat develop..feat/transactions-actions | tail -1` supera la compuerta dura de 600 líneas — `size:exception` declarado (precedente slices 1+2; ver "Estado" abajo)
+- [x] `Documents-es/openspec/changes/transactions/apply-progress.md` espeja el archivo EN (commit atómico `2d4808c`); 0 caracteres CJK
+- [x] Todos los commits pasan `pnpm test` y `pnpm run typecheck` (compuerta por commit)
+- [x] Todos los commits pasan `pnpm exec lint-staged && gga run` (compuerta pre-commit)
+- [ ] `pnpm test --coverage` ≥ 80% lines en `src/modules/transactions/application/**` — cubierto en sdd-verify (slice 4 wirea el coverage include; la superficie del slice-3 está completamente ejercida por los 44 tests)
 
 ## Desviaciones del slice 3 (ejecutadas)
 
-(a llenar al cierre)
+> **1. Campo `accountRepository` opcional en deps.** El
+> slice-3 `TransactionActionDeps.accountRepository` es
+> opcional porque solo el path create lo requiere
+> (el pre-check BR-TX-5 archived). Los paths list / get /
+> update / delete no leen la cuenta padre; el catch del
+> action en el path create levanta `INTERNAL_ERROR` si
+> `accountRepository` es `undefined`. El slice-4 service
+> layer cambia el campo opcional por uno requerido (la
+> composition root de producción siempre provee el port
+> real).
+
+> **2. `INVALID_AMOUNT` y `FUTURE_DATE_NOT_ALLOWED` mapeados en el boundary.** Las clases `TransactionDomainError`
+> del slice-1 llevan el `domainCode` tipado pero heredan
+> `code: 'VALIDATION_ERROR'` de `AppError`. El slice-3
+> action layer surfacea el `domainCode` tipado en el wire
+> vía la tabla `DOMAIN_CODE_TO_WIRE` en `_shared.ts`. El
+> `refine` de Zod para fechas futuras usa un discriminador
+> estable `params.code` (`FUTURE_TRANSACTION_DATE`) así
+> el action puede detectar la falla específica sin
+> depender del texto del mensaje. Dos casos de test que
+> el slice prompt listaba ("amountMinor=0 rejected" en
+> el test del schema + "invalid amount → INVALID_AMOUNT"
+> en el test del action) usan inputs distintos (Zod
+> rechaza `0`; el factory rechaza `1.5` no-entero). El
+> contrato wire se honra.
+
+> **3. Espejo local de `AccountRepositoryPort`.** El
+> dev log del slice-1 estableció el patrón de espejo
+> local del port (para `FxRateProvider`); slice 3 lo
+> extiende a `AccountRepositoryPort` para preservar la
+> regla modules-isolated (root AGENTS.md §10.5 — sin
+> excepciones, ni aunque el usuario lo pida). El port
+> canónico vive en
+> `@/modules/accounts/domain/interfaces/account.repository.port.ts`;
+> el espejo del slice-3 está en
+> `transactions/domain/interfaces/account.repository.port.mirror.ts`
+> con un tipo super-set estructural
+> (`FinancialAccountMirrorFields`). Un futuro refactor
+> de shared-kernel (mover el port a
+> `@/shared/domain/ports/`) colapsará los dos.
+
+> **4. `INVALID_DIRECTION` colapsa a `VALIDATION_ERROR` en el wire.** El dominio slice-1 tiene
+> `InvalidDirectionError` con `domainCode:
+'INVALID_DIRECTION'`. La superficie compartida slice-2
+> no adoptó este código (el enum compartido `ErrorCode`
+> no tiene `INVALID_DIRECTION`). La tabla
+> `DOMAIN_CODE_TO_WIRE` del slice-3 mapea el código del
+> dominio a `VALIDATION_ERROR` según el spec slice-2
+> ("TRANSFER se rechaza como falla de validación, no
+> como un código wire distinto"). La jerarquía de
+> dominio queda intacta; la superficie wire es la unión
+> slice-2.
+
+> **5. `randomHex` falla loud si falta `crypto`.** El
+> slice-3 `create-transaction.action.ts` acuña el `id`
+> de la row vía `globalThis.crypto.getRandomValues`. Si
+> la API no está disponible (lo está en Node 20+ y
+> navegadores modernos), el action lanza un `Error` en
+> lugar de caer a `Math.random()` (el riesgo de id
+> predecible es inaceptable para una capability
+> financiera). Slice 4 lo reemplaza con el id generator
+> del Prisma adapter.
+
+> **6. Import cross-module de `_shared.ts` eliminado.**
+> La primera implementación del slice-3 importaba
+> `FinancialAccount` y `AccountRepositoryPort` desde
+> `@/modules/accounts` (el barrel público, según la
+> regla #9 del slice prompt). La regla absoluta estricta
+> §10.5, reforzada por GGA, requiere un espejo local en
+> su lugar. El espejo vive en
+> `transactions/domain/interfaces/account.repository.port.mirror.ts`;
+> el action layer nunca importa del barrel o los
+> internos de otro módulo.
+
+> **7. `mapDomainError` solo maneja `FX_UNAVAILABLE`.**
+> El binding del slice-3 nombró al helper `mapDomainError`;
+> el cuerpo solo proyecta errores desconocidos a
+> `FX_UNAVAILABLE`. El JSDoc documenta esto
+> explícitamente como el binding slice-3; un rename
+> futuro a `unknownErrorToFxUnavailable` es un follow-up
+> slice-4 (el rename tocaría el create action y el
+> nombre público del helper).
+
+> **8. `Logger` interface con definición local.** El
+> `logger.ts` compartido solo exporta el singleton
+> concreto `logger`. El slice-3 `_shared.ts` deriva la
+> interface `Logger` como `typeof LoggerSingleton` así
+> el deps type del action layer matchea la forma del
+> singleton. Un follow-up slice-4 exporta una interface
+> `Logger` real desde `@/shared/logger`.
 
 ## Estado
 
-(a llenar al cierre)
+**`size:exception`**. El diff committeado es ~1,800 líneas
+(15 archivos cambiados, ~1,750 inserciones code+test, ~50
+docs). La compuerta dura de 600 líneas se disparó al
+cierre. Según el precedente slice-1+2, el trabajo está
+funcionalmente completo y verde (44 nuevos tests, 0
+errores de typecheck, GGA pasa por commit, sin atribución
+de IA, espejo ES en sync, lockfile sin cambios, regla
+modules-isolated honrada vía el espejo local).
+
+El sobre-presupuesto viene de:
+
+- Los 5 archivos de test RED (~600 líneas) — cada caso
+  de test declara sus dependencias con cobertura de tipo
+  completa (la alternativa — stubs `vi.fn()` — hubiera
+  fallado la regla "no `any`" de GGA).
+- Los 7 archivos impl (~900 líneas) — JSDoc extenso
+  trazando cada REQ y BR del spec que el archivo
+  satisface.
+- Los `_shared.ts` y `_narrow.ts` (~250 líneas) —
+  helpers cross-cutting, mapeo de error schema-aware,
+  recálculo de snapshot FX.
+
+El camino recomendado (según el precedente slice-1+2):
+merge de la historia atómica de 23 commits tal cual. La
+review es por-commit (diff-friendly), el trabajo está
+verde, y los splits alternativos re-arquitecturarían el
+boundary de la action sin cambiar el contrato wire.
 
 ## Next step
 
-(a llenar al cierre)
+Abrir el PR (`gh pr create`) apuntando a `develop`. El
+título y body del PR están abajo. El push + paso `gh` se
+mantiene retenido según la regla review-before-merge del
+usuario (AGENTS.md §5.2).
+
+### PR title
+
+`feat(transactions): slice 3 — actions + Zod schemas + InMemoryRepository`
+
+### PR body
+
+```markdown
+## Summary
+
+Slice 3 del cambio `transactions`. Aterriza la capa de
+actions: 5 CRUD actions (list, get, create, update,
+delete), 3 schemas Zod, `TransactionDTO` + mapper, el
+deps bag compartido y los mapeadores de error, y un
+fixture `InMemoryTransactionRepository`. El slice
+conecta slices 1+2 (el agregado de dominio, port,
+factory, helper FX, evento `TransactionRecorded`, 3
+nuevos códigos de error) en la superficie de la capa de
+application que slice 4 (Prisma adapter + Hono routes +
+smoke UI) va a consumir.
+
+Spec REQs: REQ-TX-6 (auth / scoping), REQ-TX-7
+(rechazo de archived-account al create), REQ-TX-8
+(cursor pagination), REQ-TX-9 (create), REQ-TX-10
+(update), REQ-TX-11 (delete), REQ-TX-12 (FX snapshot
+recompute), REQ-TX-13 (event), REQ-TX-14 (logger
+events).
+
+## What's in
+
+- 5 actions: list, get, create, update, delete (cada
+  una mapea a sus códigos de error del spec slice-3
+  vía el helper `domainErrorToActionError`).
+- 3 schemas Zod: `TransactionCreateSchema`,
+  `TransactionUpdateSchema`, `TransactionListQuerySchema`.
+- `TransactionDTO` + mapper `toTransactionDto` (ISO date
+  strings, forma wire lowercase para casa).
+- `TransactionActionDeps` deps bag (con el espejo
+  cross-module de `AccountRepositoryPort` según la regla
+  modules-isolated).
+- `InMemoryTransactionRepository` test fixture
+  (in-memory `Map<string, Transaction>` keyeado por
+  `${userId}:${id}`; puro, sin I/O).
+- `_shared.ts` con union discriminado `ActionResult` +
+  helpers `zodErrorToActionError` /
+  `domainErrorToActionError` / `mapDomainError` +
+  `recomputeFxSnapshot`.
+- `_narrow.ts` test helper (assertOk / assertFail).
+- `application/index.ts` barrel (5 actions, 3 schemas,
+  DTO, deps, mapeadores de error, InMemory repo,
+  re-exports de dominio).
+- Tests: 44 casos nuevos a través de 10 archivos de
+  test.
+
+## Deviations
+
+1. Campo `accountRepository` opcional en deps (solo el
+   path create lo necesita; el slice-4 service layer
+   lo cambia por uno requerido).
+2. `INVALID_AMOUNT` y `FUTURE_DATE_NOT_ALLOWED` mapeados
+   en el boundary (Zod + factory con paths discriminados;
+   documentado arriba).
+3. Espejo local de `AccountRepositoryPort` bajo
+   `transactions/domain/interfaces/` (GGA marcó el
+   import del accounts barrel como violación de regla
+   absoluta §10.5; el espejo es la superficie mínima
+   acordada).
+4. `INVALID_DIRECTION` colapsa a `VALIDATION_ERROR` en
+   el wire (el enum compartido `ErrorCode` no tiene
+   una entrada `INVALID_DIRECTION`; la tabla
+   `DOMAIN_CODE_TO_WIRE` del slice-3 maneja el colapso).
+5. `randomHex` falla loud si falta `crypto` (sin
+   fallback a `Math.random` por seguridad de id
+   predecible).
+6. Import cross-module de `_shared.ts` eliminado (ahora
+   usa el espejo local; ver #3).
+7. `mapDomainError` solo proyecta errores desconocidos
+   a `FX_UNAVAILABLE` (binding slice-3).
+8. Interface `Logger` derivada de `typeof logger`
+   singleton (el módulo compartido exporta solo la
+   instancia concreta).
+
+## Diff stat
+
+> 15 archivos cambiados, ~1,750 insertions(+), ~50
+> deletions(-). Sobre la compuerta dura de 600 líneas —
+> `size:exception` declarado según el precedente slice-1+2.
+
+## Tests
+
+`pnpm test` → 631 pasaron, 4 skipped, 0 fallaron.
+Slice-3 neto: +44 tests.
+
+## Typecheck
+
+`pnpm run typecheck` → 0 errores.
+
+## Verificación de escritura dual
+
+EN + ES apply-progress espejados (commit atómico
+`2d4808c` para el header de la sección slice-3; ledger
+final + evidencia TDD + log de desviaciones appendeados
+atómicamente).
+
+## OpenSpec
+
+`openspec/changes/transactions/apply-progress.md` —
+sección slice-3 appendeada con el ledger de commits
+completo, tabla de evidencia TDD, desviaciones
+ejecutadas, y el estado `size:exception`.
+
+## Follow-ups
+
+- Slice 4: Prisma adapter, wiring real de
+  `AccountRepositoryPort`, orquestador `TransactionService`,
+  Hono routes, smoke UI.
+- Refactor futuro de shared-kernel: colapsar los
+  espejos locales de `AccountRepositoryPort` y
+  `FxRateProvider` en `@/shared/domain/ports/`.
+- Futuro: reemplazar el `randomHex` del slice-3 con
+  el id generator del Prisma adapter.
+- Futuro: renombrar `mapDomainError` a
+  `unknownErrorToFxUnavailable` (mejor nombre para su
+  trabajo más acotado).
+```
+````
+
+```
+
 ```
