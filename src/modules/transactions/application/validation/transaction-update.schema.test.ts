@@ -40,9 +40,9 @@ describe('TransactionUpdateSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects a non-uuid id', () => {
+  it('rejects an empty id', () => {
     const result = TransactionUpdateSchema.safeParse({
-      id: 'not-a-uuid',
+      id: '',
       memo: 'updated memo',
     });
     expect(result.success).toBe(false);

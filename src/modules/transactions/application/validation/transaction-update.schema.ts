@@ -29,7 +29,7 @@ import { z } from 'zod';
 
 export const TransactionUpdateSchema = z
   .object({
-    id: z.string().uuid(),
+    id: z.string().min(1),
     amountMinor: z.number().int().positive().optional(),
     originalCurrency: z.enum(['ARS', 'USD']).optional(),
     transactionDate: z

@@ -37,6 +37,7 @@ import { dispatcher } from '@/shared/events/event-dispatcher';
 import type { FxRateProvider } from '../../domain/interfaces/fx-rate-provider.port';
 
 const FX_AS_OF = new Date('2026-06-23T10:00:00.000Z');
+const ACCOUNT_ID = 'a1b2c3d4-e5f6-7890-1234-567890abcdef';
 
 function makeDeps(opts: { fxProvider?: FxRateProvider } = {}): {
   deps: TransactionActionDeps;
@@ -74,7 +75,7 @@ describe('updateTransactionAction', () => {
 
   it('valid partial update (memo only) succeeds and preserves the FX snapshot', async () => {
     const created = await repo.create('u-1', {
-      accountId: 'fa-1',
+      accountId: ACCOUNT_ID,
       direction: TransactionDirection.EXPENSE,
       amountMinor: 1000,
       currency: AccountCurrency.USD,
@@ -93,7 +94,7 @@ describe('updateTransactionAction', () => {
     assertOk(result);
     expect(result.value.memo).toBe('new memo');
     expect(result.value.convertedAmountMinor).toBe(1100000);
-    expect(result.value.fxAsOfSnapshot).toEqual(FX_AS_OF);
+    expect(result.value.fxAsOfSnapshot).toBe(FX_AS_OF.toISOString());
   });
 
   it('returns NOT_FOUND when the row is missing', async () => {
@@ -107,7 +108,7 @@ describe('updateTransactionAction', () => {
 
   it('returns NOT_FOUND on cross-user access', async () => {
     const created = await repo.create('u-1', {
-      accountId: 'fa-1',
+      accountId: ACCOUNT_ID,
       direction: TransactionDirection.EXPENSE,
       amountMinor: 1000,
       currency: AccountCurrency.USD,
@@ -130,7 +131,7 @@ describe('updateTransactionAction', () => {
   it('recomputes FX when originalCurrency changes', async () => {
     const fxProvider: FxRateProvider = {
       getDisplayAmount: vi.fn(async () => ({
-        native: { amount: 1000, currency: AccountCurrency.EUR },
+        native: { amount: 1000, currency: AccountCurrency.USD },
         display: {
           amount: 1200000,
           currency: AccountCurrency.ARS,
@@ -142,10 +143,10 @@ describe('updateTransactionAction', () => {
     };
     ({ deps, repo } = makeDeps({ fxProvider }));
     const created = await repo.create('u-1', {
-      accountId: 'fa-1',
+      accountId: ACCOUNT_ID,
       direction: TransactionDirection.EXPENSE,
       amountMinor: 1000,
-      currency: AccountCurrency.USD,
+      currency: AccountCurrency.ARS,
       memo: null,
       category: null,
       transactionDate: new Date('2026-06-22T10:00:00.000Z'),
@@ -156,11 +157,11 @@ describe('updateTransactionAction', () => {
     });
     const result = await updateTransactionAction(deps, 'u-1', {
       id: created.id,
-      originalCurrency: AccountCurrency.EUR,
+      originalCurrency: AccountCurrency.USD,
     });
     assertOk(result);
     expect(fxProvider.getDisplayAmount).toHaveBeenCalledTimes(1);
-    expect(result.value.currency).toBe(AccountCurrency.EUR);
+    expect(result.value.currency).toBe(AccountCurrency.USD);
     expect(result.value.convertedAmountMinor).toBe(1200000);
   });
 
@@ -179,7 +180,7 @@ describe('updateTransactionAction', () => {
     };
     ({ deps, repo } = makeDeps({ fxProvider }));
     const created = await repo.create('u-1', {
-      accountId: 'fa-1',
+      accountId: ACCOUNT_ID,
       direction: TransactionDirection.EXPENSE,
       amountMinor: 1000,
       currency: AccountCurrency.USD,
