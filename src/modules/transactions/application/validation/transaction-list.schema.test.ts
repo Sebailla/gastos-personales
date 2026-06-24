@@ -28,14 +28,14 @@ describe('TransactionListQuerySchema', () => {
   it('clamps limit > 100 down to 100', () => {
     expect(TransactionListQuerySchema.safeParse({ limit: 999 })).toEqual({
       success: true,
-      data: { limit: 100, cursor: undefined, accountId: undefined },
+      data: { limit: 100 },
     });
   });
 
   it('clamps limit below 1 up to 1', () => {
     expect(TransactionListQuerySchema.safeParse({ limit: 0 })).toEqual({
       success: true,
-      data: { limit: 1, cursor: undefined, accountId: undefined },
+      data: { limit: 1 },
     });
   });
 });
