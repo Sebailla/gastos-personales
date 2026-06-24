@@ -24,7 +24,18 @@ import { zodErrorToActionError, domainErrorToActionError, recomputeFxSnapshot } 
 import { AppError } from '@/shared/errors/app-error';
 import { TransactionUpdateSchema } from '../validation/transaction-update.schema';
 import { toTransactionDto, type TransactionDTO } from '../dto/transaction.dto';
-import type { TransactionUpdatePatch } from '../../domain/interfaces/transaction.repository.port';
+import type { UpdateTransactionPatch } from '../../domain/interfaces/transaction.repository.port';
+
+// Mutable view of `UpdateTransactionPatch` for action-layer
+// construction. The port's type is `readonly` (the domain's
+// `TransactionUpdatePatch`) so consumers cannot mutate after
+// build; the action layer builds the object first and hands
+// it off as a frozen value via the port's contract. TypeScript
+// widens the readonly-ness at the assignment site via
+// `-readonly`.
+type MutableUpdatePatch = {
+  -readonly [K in keyof UpdateTransactionPatch]: UpdateTransactionPatch[K];
+};
 import type { AccountFxCasa } from '../../domain/entities/transaction';
 
 export async function updateTransactionAction(
@@ -44,7 +55,7 @@ export async function updateTransactionAction(
       });
     }
 
-    const patch: TransactionUpdatePatch = {};
+    const patch: MutableUpdatePatch = {};
     if (parsed.data.amountMinor !== undefined) {
       patch.amountMinor = parsed.data.amountMinor;
     }
@@ -102,6 +113,11 @@ export async function updateTransactionAction(
     return { ok: true, value: toTransactionDto(updated) };
   } catch (err) {
     if (err instanceof AppError) return domainErrorToActionError(err);
-    throw err;
+    return domainErrorToActionError(
+      new AppError({
+        code: 'INTERNAL_ERROR',
+        message: 'updateTransactionAction: unexpected error.',
+      }),
+    );
   }
 }

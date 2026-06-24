@@ -54,6 +54,12 @@ export async function createTransactionAction(
   if (!parsed.success) return zodErrorToActionError(parsed.error);
 
   try {
+    if (deps.accountRepository === undefined) {
+      throw new AppError({
+        code: 'INTERNAL_ERROR',
+        message: 'createTransactionAction requires accountRepository in deps.',
+      });
+    }
     const parent = await loadParentAccount(deps.accountRepository, userId, parsed.data.accountId);
     if (parent === null) {
       throw new AppError({
@@ -147,16 +153,22 @@ export async function createTransactionAction(
  * is far more than the cuid collision requirement (the
  * cuid library uses 8 bytes by default for a session-bound
  * token).
+ *
+ * Security: `globalThis.crypto.getRandomValues` is the only
+ * entropy source. Predictable ids (e.g. via `Math.random`
+ * fallback) are unacceptable for a financial capability —
+ * if the Web Crypto API is unavailable in the runtime, we
+ * fail loudly rather than ship a weak id. The supported
+ * targets (Node 20+, modern browsers) all expose the API.
  */
 const TX_ID_BYTES = 12;
 function randomHex(bytes: number): string {
-  const buf = new Uint8Array(bytes);
-  if (typeof globalThis.crypto?.getRandomValues === 'function') {
-    globalThis.crypto.getRandomValues(buf);
-  } else {
-    for (let i = 0; i < buf.length; i++) {
-      buf[i] = Math.floor(Math.random() * 256);
-    }
+  if (typeof globalThis.crypto?.getRandomValues !== 'function') {
+    throw new Error(
+      'createTransactionAction: globalThis.crypto.getRandomValues is unavailable; cannot generate a secure transaction id.',
+    );
   }
+  const buf = new Uint8Array(bytes);
+  globalThis.crypto.getRandomValues(buf);
   return Array.from(buf, (b) => b.toString(16).padStart(2, '0')).join('');
 }

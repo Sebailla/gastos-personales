@@ -20,20 +20,37 @@
  * `value`; failure carries `error`. Narrowing is `if (res.ok)`.
  *
  * Cross-module rule: this file imports the parent
- * `AccountRepositoryPort` and `FxRateProvider` types from
- * `@/modules/accounts` (the public barrel) and the
- * `AccountRepositoryPort` is the same port the `accounts`
- * service depends on. The application layer reads the
- * parent FinancialAccount through this port — never through
- * the `accounts` infrastructure — preserving the ports &
- * adapters invariant.
+ * `AccountRepositoryPort` from the local mirror at
+ * `transactions/domain/interfaces/account.repository.port.mirror.ts`
+ * and the FX port from
+ * `transactions/domain/interfaces/fx-rate-provider.port.ts`.
+ * The mirrors preserve the modules-isolated rule (root
+ * AGENTS.md §10.5). The accounts domain is the source of
+ * truth; the values stay in sync via the slice-2 deviation
+ * log + the slice-1 design §2.1 "no drift" contract.
  */
 
 import type { ZodError } from 'zod';
-import type { AccountRepositoryPort, FxRateProvider } from '@/modules/accounts';
+import type {
+  AccountRepositoryPortMirror as AccountRepositoryPort,
+  FinancialAccountMirrorFields as FinancialAccount,
+} from '../../domain/interfaces/account.repository.port.mirror';
+import type { FxRateProvider } from '../../domain/interfaces/fx-rate-provider.port';
 import type { EventDispatcher } from '@/shared/events/event-dispatcher';
-import type { Logger } from '@/shared/logger/logger';
+import type { logger as LoggerSingleton } from '@/shared/logger/logger';
 import { AppError } from '@/shared/errors/app-error';
+
+/**
+ * Logger shape consumed by the action layer (mirrors the
+ * concrete `logger` exported from `@/shared/logger/logger`).
+ * The slice-3 binding pins this type here because the
+ * shared module exposes only the singleton — a future
+ * `Logger` interface export is a slice-4 follow-up. The
+ * action layer types its deps as the structural shape
+ * (debug / info / warn / error) rather than the singleton
+ * so test fixtures can pass `vi.fn()` partial mocks.
+ */
+export type Logger = typeof LoggerSingleton;
 import {
   FutureTransactionDateError,
   InvalidAmountError,
@@ -43,7 +60,6 @@ import {
 import { convertAndSnapshot } from '../../domain/services/fx-snapshot';
 import type { AccountFxCasa } from '../../domain/entities/transaction';
 import type { TransactionRepositoryPort } from '../../domain/interfaces/transaction.repository.port';
-import type { FinancialAccount } from '@/modules/accounts';
 
 export { InvalidAmountError, InvalidDirectionError, FutureTransactionDateError };
 
@@ -51,13 +67,19 @@ export { InvalidAmountError, InvalidDirectionError, FutureTransactionDateError }
  * The action-layer dependency bag. Constructed at the
  * composition root and passed unchanged to every action.
  *
+ * `accountRepository` is required only for the create path
+ * (the BR-TX-5 archived pre-check). The list / get / update /
+ * delete paths do not touch it; the slice-3 tests pass an
+ * undefined value (the field is optional) and the production
+ * composition root (slice 4) supplies the real port.
+ *
  * `clock` is a function (not the project's `Clock` interface)
  * per the slice-3 binding; the slice-4 service layer adopts
  * the full `Clock` interface.
  */
 export interface TransactionActionDeps {
   readonly repo: TransactionRepositoryPort;
-  readonly accountRepository: AccountRepositoryPort;
+  readonly accountRepository?: AccountRepositoryPort;
   readonly clock: () => Date;
   readonly logger: Logger;
   readonly dispatcher: EventDispatcher;
@@ -143,21 +165,33 @@ export function zodErrorToActionError(err: ZodError): ActionFailure {
  * `domainCode` getter and surfaces it on the wire as the
  * `code` field — preserving the typed-error contract while
  * keeping the slice-1 `instanceof` test intact.
+ *
+ * The `DOMAIN_CODE_TO_WIRE` table maps the slice-1 domain
+ * codes to their slice-2 wire counterparts. The shared
+ * `ErrorCode` enum adopted `INVALID_AMOUNT` and
+ * `FUTURE_DATE_NOT_ALLOWED`; `INVALID_DIRECTION` collapses
+ * into `VALIDATION_ERROR` per the slice-2 spec (TRANSFER
+ * is rejected as a validation failure, not a distinct wire
+ * code). Adding a new domain code requires updating this
+ * table — a `tsc` exhaustive-check would be the next
+ * follow-up (typed by hand today to avoid widening the
+ * `TransactionDomainError.domainCode` string union).
  */
+const DOMAIN_CODE_TO_WIRE: Readonly<
+  Record<string, 'INVALID_AMOUNT' | 'FUTURE_DATE_NOT_ALLOWED' | 'VALIDATION_ERROR'>
+> = {
+  INVALID_AMOUNT: 'INVALID_AMOUNT',
+  FUTURE_TRANSACTION_DATE: 'FUTURE_DATE_NOT_ALLOWED',
+  INVALID_DIRECTION: 'VALIDATION_ERROR',
+};
+
 export function domainErrorToActionError(err: AppError | TransactionDomainError): ActionFailure {
   if (err instanceof TransactionDomainError) {
-    // The domain code is the wire-stable identifier. The
-    // `ErrorCode` union (slice-2 additions) covers the three
-    // typed codes; if the domain hierarchy grows beyond that,
-    // a follow-up slice extends the union.
+    const wireCode = DOMAIN_CODE_TO_WIRE[err.domainCode] ?? 'VALIDATION_ERROR';
     return {
       ok: false,
       error: new AppError({
-        code: err.domainCode as
-          | 'INVALID_AMOUNT'
-          | 'INVALID_DIRECTION'
-          | 'FUTURE_DATE_NOT_ALLOWED'
-          | 'VALIDATION_ERROR',
+        code: wireCode,
         message: err.message,
         details: err.details,
       }),
@@ -173,6 +207,11 @@ export function domainErrorToActionError(err: AppError | TransactionDomainError)
  * projection. Domain / `AppError` errors are caught by the
  * `instanceof AppError` check in the action's catch block
  * before this helper is reached.
+ *
+ * Why the name: the slice-3 binding pinned the public name
+ * `mapDomainError`. The body has a single, narrower job —
+ * "wrap unknown errors as FX_UNAVAILABLE". A future rename
+ * to `unknownErrorToFxUnavailable` is a slice-4 follow-up.
  */
 export function mapDomainError(err: unknown): AppError {
   if (err instanceof AppError) return err;
@@ -228,14 +267,14 @@ export function checkAccountArchived(account: FinancialAccount): AppError | null
  */
 export interface RecomputeFxInput {
   readonly originalAmountMinor: number;
-  readonly originalCurrency: 'ARS' | 'USD';
+  readonly originalCurrency: 'ARS' | 'USD' | 'EUR';
   readonly casaSnapshot: AccountFxCasa;
   readonly fxRateProvider: FxRateProvider;
   readonly now: Date;
 }
 export async function recomputeFxSnapshot(input: RecomputeFxInput): Promise<{
   convertedAmountMinor: number;
-  convertedCurrency: 'ARS' | 'USD';
+  convertedCurrency: 'ARS' | 'USD' | 'EUR';
   fxAsOfSnapshot: Date | null;
   casa: AccountFxCasa;
 }> {
