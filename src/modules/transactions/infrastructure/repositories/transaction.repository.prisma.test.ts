@@ -154,11 +154,16 @@ function createMockPrismaClient(): MockPrismaClient {
         return y.id < x.id ? -1 : y.id > x.id ? 1 : 0;
       });
       let sliced: MockTransactionRow[] = matching;
+      // Prisma cursor semantics: `cursor: { id }` anchors on the
+      // row matching `id`; `skip: N` skips N rows AFTER the
+      // cursor. So the effective offset is (idx of cursor) +
+      // a.skip. The cursor is included in the result iff skip=0.
       if (a.cursor) {
         const idx = sliced.findIndex((r) => r.id === a.cursor!.id);
-        if (idx >= 0) sliced = sliced.slice(idx + 1);
+        if (idx >= 0) sliced = sliced.slice(idx + (a.skip ?? 0));
+      } else if (a.skip) {
+        sliced = sliced.slice(a.skip);
       }
-      if (a.skip) sliced = sliced.slice(a.skip);
       if (a.take) sliced = sliced.slice(0, a.take);
       return sliced as unknown as unknown[];
     }),
@@ -418,9 +423,16 @@ describe('TransactionRepositoryPrisma', () => {
   it('adapter accepts the narrow PrismaTransactionDelegate (compile-time pin)', () => {
     // If this file compiles, the adapter's constructor signature
     // is structurally compatible with the narrow delegate — no
-    // `as any` was needed.
-    type _Sig = Parameters<typeof TransactionRepositoryPrisma['prototype']['constructor']>[0];
-    const _narrowOk: _Sig = { transaction: prisma.transaction };
+    // `as any` was needed. The `repo` instance from beforeEach
+    // already proves the contract; this test asserts the type
+    // explicitly.
+    const _narrowOk: ConstructorParameters<typeof TransactionRepositoryPrisma>[0] = {
+      transaction: prisma.transaction,
+    };
+    // `repo` was built in `beforeEach` with the narrow delegate;
+    // the type chain compiles only if the constructor accepts
+    // the narrow shape.
     void _narrowOk;
+    expect(typeof repo.findById).toBe('function');
   });
 });
