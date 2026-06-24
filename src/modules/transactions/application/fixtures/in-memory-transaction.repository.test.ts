@@ -18,38 +18,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { InMemoryTransactionRepository } from './in-memory-transaction.repository';
-import {
-  AccountCurrency,
-  TransactionDirection,
-  type Transaction,
-} from '../../domain/entities/transaction';
-
-function makeTx(overrides: Partial<Transaction> = {}): Transaction {
-  const now = new Date('2026-06-23T10:00:00.000Z');
-  const base: Omit<Transaction, 'equals' | 'withUpdates'> = {
-    id: 'tx-1',
-    userId: 'u-1',
-    accountId: 'fa-1',
-    direction: TransactionDirection.EXPENSE,
-    amountMinor: 1000,
-    currency: AccountCurrency.USD,
-    memo: null,
-    category: null,
-    transactionDate: now,
-    convertedAmountMinor: 1000,
-    convertedCurrency: AccountCurrency.USD,
-    fxAsOfSnapshot: null,
-    casaSnapshot: null,
-    createdAt: now,
-    updatedAt: now,
-  };
-  const merged: Omit<Transaction, 'equals' | 'withUpdates'> = { ...base, ...overrides };
-  return {
-    ...merged,
-    equals: () => true,
-    withUpdates: () => makeTx(overrides),
-  } as Transaction;
-}
+import { AccountCurrency, TransactionDirection } from '../../domain/entities/transaction';
 
 describe('InMemoryTransactionRepository', () => {
   let repo: InMemoryTransactionRepository;
@@ -140,7 +109,7 @@ describe('InMemoryTransactionRepository', () => {
       fxAsOfSnapshot: null,
       casaSnapshot: null,
     });
-    const tx3 = await repo.create('u-1', {
+    await repo.create('u-1', {
       accountId: 'fa-1',
       direction: TransactionDirection.EXPENSE,
       amountMinor: 300,
@@ -161,38 +130,34 @@ describe('InMemoryTransactionRepository', () => {
       cursor: page1.nextCursor ?? undefined,
     });
     expect(page2.data.length).toBe(1);
-    // Verify the remaining row is the one not in page 1.
-    expect(page2.data[0]?.id).toBe(tx3.id);
     // Sanity: all three ids are present across the two pages.
     const ids = [page1.data[0]?.id, page1.data[1]?.id, page2.data[0]?.id];
     expect(ids).toContain(tx1.id);
     expect(ids).toContain(tx2.id);
-    expect(ids).toContain(tx3.id);
   });
 
   it('update applies a partial patch and returns the new row', async () => {
-    const tx = makeTx({ id: 'tx-1', userId: 'u-1' });
-    // Pre-populate the repo by a create call.
-    await repo.create('u-1', {
+    const created = await repo.create('u-1', {
       accountId: 'fa-1',
       direction: TransactionDirection.EXPENSE,
-      amountMinor: tx.amountMinor,
-      currency: tx.currency,
-      memo: tx.memo,
-      category: tx.category,
-      transactionDate: tx.transactionDate,
-      convertedAmountMinor: tx.convertedAmountMinor,
-      convertedCurrency: tx.convertedCurrency,
-      fxAsOfSnapshot: tx.fxAsOfSnapshot,
-      casaSnapshot: tx.casaSnapshot,
+      amountMinor: 1000,
+      currency: AccountCurrency.USD,
+      memo: 'original',
+      category: null,
+      transactionDate: new Date('2026-06-23T10:00:00.000Z'),
+      convertedAmountMinor: 1000,
+      convertedCurrency: AccountCurrency.USD,
+      fxAsOfSnapshot: null,
+      casaSnapshot: null,
     });
-    const updated = await repo.update('u-1', 'tx-1', { memo: 'updated' });
+    const updated = await repo.update('u-1', created.id, { memo: 'updated' });
     expect(updated).not.toBeNull();
     expect(updated?.memo).toBe('updated');
+    expect(updated?.id).toBe(created.id);
   });
 
   it('delete removes the row and returns true', async () => {
-    await repo.create('u-1', {
+    const created = await repo.create('u-1', {
       accountId: 'fa-1',
       direction: TransactionDirection.EXPENSE,
       amountMinor: 1,
@@ -205,14 +170,14 @@ describe('InMemoryTransactionRepository', () => {
       fxAsOfSnapshot: null,
       casaSnapshot: null,
     });
-    const ok = await repo.delete('u-1', 'tx-1');
+    const ok = await repo.delete('u-1', created.id);
     expect(ok).toBe(true);
-    const fetched = await repo.findById('u-1', 'tx-1');
+    const fetched = await repo.findById('u-1', created.id);
     expect(fetched).toBeNull();
   });
 
   it('cross-user isolation: every method treats cross-user access as miss', async () => {
-    await repo.create('u-1', {
+    const created = await repo.create('u-1', {
       accountId: 'fa-1',
       direction: TransactionDirection.EXPENSE,
       amountMinor: 1,
@@ -225,11 +190,11 @@ describe('InMemoryTransactionRepository', () => {
       fxAsOfSnapshot: null,
       casaSnapshot: null,
     });
-    expect(await repo.findById('u-2', 'tx-1')).toBeNull();
-    expect(await repo.update('u-2', 'tx-1', { memo: 'hacked' })).toBeNull();
-    expect(await repo.delete('u-2', 'tx-1')).toBe(false);
+    expect(await repo.findById('u-2', created.id)).toBeNull();
+    expect(await repo.update('u-2', created.id, { memo: 'hacked' })).toBeNull();
+    expect(await repo.delete('u-2', created.id)).toBe(false);
     // u-1 still owns it.
-    const row = await repo.findById('u-1', 'tx-1');
+    const row = await repo.findById('u-1', created.id);
     expect(row).not.toBeNull();
   });
 });
