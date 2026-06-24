@@ -24,6 +24,14 @@
  *   4. dispatches `TransactionRecorded` via the injected
  *      `dispatcher`;
  *   5. returns the DTO.
+ *
+ * Note on the TRANSFER case: the Zod schema rejects `TRANSFER`
+ * at parse time (the enum is `INCOME | EXPENSE`), so the
+ * factory's `InvalidDirectionError` branch is not exercised
+ * here. The factory path is covered by the slice-2 factory
+ * tests (`create-transaction.test.ts`). The slice-3 wire
+ * contract for the TRANSFER direction is `VALIDATION_ERROR`,
+ * which the action's zod-error mapping produces.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -31,7 +39,11 @@ import { createTransactionAction } from './create-transaction.action';
 import { InMemoryTransactionRepository } from '../fixtures/in-memory-transaction.repository';
 import { assertOk, assertFail } from './_narrow';
 import type { TransactionActionDeps } from './_shared';
-import { AccountCurrency, TransactionDirection } from '../../domain/entities/transaction';
+import {
+  AccountCurrency,
+  AccountFxCasa,
+  TransactionDirection,
+} from '../../domain/entities/transaction';
 import { logger } from '@/shared/logger/logger';
 import { EventDispatcher, TransactionRecorded } from '@/shared/events/event-dispatcher';
 import type { FxRateProvider } from '../../domain/interfaces/fx-rate-provider.port';
@@ -43,10 +55,12 @@ import {
   OpeningBalanceMode,
 } from '@/modules/accounts';
 
+const ACCOUNT_ID = 'a1b2c3d4-e5f6-7890-1234-567890abcdef';
+
 function makeAccount(overrides: Partial<FinancialAccount> = {}): FinancialAccount {
   const now = new Date('2026-06-23T10:00:00.000Z');
   return {
-    id: 'fa-1',
+    id: ACCOUNT_ID,
     userId: 'u-1',
     type: AccountType.BANK,
     name: 'Main',
@@ -134,11 +148,11 @@ describe('createTransactionAction', () => {
 
   it('valid input creates and returns the DTO', async () => {
     const result = await createTransactionAction(deps, 'u-1', {
-      accountId: 'fa-1',
+      accountId: ACCOUNT_ID,
       direction: TransactionDirection.EXPENSE,
       amountMinor: 1000,
       originalCurrency: AccountCurrency.USD,
-      transactionDate: new Date('2026-06-23T10:00:00.000Z'),
+      transactionDate: '2026-06-23T10:00:00.000Z',
       memo: 'lunch',
       category: 'food',
     });
@@ -152,11 +166,11 @@ describe('createTransactionAction', () => {
     const handler = vi.fn();
     dispatcher.subscribe(TransactionRecorded, handler);
     await createTransactionAction(deps, 'u-1', {
-      accountId: 'fa-1',
+      accountId: ACCOUNT_ID,
       direction: TransactionDirection.EXPENSE,
       amountMinor: 1000,
       originalCurrency: AccountCurrency.USD,
-      transactionDate: new Date('2026-06-23T10:00:00.000Z'),
+      transactionDate: '2026-06-23T10:00:00.000Z',
     });
     expect(handler).toHaveBeenCalledTimes(1);
   });
@@ -166,23 +180,26 @@ describe('createTransactionAction', () => {
       account: makeAccount({ archivedAt: new Date('2026-06-22T00:00:00.000Z') }),
     }));
     const result = await createTransactionAction(deps, 'u-1', {
-      accountId: 'fa-1',
+      accountId: ACCOUNT_ID,
       direction: TransactionDirection.EXPENSE,
       amountMinor: 1000,
       originalCurrency: AccountCurrency.USD,
-      transactionDate: new Date('2026-06-23T10:00:00.000Z'),
+      transactionDate: '2026-06-23T10:00:00.000Z',
     });
     assertFail(result);
     expect(result.error.code).toBe('ACCOUNT_ARCHIVED');
   });
 
-  it('returns INVALID_AMOUNT when amountMinor <= 0', async () => {
+  it('returns INVALID_AMOUNT when amountMinor is non-integer', async () => {
+    // Zod accepts any positive number (the slice-2 factory
+    // rejects non-integer values with `InvalidAmountError`,
+    // which the action surfaces as INVALID_AMOUNT).
     const result = await createTransactionAction(deps, 'u-1', {
-      accountId: 'fa-1',
+      accountId: ACCOUNT_ID,
       direction: TransactionDirection.EXPENSE,
-      amountMinor: 0,
+      amountMinor: 1.5,
       originalCurrency: AccountCurrency.USD,
-      transactionDate: new Date('2026-06-23T10:00:00.000Z'),
+      transactionDate: '2026-06-23T10:00:00.000Z',
     });
     assertFail(result);
     expect(result.error.code).toBe('INVALID_AMOUNT');
@@ -192,9 +209,9 @@ describe('createTransactionAction', () => {
     // One day in milliseconds — chosen so the test always falls
     // strictly after `Date.now()` regardless of timezone offset.
     const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-    const future = new Date(Date.now() + ONE_DAY_MS);
+    const future = new Date(Date.now() + ONE_DAY_MS).toISOString();
     const result = await createTransactionAction(deps, 'u-1', {
-      accountId: 'fa-1',
+      accountId: ACCOUNT_ID,
       direction: TransactionDirection.EXPENSE,
       amountMinor: 1000,
       originalCurrency: AccountCurrency.USD,
@@ -206,11 +223,11 @@ describe('createTransactionAction', () => {
 
   it('returns VALIDATION_ERROR when direction === TRANSFER', async () => {
     const result = await createTransactionAction(deps, 'u-1', {
-      accountId: 'fa-1',
+      accountId: ACCOUNT_ID,
       direction: TransactionDirection.TRANSFER,
       amountMinor: 1000,
       originalCurrency: AccountCurrency.USD,
-      transactionDate: new Date('2026-06-23T10:00:00.000Z'),
+      transactionDate: '2026-06-23T10:00:00.000Z',
     });
     assertFail(result);
     expect(result.error.code).toBe('VALIDATION_ERROR');
@@ -218,6 +235,7 @@ describe('createTransactionAction', () => {
 
   it('returns FX_UNAVAILABLE when the FX provider throws', async () => {
     ({ deps } = makeDeps({
+      account: makeAccount({ casa: AccountFxCasa.OFICIAL }),
       fxProvider: {
         getDisplayAmount: vi.fn(async () => {
           throw new Error('boom');
@@ -225,11 +243,11 @@ describe('createTransactionAction', () => {
       },
     }));
     const result = await createTransactionAction(deps, 'u-1', {
-      accountId: 'fa-1',
+      accountId: ACCOUNT_ID,
       direction: TransactionDirection.EXPENSE,
       amountMinor: 1000,
       originalCurrency: AccountCurrency.USD,
-      transactionDate: new Date('2026-06-23T10:00:00.000Z'),
+      transactionDate: '2026-06-23T10:00:00.000Z',
     });
     assertFail(result);
     expect(result.error.code).toBe('FX_UNAVAILABLE');
@@ -241,7 +259,7 @@ describe('createTransactionAction', () => {
       direction: TransactionDirection.EXPENSE,
       amountMinor: 1000,
       originalCurrency: AccountCurrency.USD,
-      transactionDate: new Date('2026-06-23T10:00:00.000Z'),
+      transactionDate: '2026-06-23T10:00:00.000Z',
     });
     assertFail(result);
     expect(result.error.code).toBe('VALIDATION_ERROR');

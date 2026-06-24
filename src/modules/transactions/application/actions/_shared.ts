@@ -29,6 +29,7 @@
  * adapters invariant.
  */
 
+import type { ZodError } from 'zod';
 import type { AccountRepositoryPort, FxRateProvider } from '@/modules/accounts';
 import type { EventDispatcher } from '@/shared/events/event-dispatcher';
 import type { Logger } from '@/shared/logger/logger';
@@ -43,6 +44,8 @@ import { convertAndSnapshot } from '../../domain/services/fx-snapshot';
 import type { AccountFxCasa } from '../../domain/entities/transaction';
 import type { TransactionRepositoryPort } from '../../domain/interfaces/transaction.repository.port';
 import type { FinancialAccount } from '@/modules/accounts';
+
+export { InvalidAmountError, InvalidDirectionError, FutureTransactionDateError };
 
 /**
  * The action-layer dependency bag. Constructed at the
@@ -79,9 +82,37 @@ export type ActionResult<T> = ActionSuccess<T> | ActionFailure;
  * `error` is an `AppError(VALIDATION_ERROR)` carrying the
  * issues list as `details` so the UI can surface the first
  * message via BR-TX-5 / the standard accounts-list pattern.
+ *
+ * Slice-3 deviation: the action layer inspects the Zod
+ * issue list for `transactionDate` `refine` failures and
+ * maps them to `FUTURE_DATE_NOT_ALLOWED` instead of the
+ * generic `VALIDATION_ERROR`. This matches the slice-3
+ * error-mapping table (REQ-TX-4 wire code) and keeps the
+ * `Date.now()`-based future-date check at the Zod boundary
+ * without duplicating it in the factory.
+ *
+ * The discriminator is a stable `code` attached via Zod's
+ * `params` (see `transaction-create.schema.ts`). Do NOT
+ * match on `message` text — i18n / whitespace changes
+ * would silently regress the wire contract.
  */
-import type { ZodError } from 'zod';
 export function zodErrorToActionError(err: ZodError): ActionFailure {
+  const futureDateIssue = err.issues.find(
+    (issue) =>
+      issue.path[0] === 'transactionDate' &&
+      issue.code === 'custom' &&
+      (issue as { params?: { code?: string } }).params?.code === 'FUTURE_TRANSACTION_DATE',
+  );
+  if (futureDateIssue) {
+    return {
+      ok: false,
+      error: new AppError({
+        code: 'FUTURE_DATE_NOT_ALLOWED',
+        message: 'La fecha no puede estar en el futuro.',
+        details: err.issues,
+      }),
+    };
+  }
   return {
     ok: false,
     error: new AppError({
@@ -102,35 +133,49 @@ export function zodErrorToActionError(err: ZodError): ActionFailure {
  * layer renders the union uniformly via the `code` getter
  * (`AppError.code` and `TransactionDomainError.domainCode`
  * are both reachable on the `error` field).
+ *
+ * Slice-3 deviation: the slice-1 design stamps
+ * `code: 'VALIDATION_ERROR'` on every
+ * `TransactionDomainError` (the inherited AppError code).
+ * The wire surface, however, expects the typed
+ * `domainCode` (`INVALID_AMOUNT`, `INVALID_DIRECTION`,
+ * `FUTURE_TRANSACTION_DATE`). The action layer reads the
+ * `domainCode` getter and surfaces it on the wire as the
+ * `code` field — preserving the typed-error contract while
+ * keeping the slice-1 `instanceof` test intact.
  */
 export function domainErrorToActionError(err: AppError | TransactionDomainError): ActionFailure {
+  if (err instanceof TransactionDomainError) {
+    // The domain code is the wire-stable identifier. The
+    // `ErrorCode` union (slice-2 additions) covers the three
+    // typed codes; if the domain hierarchy grows beyond that,
+    // a follow-up slice extends the union.
+    return {
+      ok: false,
+      error: new AppError({
+        code: err.domainCode as
+          | 'INVALID_AMOUNT'
+          | 'INVALID_DIRECTION'
+          | 'FUTURE_DATE_NOT_ALLOWED'
+          | 'VALIDATION_ERROR',
+        message: err.message,
+        details: err.details,
+      }),
+    };
+  }
   return { ok: false, error: err };
 }
 
 /**
- * Map the three domain errors + an FX-provider failure to
- * the canonical `AppError` codes. Used by the action
- * layer to translate a thrown domain error into the wire
- * envelope.
- *
- * The mapping is the project's single source of truth for
- * `code ↔ status` (the centralized `ErrorStatus` map in
- * `@/shared/errors/error-codes.ts` is the authority).
+ * Wraps an unknown error as `AppError(FX_UNAVAILABLE)`. The
+ * only 503 path in the transactions capability is the FX
+ * provider throwing — the helper centralises that
+ * projection. Domain / `AppError` errors are caught by the
+ * `instanceof AppError` check in the action's catch block
+ * before this helper is reached.
  */
-export function mapDomainError(err: unknown): AppError | TransactionDomainError {
-  if (err instanceof TransactionDomainError) {
-    // The three slice-1 domain errors already extend AppError
-    // with `VALIDATION_ERROR` as the HTTP code. The action
-    // surfaces the `domainCode` on the wire.
-    return err;
-  }
-  if (err instanceof AppError) {
-    return err;
-  }
-  // Anything else (e.g. an unexpected `Error` from the FX
-  // provider) maps to FX_UNAVAILABLE — the only 503 path in
-  // the transactions capability. The action layer can wrap
-  // this with a more specific error when needed.
+export function mapDomainError(err: unknown): AppError {
+  if (err instanceof AppError) return err;
   return new AppError({
     code: 'FX_UNAVAILABLE',
     message: err instanceof Error ? err.message : 'FX provider failed.',
@@ -141,8 +186,7 @@ export function mapDomainError(err: unknown): AppError | TransactionDomainError 
  * Helper: load the parent FinancialAccount for the
  * BR-TX-5 archived pre-check. Returns the row or `null` on
  * cross-user / miss. The action layer turns `null` into
- * `AppError(NOT_FOUND)`. Re-exported through the deps bag
- * for action-local use.
+ * `AppError(NOT_FOUND)`.
  */
 export async function loadParentAccount(
   accountRepository: AccountRepositoryPort,
@@ -177,9 +221,10 @@ export function checkAccountArchived(account: FinancialAccount): AppError | null
  *
  * The casa resolution is the caller's responsibility
  * (BR-FX-3); the helper here accepts the resolved
- * `casaSnapshot` and forwards. If `casaSnapshot` is `null`
- * (the FX-skip path), the helper mirrors the native amount
- * and returns a null fx timestamp.
+ * `casaSnapshot` and forwards. The native=casa skip path
+ * is handled inside `convertAndSnapshot` (it short-circuits
+ * when native === casa's currency); the action passes the
+ * snapshot back to the repository.
  */
 export interface RecomputeFxInput {
   readonly originalAmountMinor: number;
@@ -208,5 +253,3 @@ export async function recomputeFxSnapshot(input: RecomputeFxInput): Promise<{
     casa: result.casa,
   };
 }
-
-export { InvalidAmountError, InvalidDirectionError, FutureTransactionDateError };
