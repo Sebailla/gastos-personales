@@ -23,7 +23,7 @@
 
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
-import { auth } from '@/modules/auth';
+import { auth } from '@/modules/auth/nextauth';
 import { serverHonoRequest } from '@/lib/server-hono';
 import { TransactionsListTable } from '../_components/transactions-list-table';
 import { EphemeralToast } from '../_components/ephemeral-toast';

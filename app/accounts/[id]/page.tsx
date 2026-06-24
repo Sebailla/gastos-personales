@@ -18,7 +18,7 @@
  */
 
 import { redirect } from 'next/navigation';
-import { auth } from '@/modules/auth';
+import { auth } from '@/modules/auth/nextauth';
 import { serverHonoRequest } from '@/lib/server-hono';
 import { AccountDetail } from './account-detail';
 import { BalanceWidget } from './balance-widget';
@@ -26,25 +26,17 @@ import type { ErrorEnvelope, FinancialAccountWire } from '../../_lib/account-typ
 
 export const dynamic = 'force-dynamic';
 
-export default async function AccountDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function AccountDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user) {
     const { id } = await params;
-    redirect(
-      '/auth/signin?callbackUrl=' + encodeURIComponent(`/accounts/${id}`),
-    );
+    redirect('/auth/signin?callbackUrl=' + encodeURIComponent(`/accounts/${id}`));
   }
 
   const { id } = await params;
   const res = await serverHonoRequest(`/api/accounts/${id}`);
   if (res.status === 401) {
-    redirect(
-      '/auth/signin?callbackUrl=' + encodeURIComponent(`/accounts/${id}`),
-    );
+    redirect('/auth/signin?callbackUrl=' + encodeURIComponent(`/accounts/${id}`));
   }
   if (res.status === 404) {
     redirect('/accounts?toast=not-found');
@@ -61,10 +53,7 @@ export default async function AccountDetailPage({
     <main className="p-6">
       <header className="mb-4 flex justify-between items-center">
         <h1 className="text-2xl font-semibold">{account.name}</h1>
-        <a
-          href="/accounts"
-          className="text-sm text-blue-600 hover:underline"
-        >
+        <a href="/accounts" className="text-sm text-blue-600 hover:underline">
           ← Back to accounts
         </a>
       </header>

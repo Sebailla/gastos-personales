@@ -14,6 +14,9 @@
  * - the `InMemoryTransactionRepository` test fixture (so
  *   slice-4 action tests can compose without deep-path
  *   imports);
+ * - `mountTransactionsRoutes` - mounts the 6 transactions
+ *   routes on the supplied protected sub-app (the slice-5
+ *   Hono binding);
  * - the domain surface re-exported from `@/modules/transactions/domain`
  *   so application-level consumers (slice-4 service layer,
  *   Hono routes) can reach both the domain and the action
@@ -64,6 +67,9 @@ export {
 export { type TransactionDTO, toTransactionDto } from './dto/transaction.dto';
 
 export { InMemoryTransactionRepository } from './fixtures/in-memory-transaction.repository';
+
+export { mountTransactionsRoutes } from './routes';
+export type { MountTransactionsRoutesDeps } from './routes';
 
 // Re-export the domain surface so callers can reach both
 // the domain entities and the application actions from a

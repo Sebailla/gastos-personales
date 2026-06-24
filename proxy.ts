@@ -11,7 +11,7 @@
 // now `proxy.ts`. Per the Next.js 16 docs, the proxy always runs in
 // the Node.js runtime, so no `runtime` segment config is allowed.
 
-import { auth } from '@/modules/auth';
+import { auth } from '@/modules/auth/nextauth';
 import { NextResponse } from 'next/server';
 
 /**

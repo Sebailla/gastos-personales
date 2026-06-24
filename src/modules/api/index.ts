@@ -3,5 +3,11 @@
  * the `app/` tree) import ONLY from this file.
  */
 
-export { honoApp, createHonoApp, type AppType, type HonoAppDeps } from './app';
+export {
+  honoApp,
+  createHonoApp,
+  type AppType,
+  type HonoAppDeps,
+  type HonoContextVariables,
+} from './app';
 export { apiClient } from './client';

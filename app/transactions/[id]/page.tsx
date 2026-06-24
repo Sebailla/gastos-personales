@@ -21,7 +21,7 @@
  */
 
 import { redirect } from 'next/navigation';
-import { auth } from '@/modules/auth';
+import { auth } from '@/modules/auth/nextauth';
 import { serverHonoRequest } from '@/lib/server-hono';
 import { TransactionDetailForms } from './transaction-detail-forms';
 import { EphemeralToast } from '../../_components/ephemeral-toast';

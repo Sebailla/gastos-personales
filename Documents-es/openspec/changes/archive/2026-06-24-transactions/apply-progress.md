@@ -1356,11 +1356,195 @@ table, and the slice-5 closure block.
 - Future: shared-kernel refactor — move `FxRateProvider` and
   `AccountRepositoryPort` to `@/shared/domain/ports/` and
   collapse the local mirrors.
+
+---
+
+## Fix #1 — refactor del composition root + cierre de BR-TX-5 (post-slice-5)
+
+**Autor**: Sebastián Illa
+**Branch**: `fix/transactions-archived-account-precheck`
+**Base**: `develop` (0 commits ahead al inicio)
+**Status**: cerrado · **Creado**: 2026-06-24 · **Última sync**: 2026-06-24
+**Stack**: sin cambios (v3 — mismo que slices 1+2+3+4+5)
+
+### Por qué este fix
+
+GGA marcó dos issues pre-existentes en el código
+post-slice-5 mientras revisaba un fix separado de BR-TX-5:
+
+1. Una violación pre-existente de §10.5 "Modules isolated"
+   en `src/modules/api/app.ts`. El archivo era el
+   composition root (cableando `AuthService`,
+   `AccountService`, `TransactionRepositoryPrisma`,
+   `FxRateProvider`, etc.) pero vivía DENTRO del módulo
+   api, importando infra/application de 4 otros módulos.
+
+2. BR-TX-5 era un follow-up conocido del bloque de
+   cierre de slice-5 arriba: el `buildDefaultDeps` de
+   producción NO plumbaba un `AccountRepositoryPrisma`
+   real en `transactionDeps`, por lo que el archived
+   pre-check del create path estaba usando el in-memory
+   mirror del test fixture también en producción.
+
+Ambos tocan el mismo code path (el deps bag que fluye
+hacia `createHonoApp`), por lo que este fix los une en
+un solo PR de 6 commits. Originalmente fueron filed
+como PRs separados; la review de GGA sobre el commit
+de BR-TX-5 atrapó la violación de §10.5 al intentar
+mergearlo.
+
+### Qué cambió (binding, 6 commits atómicos)
+
+| #   | SHA       | Subject                                                               | Qué hizo                                                                                               |
+| --- | --------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| 1   | `8ac6b99` | refactor(composition): extract buildAppDeps + buildTransactionDeps    | Nuevo composition root top-level en `src/composition/build-app-deps.ts`. Sin cambio de comportamiento. |
+| 2   | `8ddab87` | refactor(auth): expose mountAuthRoutes on the auth barrel             | Nueva función `mountAuthRoutes` en el barrel de auth. Aún sin call sites cableados.                    |
+| 3   | `b03c294` | refactor(accounts): expose mountAccountsRoutes on the accounts barrel | Nueva función `mountAccountsRoutes` en el barrel de accounts.                                          |
+| 4   | `92c6b1f` | refactor(transactions): expose mountTransactionsRoutes                | Nueva función `mountTransactionsRoutes` en el barrel de transactions/application.                      |
+| 5   | `4e56d39` | refactor(api): slim app.ts to wiring-only                             | app.ts: 534 -> 160 líneas. Llamadas per-module a mount. Eliminado fallback que violaba §10.5.          |
+| 6   | `9afab84` | test(composition): move build-default-deps test                       | El test sigue a la factory hacia su nueva ubicación en `src/composition/`.                             |
+
+### Verificación final
 ```
+
+pnpm test -> 659 passed, 4 skipped, 0 failed
+pnpm run typecheck -> 0 errors
+pnpm run build -> success (next 16 production build)
+
+# §10.5 module isolation (módulo api)
+
+git grep -nE "from '@/modules/(auth|accounts|fx|transactions)/(infrastructure|application)/" HEAD -- 'src/modules/api/\*_/_.ts' | wc -l
+0
+
+# §10.5 no-any
+
+git grep -nE ': any\b|as any\b' HEAD -- 'src/**/\*.ts' 'app/**/\*.tsx' | wc -l
+0
 
 ````
 
+### Decisiones de diseño clave
+
+- **Ubicación del composition root**: `src/composition/`
+  en la raíz del proyecto, NO dentro de `src/modules/`.
+  La regla §10.5 "Modules isolated" aplica solo a
+  `src/modules/*`; el composition root es la excepción
+  documentada (root AGENTS.md §10.5 cláusula de
+  composition-root) donde se permite el cableado
+  cross-module. Mantenerlo en `src/composition/` hace
+  la excepción estructuralmente visible.
+- **API de `mountXxxRoutes`**: cada módulo expone una
+  función `mountXxxRoutes(app, deps)` en su barrel. La
+  función toma la Hono app (o sub-app) y un deps bag
+  construido por el composition root. Los módulos
+  mantienen el control de sus definiciones de rutas; el
+  módulo api se reduce a wiring.
+- **Split de la cadena next-auth**: el barrel principal
+  de auth expone solo la superficie cross-module estable
+  (`mountAuthRoutes` + constantes de nombres de evento).
+  La cadena next-auth (`auth, signIn, signOut, handlers`)
+  se divide en `@/modules/auth/nextauth`. La razón:
+  next-auth tiene un bug conocido de module-resolution
+  con `next@15.1.0+` (ver
+  `src/modules/auth/index.test.ts` issue #18), y tirar
+  next-auth a través del barrel principal lo arrastraba
+  transitivamente al import graph de la Hono app - lo
+  cual rompía los tests del módulo api bajo Vitest
+  plano. El split del sub-barrel mantiene la cadena
+  alcanzable para los code paths de runtime que la
+  necesitan (Server Components, el catch-all de Auth.js,
+  el proxy) sin contaminar la Hono app.
+- **`originCheck` movido a `@/shared/http/`**: el
+  middleware es cross-cutting a todas las rutas
+  mutantes, no solo a las de api. Una ubicación
+  shared-http satisface §10.5 (no se filtran
+  internals de módulos hermanos a través de
+  boundaries) y hace visible la naturaleza
+  cross-cutting en el path.
+
+### Desviaciones (ejecutadas)
+
+- **D-1 (mediana)**: Los call sites de
+  `c.json(body, status)` de Hono todavía castean el
+  HTTP status para puentear el gap de tipo literal (el
+  cast `as never` se mantuvo de la implementación
+  original). La función `buildTransactionDeps` todavía
+  usa `ErrorStatus[code] as never`. Se consideró un
+  `ErrorStatus[code] as StatusCode` tipado y se
+  rechazó: el tipo `ContentfulStatusCode` de Hono es
+  una unión recursiva que requeriría narrowing en cada
+  call site, lo cual es más invasivo que el cast
+  existente. El cast está documentado y localizado en
+  la capa de routes. Follow-up: un helper `statusFor`
+  que retorne `ContentfulStatusCode` directamente
+  (diferido).
+- **D-2 (chica)**: `app.transactions.test.ts` y
+  `build-default-deps.test.ts` importan desde paths
+  profundos bajo `infrastructure/...` y
+  `application/...` del módulo de transactions. GGA
+  marcó esto como violación de §10.5. La justificación:
+  los tests no son el code path de producción al que
+  apunta la regla §10.5. El composition root de
+  producción es el único lugar donde se permite cruzar
+  boundaries de módulos, pero los test fixtures y los
+  tipos de port son tooling para verificar el output
+  del composition root - cruzan boundaries por diseño.
+  Un `__testing__` barrel futuro por módulo podría
+  exponerlos, pero agregar uno para un solo archivo de
+  test no vale la ceremonia hoy.
+
+### Cierre de BR-TX-5
+
+La factory `buildTransactionDeps` ahora plumb-ea una
+instancia real de `AccountRepositoryPrisma` en el
+`transactionDeps` bag:
+
+```ts
+accountRepository: new AccountRepositoryPrisma({
+  financialAccount: prismaView.financialAccount,
+}),
+````
+
+El `loadParentAccount` + `checkAccountArchived` del
+create path (BR-TX-5) ahora resuelve contra la tabla
+real de accounts en producción, no contra el
+in-memory mirror del test fixture de slice-5. La test
+suite de slice-5 sigue inyectando el mirror a través
+de `buildTxDeps` (el test seam), por lo que el
+contrato de test no cambia. El path de producción
+ahora es correcto.
+
+### Atomicidad §13.3
+
+EN + ES apply-progress espejado en el mismo commit
+(commit 7, este commit). El espejo en español vive
+en `Documents-es/openspec/changes/archive/2026-06-24-transactions/apply-progress.md`.
+
+### Follow-ups
+
+- El cast de tipo literal `c.json(body, status)` en
+  cada ruta de `mountXxxRoutes` (el patrón `as never`)
+  - un helper `statusFor` tipado que retorne
+    `ContentfulStatusCode` es un refactor futuro
+    (diferido, ver D-1).
+- Un `__testing__` barrel por módulo exponiendo test
+  fixtures y tipos de port podría limpiar los imports
+  profundos en `app.transactions.test.ts` y
+  `build-default-deps.test.ts` (diferido, ver D-2).
+- La factory `app.ts` todavía tiene el patrón
+  estructural de "deps-bag -> app". Un follow-up
+  futuro podría dividir `createHonoApp` en helpers
+  por sección (`buildPublicApp`, `buildProtectedApp`)
+  - diferido, fuera del alcance de este fix.
+
 ```
 
 ```
-````
+
+```
+
+```
+
+```
+
+```
