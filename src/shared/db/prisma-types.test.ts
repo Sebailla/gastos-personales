@@ -21,6 +21,15 @@
  *    plus many more; the wider client also survives the
  *    cast because the cast is "downward").
  *
+ * Slice 4 update: the delegate method signatures are
+ * `Record<string, unknown>` for inputs and
+ * `Promise<unknown>` (or specific shapes like
+ * `Promise<{ count: number }>` / `Promise<unknown[]>`)
+ * for returns. NO `any` — §10.5 absolute rule. The
+ * compile-time tests below pin the shape; if the type
+ * ever widens back to `any`, the `@ts-expect-error`
+ * becomes "unused" and tsc fails the test.
+ *
  * Style notes: AAA pattern, no logic in tests. The
  * `@ts-expect-error` is the one concession — it is a
  * compile-time check, not runtime logic.
@@ -33,8 +42,10 @@ describe('asPrismaDelegateView', () => {
   it('returns a structurally complete delegate view from a minimal mock', async () => {
     // Arrange: a minimal mock satisfies the shared
     // `PrismaUserDelegate` and `PrismaFinancialAccountDelegate`
-    // contracts (the signatures are `any`-typed; we only need
-    // callable functions with the right names).
+    // contracts. The signatures use `Record<string, unknown>`
+    // for inputs and `Promise<unknown>` (or specific
+    // shapes) for returns; the mock only needs to provide
+    // callable functions with the right names.
     const mock: PrismaDelegateView = {
       user: {
         create: async () => ({ id: 'u-1' }),
@@ -67,9 +78,13 @@ describe('asPrismaDelegateView', () => {
     expect(typeof view.financialAccount.updateMany).toBe('function');
     expect(typeof view.financialAccount.count).toBe('function');
 
+    // `create` returns `Promise<unknown>` — the mock value
+    // is a `User` row shape; the adapter narrows it back.
     const created = await view.user.create({ data: { email: 'a@b.c' } });
     expect(created).toEqual({ id: 'u-1' });
 
+    // `findMany` returns `Promise<unknown[]>` — the array
+    // shape is guaranteed; the element shape is the row.
     const faList = await view.financialAccount.findMany({ where: { userId: 'u-1' } });
     expect(faList).toEqual([]);
   });
@@ -129,3 +144,54 @@ describe('asPrismaDelegateView', () => {
     expect(typeof view.financialAccount.count).toBe('function');
   });
 });
+
+// --------------------------------------------------------------------
+// §10.5 compliance pin — the type-level contract on the delegate
+// signatures. Slice-4 closed the F-14-era `any` pattern: every
+// delegate method takes `args: Record<string, unknown>` and returns
+// `Promise<unknown>` (or a specific shape).
+//
+// The compile-time tripwire below uses `@ts-expect-error` with the
+// comment "arg must NOT be \`any\` — §10.5". With the current
+// `any`-typed source, the `expect-error` is UNUSED (no error to
+// suppress) → `tsc --noEmit` FAILS with "Unused '@ts-expect-error'
+// directive." → the test file fails at compile time → tests are
+// RED. After Phase A replaces `any` with `Record<string, unknown>`,
+// the assignment of a `Date` to `args['createdAt']` is rejected
+// (the param is now narrower than `any`) → the directive IS
+// needed → `tsc` passes → tests are GREEN. This is the
+// §10.5 tripwire.
+// --------------------------------------------------------------------
+
+describe('§10.5 compliance — no `any` on delegate signatures', () => {
+  it('PrismaUserDelegate.create does NOT accept `any` (it accepts `Record<string, unknown>`)', () => {
+    // The tripwire: an `any`-typed param silently accepts
+    // ANY assignment (even a `Date` directly, with no
+    // property access). A `Record<string, unknown>`-typed
+    // param REJECTS a bare `Date` because `Date` is not
+    // structurally a `Record<string, unknown>`.
+    type CreateSig = PrismaDelegateView['user']['create'];
+    const _aDate = new Date();
+    // @ts-expect-error — arg must NOT be `any` — §10.5: a bare Date is not a Record<string, unknown>.
+    const _pin: CreateSig = (async (_args: typeof _aDate) => ({})) as CreateSig;
+    void _pin;
+  });
+
+  it('PrismaFinancialAccountDelegate.updateMany / count / findMany use specific return shapes', () => {
+    // `count` returns `Promise<number>` (specific).
+    type CountSig = PrismaDelegateView['financialAccount']['count'];
+    const _countOk: CountSig = (async () => 0) as CountSig;
+    void _countOk;
+    // `updateMany` returns `Promise<{ count: number }>`
+    // (specific shape; the Prisma API guarantees it).
+    type UpdateManySig = PrismaDelegateView['financialAccount']['updateMany'];
+    const _updateManyOk: UpdateManySig = (async () => ({ count: 0 })) as UpdateManySig;
+    void _updateManyOk;
+    // `findMany` returns `Promise<unknown[]>` (array shape
+    // is guaranteed; element shape is the row).
+    type FindManySig = PrismaDelegateView['financialAccount']['findMany'];
+    const _findManyOk: FindManySig = (async () => []) as FindManySig;
+    void _findManyOk;
+  });
+});
+
