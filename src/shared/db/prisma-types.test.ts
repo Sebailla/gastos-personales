@@ -41,11 +41,11 @@ import { asPrismaDelegateView, type PrismaDelegateView } from './prisma-types';
 describe('asPrismaDelegateView', () => {
   it('returns a structurally complete delegate view from a minimal mock', async () => {
     // Arrange: a minimal mock satisfies the shared
-    // `PrismaUserDelegate` and `PrismaFinancialAccountDelegate`
-    // contracts. The signatures use `Record<string, unknown>`
-    // for inputs and `Promise<unknown>` (or specific
-    // shapes) for returns; the mock only needs to provide
-    // callable functions with the right names.
+    // `PrismaUserDelegate`, `PrismaFinancialAccountDelegate`,
+    // and `PrismaTransactionDelegate` contracts. The
+    // signatures use `object` for inputs and `Promise<unknown>`
+    // (or specific shapes) for returns; the mock only needs
+    // to provide callable functions with the right names.
     const mock: PrismaDelegateView = {
       user: {
         create: async () => ({ id: 'u-1' }),
@@ -59,6 +59,13 @@ describe('asPrismaDelegateView', () => {
         findMany: async () => [],
         updateMany: async () => ({ count: 0 }),
         count: async () => 0,
+      },
+      transaction: {
+        create: async () => ({ id: 'tx-1' }),
+        findFirst: async () => null,
+        findMany: async () => [],
+        updateMany: async () => ({ count: 0 }),
+        deleteMany: async () => ({ count: 0 }),
       },
     };
 
@@ -77,6 +84,11 @@ describe('asPrismaDelegateView', () => {
     expect(typeof view.financialAccount.findMany).toBe('function');
     expect(typeof view.financialAccount.updateMany).toBe('function');
     expect(typeof view.financialAccount.count).toBe('function');
+    expect(typeof view.transaction.create).toBe('function');
+    expect(typeof view.transaction.findFirst).toBe('function');
+    expect(typeof view.transaction.findMany).toBe('function');
+    expect(typeof view.transaction.updateMany).toBe('function');
+    expect(typeof view.transaction.deleteMany).toBe('function');
 
     // `create` returns `Promise<unknown>` — the mock value
     // is a `User` row shape; the adapter narrows it back.
@@ -91,7 +103,7 @@ describe('asPrismaDelegateView', () => {
 
   it('rejects a structurally incomplete object at compile time', () => {
     // Compile-time check: an object that lacks the
-    // `financialAccount` delegate must NOT be assignable
+    // `transaction` delegate must NOT be assignable
     // to the parameter type of `asPrismaDelegateView`.
     // If the type ever widens to accept this, the test
     // fails on `tsc --noEmit` and the @ts-expect-error
@@ -102,16 +114,24 @@ describe('asPrismaDelegateView', () => {
         findUnique: async () => null,
         update: async () => null,
       },
-      // `financialAccount` is missing on purpose.
+      financialAccount: {
+        create: async () => null,
+        findUnique: async () => null,
+        findFirst: async () => null,
+        findMany: async () => [],
+        updateMany: async () => ({ count: 0 }),
+        count: async () => 0,
+      },
+      // `transaction` is missing on purpose.
     };
 
-    // @ts-expect-error — `incomplete` is missing `financialAccount`.
+    // @ts-expect-error — `incomplete` is missing `transaction`.
     asPrismaDelegateView(incomplete);
   });
 
   it('accepts a wider object (the real PrismaClient is a structural superset)', () => {
-    // The real `PrismaClient` has both delegates plus many
-    // more (`$transaction`, `$connect`, `$disconnect`, ...).
+    // The real `PrismaClient` has all three delegates plus
+    // many more (`$transaction`, `$connect`, `$disconnect`).
     // The cast is "downward": a wider value is assignable
     // to the narrow view because every required field is
     // present.
@@ -132,16 +152,24 @@ describe('asPrismaDelegateView', () => {
         updateMany: async () => ({ count: 0 }),
         count: async () => 0,
       },
+      transaction: {
+        create: async () => ({ id: 'tx-1' }),
+        findFirst: async () => null,
+        findMany: async () => [],
+        updateMany: async () => ({ count: 0 }),
+        deleteMany: async () => ({ count: 0 }),
+      },
     } as const;
 
     const view = asPrismaDelegateView(widerClient);
 
-    // The narrow view still exposes only the two delegates
-    // the repositories need. (The wider `$transaction` is
+    // The narrow view exposes only the three delegates
+    // the repositories need. The wider `$transaction` is
     // invisible to the type, but the runtime object is the
-    // same reference — the cast is purely structural.)
+    // same reference — the cast is purely structural.
     expect(typeof view.user.create).toBe('function');
     expect(typeof view.financialAccount.count).toBe('function');
+    expect(typeof view.transaction.deleteMany).toBe('function');
   });
 });
 

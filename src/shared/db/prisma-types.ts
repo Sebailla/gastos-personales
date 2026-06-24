@@ -50,10 +50,33 @@ export interface PrismaFinancialAccountDelegate {
   count: (args: object) => Promise<number>;
 }
 
+/**
+ * Minimal `prisma.transaction` surface used by
+ * `TransactionRepositoryPrisma` (slice 4). The slice-4
+ * spec scopes the delegate to exactly the 5 methods the
+ * adapter uses — `create`, `findFirst`, `findMany`,
+ * `updateMany`, `deleteMany` — and the design §15.3
+ * definition is the same.
+ *
+ * Note: the adapter does NOT use `findUnique` (it uses
+ * `findFirst` with a `(id, userId)` where-clause for
+ * cross-user safety). It does NOT use `count` (the list
+ * endpoint reads `findMany` and the caller detects the
+ * next-cursor via \`rows.length > opts.limit\`).
+ */
+export interface PrismaTransactionDelegate {
+  create: (args: object) => Promise<unknown>;
+  findFirst: (args: object) => Promise<unknown>;
+  findMany: (args: object) => Promise<unknown[]>;
+  updateMany: (args: object) => Promise<{ count: number }>;
+  deleteMany: (args: object) => Promise<{ count: number }>;
+}
+
 /** Narrow view of the `PrismaClient` we expose to the composition root. */
 export interface PrismaDelegateView {
   user: PrismaUserDelegate;
   financialAccount: PrismaFinancialAccountDelegate;
+  transaction: PrismaTransactionDelegate;
 }
 
 /**
@@ -69,6 +92,7 @@ export interface PrismaDelegateView {
 export function asPrismaDelegateView(client: {
   user: PrismaUserDelegate;
   financialAccount: PrismaFinancialAccountDelegate;
+  transaction: PrismaTransactionDelegate;
 }): PrismaDelegateView {
   return client as unknown as PrismaDelegateView;
 }
