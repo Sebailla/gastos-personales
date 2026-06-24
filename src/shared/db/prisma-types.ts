@@ -2,50 +2,52 @@
  * Narrow Prisma delegate interfaces shared by the
  * repository adapters.
  *
- * F-14: the repository classes (auth's `UserRepository`,
- * accounts' `AccountRepositoryPrisma`) declared their
- * narrow Prisma delegate interfaces inline; the
- * composition root (`src/modules/api/app.ts` and
- * `src/lib/server-hono.ts`) cast the full `PrismaClient`
- * to `any` to access the `user` / `financialAccount`
- * delegates. This module centralises the narrow views so
- * the composition root can cast through them instead of
- * `any`. The signatures here are intentionally
- * `any`-typed: matching the inline repository types
- * structurally against Prisma's strict input types
- * (`UserCreateInput`, etc.) is not possible without
- * importing the full `@prisma/client` surface (which
- * defeats the purpose of the narrow view). The runtime
- * contract is structural — the real client has these
- * delegates and accepts the calls the adapters make.
+ * Slice 4 update (2026-06-24): the F-14-era `any`
+ * convention was REMOVED to comply with the §10.5
+ * absolute rule ("No `any` — Use `unknown` or specific
+ * interfaces"). Every method signature now uses:
+ * - `args: object` for inputs (Prisma inputs are always
+ *   objects; `object` is wider than `Record<string,
+ *   unknown>` and accepts Prisma's strict input types
+ *   like `UserCreateArgs` which carry required fields
+ *   without a string index signature),
+ * - `Promise<unknown>` for returns that are domain
+ *   objects; specific shapes (`Promise<{ count: number }>`,
+ *   `Promise<number>`, `Promise<unknown[]>`) where the
+ *   Prisma API guarantees the shape.
+ *
+ * The runtime contract is structural — the real client
+ * has these delegates and accepts the calls the adapters
+ * make. The narrow signatures are wide enough for the
+ * real Prisma input types (which are themselves typed
+ * records) and narrow enough that downstream adapters
+ * must narrow the `unknown` return back to the domain
+ * type via a row mapper (see
+ * `account.repository.prisma.ts:mapRow` for the pattern).
+ *
+ * Matching these signatures structurally against
+ * Prisma's strict input types (`UserCreateInput`, etc.)
+ * is not possible without importing the full
+ * `@prisma/client` surface (which defeats the purpose of
+ * the narrow view). `object` for inputs is the widest
+ * type that still satisfies the "no `any`" rule.
  */
 
 /** Minimal `prisma.user` surface used by `UserRepository`. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface PrismaUserDelegate {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  create: (args: any) => Promise<any>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  findUnique: (args: any) => Promise<any>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  update: (args: any) => Promise<any>;
+  create: (args: object) => Promise<unknown>;
+  findUnique: (args: object) => Promise<unknown>;
+  update: (args: object) => Promise<unknown>;
 }
 
 /** Minimal `prisma.financialAccount` surface used by `AccountRepositoryPrisma`. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface PrismaFinancialAccountDelegate {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  create: (args: any) => Promise<any>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  findUnique: (args: any) => Promise<any>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  findFirst: (args: any) => Promise<any>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  findMany: (args: any) => Promise<any[]>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  updateMany: (args: any) => Promise<{ count: number }>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  count: (args: any) => Promise<number>;
+  create: (args: object) => Promise<unknown>;
+  findUnique: (args: object) => Promise<unknown>;
+  findFirst: (args: object) => Promise<unknown>;
+  findMany: (args: object) => Promise<unknown[]>;
+  updateMany: (args: object) => Promise<{ count: number }>;
+  count: (args: object) => Promise<number>;
 }
 
 /** Narrow view of the `PrismaClient` we expose to the composition root. */
@@ -61,8 +63,8 @@ export interface PrismaDelegateView {
  * than the narrow view in unrelated fields (e.g.
  * `$transaction`, `$connect`) and because Prisma's
  * strict input types are not structurally assignable to
- * the narrow signatures (the inline interfaces use
- * `Record<string, unknown>` for inputs and outputs).
+ * the narrow signatures (the narrow interfaces use
+ * `object` for inputs and `Promise<unknown>` for returns).
  */
 export function asPrismaDelegateView(client: {
   user: PrismaUserDelegate;

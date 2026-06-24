@@ -148,32 +148,31 @@ describe('asPrismaDelegateView', () => {
 // --------------------------------------------------------------------
 // §10.5 compliance pin — the type-level contract on the delegate
 // signatures. Slice-4 closed the F-14-era `any` pattern: every
-// delegate method takes `args: Record<string, unknown>` and returns
-// `Promise<unknown>` (or a specific shape).
+// delegate method takes `args: object` (the runtime shape Prisma
+// requires; never a primitive) and returns `Promise<unknown>` (or
+// a specific shape like `Promise<{ count: number }>`).
 //
-// The compile-time tripwire below uses `@ts-expect-error` with the
-// comment "arg must NOT be \`any\` — §10.5". With the current
-// `any`-typed source, the `expect-error` is UNUSED (no error to
-// suppress) → `tsc --noEmit` FAILS with "Unused '@ts-expect-error'
-// directive." → the test file fails at compile time → tests are
-// RED. After Phase A replaces `any` with `Record<string, unknown>`,
-// the assignment of a `Date` to `args['createdAt']` is rejected
-// (the param is now narrower than `any`) → the directive IS
-// needed → `tsc` passes → tests are GREEN. This is the
-// §10.5 tripwire.
+// The compile-time tripwire below uses `@ts-expect-error` with
+// "arg must NOT be \`any\` — §10.5". A bare `string` is a
+// primitive and is NOT assignable to `object`; with the source
+// declared as `(args: object) => Promise<unknown>`, the
+// assignment is rejected → the directive IS used → `tsc`
+// passes. If the source widens back to `any`, the assignment is
+// silently accepted → the directive is UNUSED → `tsc` fails
+// with "Unused '@ts-expect-error' directive" → the test file
+// fails at compile time. That is the §10.5 tripwire.
 // --------------------------------------------------------------------
 
 describe('§10.5 compliance — no `any` on delegate signatures', () => {
-  it('PrismaUserDelegate.create does NOT accept `any` (it accepts `Record<string, unknown>`)', () => {
+  it('PrismaUserDelegate.create does NOT accept `any` (it accepts `object` — no primitives)', () => {
     // The tripwire: an `any`-typed param silently accepts
-    // ANY assignment (even a `Date` directly, with no
-    // property access). A `Record<string, unknown>`-typed
-    // param REJECTS a bare `Date` because `Date` is not
-    // structurally a `Record<string, unknown>`.
+    // a primitive string. An `object`-typed param REJECTS
+    // a primitive string (strings are not assignable to
+    // `object`).
     type CreateSig = PrismaDelegateView['user']['create'];
-    const _aDate = new Date();
-    // @ts-expect-error — arg must NOT be `any` — §10.5: a bare Date is not a Record<string, unknown>.
-    const _pin: CreateSig = (async (_args: typeof _aDate) => ({})) as CreateSig;
+    const _aString = 'string-arg';
+    // @ts-expect-error — arg must NOT be `any` — §10.5: a primitive string is not `object`.
+    const _pin: CreateSig = (async (_args: typeof _aString) => ({})) as CreateSig;
     void _pin;
   });
 
