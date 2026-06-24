@@ -876,7 +876,81 @@ Después de que Phase A aterrizó, los siguientes archivos downstream necesitaro
 
 ## Phase C — feature del slice 4
 
-(ledger poblado a medida que aterricen los commits)
+### Ledger de commits
+
+| SHA     | Tipo | Alcance | Descripción |
+|---------|------|---------|-------------|
+| `2ab2860` | feat  | transactions | add Transaction model + TransactionDirection enum + migration |
+| `4225591` | feat  | shared       | add PrismaTransactionDelegate to prisma-types.ts |
+| `1c4b2a0` | test  | transactions | red — TransactionRepositoryPrisma adapter (12 cases) |
+| `7ecf8f6` | feat  | transactions | TransactionRepositoryPrisma adapter |
+
+### Tabla de evidencia TDD
+
+| Test | Commit RED | Commit GREEN | Estado |
+|------|------------|--------------|--------|
+| Tripwire §10.5 en prisma-types.test.ts | `662f3c8` | `83dfd3e` | GREEN |
+| TransactionRepositoryPrisma 12 casos | `1c4b2a0` | `7ecf8f6` | GREEN |
+
+### Phase A — resumen del refactor
+
+- `src/shared/db/prisma-types.ts` reescrito: 15 `any` removidos, 13 `unknown` introducidos, 2 shapes específicos preservados (count: `Promise<number>`, findMany: `Promise<unknown[]>`).
+- 15 directivas `// eslint-disable-next-line @typescript-eslint/no-explicit-any` ELIMINADAS.
+- Todas las signatures de método ahora `(args: object) => Promise<unknown>` (o shapes específicos). `object` es más ancho que `Record<string, unknown>` y acepta los strict input types de Prisma que llevan campos required sin string index signature.
+- Docstring de nivel-archivo actualizado: fuera la justificación de F-14 `any`; cumplimiento §10.5 explícito.
+
+### Phase B — ajustes en callers downstream
+
+- `src/modules/auth/infrastructure/repositories/user.repository.ts` — todos los call sites de `prisma.user.X` castean sus args literales a `object`; `mapRow(row: Record<string, unknown>)` → `mapRow(row: unknown)` con narrowing interno.
+- `src/modules/accounts/infrastructure/repositories/account.repository.prisma.ts` — mismo patrón; return de `findMany` narrowed a `unknown[]` y re-ampliado en el call site.
+- `src/modules/accounts/infrastructure/repositories/account.repository.prisma.test.ts` — las 6 signatures del mock ampliadas a `(args: object)` con casts estructurales internos.
+- `src/modules/api/app.ts` + `src/lib/server-hono.ts` — `prisma()` casteado por `unknown as Parameters<typeof asPrismaDelegateView>[0]` porque los métodos del Prisma client son genéricos y no asignables estructuralmente al shape narrow `(args: object) => Promise<unknown>`.
+
+### Phase C — schema + migración
+
+- `prisma/schema.prisma` — modelo `Transaction` (14 campos) + enum `TransactionDirection` + 2 índices + 2 back-references + 2 constraints FK (ambos `onDelete: Cascade`).
+- `prisma/migrations/20260624000001_add_transaction/migration.sql` — `CREATE TYPE` + `CREATE TABLE` + 2 `CREATE INDEX` + 2 `ADD CONSTRAINT FOREIGN KEY`. SOLO ADITIVO (precedente REQ-FX-9). Sin DROPs, sin ALTERs sobre tablas existentes.
+- El filename de la migración usa un timestamp explícito (`20260624000001`) en vez del auto-generado de `migrate dev` para que el diff quede determinista y revisable.
+
+### Log de desviaciones
+
+- Desviación #1 (Phase A): El brief del slice-4 pedía `Record<string, unknown>` para los args de input; elegí `object` en su lugar porque los strict input types de Prisma (ej. `UserCreateArgs`) llevan campos required sin string index signature — `Record<string, unknown>` los rechaza. `object` es el supertipo estructural preciso: cualquier valor no-primitivo es aceptado, y `any` queda prohibido. El tripwire compile-time (un primitive `string` rechazado) sigue pineando el cumplimiento §10.5.
+- Desviación #2 (Phase C): El brief del slice-4 decía generar la migración con `pnpm prisma migrate dev --name add_transaction`. No hay DB local corriendo; usé `pnpm prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script` y curé a mano el SQL para mantener SOLO las partes aditivas (CREATE TYPE + CREATE TABLE + 2 CREATE INDEX + 2 ADD CONSTRAINT), siguiendo el precedente de fx-cache (`add_account_fx_casa`). La migración es verificable en el próximo run de CI con DB viva.
+
+### Verificación de la migración
+
+Delta de schema vs migraciones previas:
+
+- TIPO NUEVO: `TransactionDirection`
+- TABLA NUEVA: `Transaction`
+- ÍNDICES NUEVOS: `Transaction_userId_transactionDate_id_idx`, `Transaction_userId_accountId_idx`
+- FK NUEVAS: `Transaction_userId_fkey`, `Transaction_accountId_fkey`
+- SIN DROPs, SIN ALTERs sobre tablas existentes.
+
+## Tests
+
+`pnpm test` → **645 passed, 4 skipped, 0 failed**.
+Slice-4 neto: +14 tests (12 casos del adapter + 2 tripwire §10.5).
+
+## Typecheck
+
+`pnpm run typecheck` → **0 errors**.
+
+## Diff stat
+
+```
+$ git diff --stat develop..feat/transactions-persistence | tail -1
+```
+
+(Ver Step 10 sub-split check.)
+
+## Dual write check
+
+EN + ES apply-progress espejados atómicamente. El header de la sección slice-4 aterrizó en commit `7f38866`; el ledger final + evidencia TDD + log de desviaciones appendeados atómicamente.
+
+## OpenSpec
+
+`openspec/changes/transactions/apply-progress.md` — sección slice-4 appendeada con el ledger de commits completo, tabla de evidencia TDD, resúmenes Phase A/B/C, desviaciones ejecutadas, y el bloque de verificación de migración.
 
 ## Follow-ups
 
