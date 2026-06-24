@@ -55,10 +55,15 @@ function buildFakePrisma(): FakePrisma {
   const rows = new Map<string, FinancialAccount>();
 
   const financialAccount: PrismaFinancialAccountDelegate = {
-    create: vi.fn(async (args: { data: Record<string, unknown> }) => {
+    create: vi.fn(async (args: object) => {
+      // Slice-4 refactor: the narrow delegate signature is
+      // `(args: object) => Promise<unknown>` (§10.5). The
+      // mock casts the input back to the structural shape
+      // it needs (`{ data: Record<string, unknown> }`).
+      const a = args as { data: Record<string, unknown> };
       // P2002 simulation: if a row with the same (userId, type, name)
       // already exists, throw Prisma's P2002 unique-violation error.
-      const d = args.data as Record<string, unknown>;
+      const d = a.data as Record<string, unknown>;
       const key = `${d['userId']}|${d['type']}|${d['name']}`;
       for (const r of rows.values()) {
         if (`${r.userId}|${r.type}|${r.name}` === key) {
@@ -96,13 +101,15 @@ function buildFakePrisma(): FakePrisma {
       rows.set(id, row);
       return row as unknown as Record<string, unknown>;
     }),
-    findUnique: vi.fn(async (args: { where: { id: string } }) => {
-      const r = rows.get(args.where.id);
+    findUnique: vi.fn(async (args: object) => {
+      const a = args as { where: { id: string } };
+      const r = rows.get(a.where.id);
       return r ? (r as unknown as Record<string, unknown>) : null;
     }),
-    findFirst: vi.fn(async (args: { where: Record<string, unknown> }) => {
-      const idFilter = args.where['id'] as string | undefined;
-      const userIdFilter = args.where['userId'] as string | undefined;
+    findFirst: vi.fn(async (args: object) => {
+      const a = args as { where: Record<string, unknown> };
+      const idFilter = a.where['id'] as string | undefined;
+      const userIdFilter = a.where['userId'] as string | undefined;
       if (idFilter) {
         const r = rows.get(idFilter);
         if (r && r.userId === userIdFilter) {
@@ -115,74 +122,75 @@ function buildFakePrisma(): FakePrisma {
       }
       return null;
     }),
-    findMany: vi.fn(
-      async (args: {
+    findMany: vi.fn(async (args: object) => {
+      const a = args as {
         where: Record<string, unknown>;
         orderBy?: unknown;
         take?: number;
         cursor?: { id: string };
         skip?: number;
-      }) => {
-        const userIdFilter = args.where['userId'] as string;
-        const archivedAtFilter = args.where['archivedAt'];
-        const out: FinancialAccount[] = [];
-        for (const r of rows.values()) {
-          if (r.userId !== userIdFilter) continue;
-          if (archivedAtFilter === null && r.archivedAt !== null) continue;
-          if (
-            archivedAtFilter !== null &&
-            typeof archivedAtFilter === 'object' &&
-            archivedAtFilter !== null &&
-            'not' in (archivedAtFilter as Record<string, unknown>) &&
-            r.archivedAt === null
-          ) {
-            continue;
-          }
-          out.push(r);
+      };
+      const userIdFilter = a.where['userId'] as string;
+      const archivedAtFilter = a.where['archivedAt'];
+      const out: FinancialAccount[] = [];
+      for (const r of rows.values()) {
+        if (r.userId !== userIdFilter) continue;
+        if (archivedAtFilter === null && r.archivedAt !== null) continue;
+        if (
+          archivedAtFilter !== null &&
+          typeof archivedAtFilter === 'object' &&
+          archivedAtFilter !== null &&
+          'not' in (archivedAtFilter as Record<string, unknown>) &&
+          r.archivedAt === null
+        ) {
+          continue;
         }
-        out.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-        let sliced: FinancialAccount[] = out;
-        if (args.cursor) {
-          const idx = sliced.findIndex((r) => r.id === args.cursor!.id);
-          if (idx >= 0) sliced = sliced.slice(idx + 1);
-        }
-        if (args.skip) sliced = sliced.slice(args.skip);
-        if (args.take) sliced = sliced.slice(0, args.take);
-        void out;
-        return sliced as unknown as Record<string, unknown>[];
-      },
-    ),
+        out.push(r);
+      }
+      out.sort((b1, b2) => b2.createdAt.getTime() - b1.createdAt.getTime());
+      let sliced: FinancialAccount[] = out;
+      if (a.cursor) {
+        const idx = sliced.findIndex((r) => r.id === a.cursor!.id);
+        if (idx >= 0) sliced = sliced.slice(idx + 1);
+      }
+      if (a.skip) sliced = sliced.slice(a.skip);
+      if (a.take) sliced = sliced.slice(0, a.take);
+      void out;
+      return sliced as unknown as Record<string, unknown>[];
+    }),
     updateMany: vi.fn(
-      async (args: {
-        where: { id: string; userId: string; archivedAt?: unknown };
-        data: Record<string, unknown>;
-      }) => {
-        const r = rows.get(args.where.id);
-        if (!r || r.userId !== args.where.userId) return { count: 0 };
+      async (args: object) => {
+        const a = args as {
+          where: { id: string; userId: string; archivedAt?: unknown };
+          data: Record<string, unknown>;
+        };
+        const r = rows.get(a.where.id);
+        if (!r || r.userId !== a.where.userId) return { count: 0 };
         // Idempotency / state filter: `updateMany` only writes
         // when the row matches every field in the WHERE.
-        if (args.where.archivedAt === null && r.archivedAt !== null) return { count: 0 };
+        if (a.where.archivedAt === null && r.archivedAt !== null) return { count: 0 };
         if (
-          args.where.archivedAt !== null &&
-          typeof args.where.archivedAt === 'object' &&
-          args.where.archivedAt !== null &&
-          'not' in (args.where.archivedAt as Record<string, unknown>) &&
+          a.where.archivedAt !== null &&
+          typeof a.where.archivedAt === 'object' &&
+          a.where.archivedAt !== null &&
+          'not' in (a.where.archivedAt as Record<string, unknown>) &&
           r.archivedAt === null
         ) {
           return { count: 0 };
         }
         const merged: FinancialAccount = {
           ...r,
-          ...(args.data as Partial<FinancialAccount>),
+          ...(a.data as Partial<FinancialAccount>),
           updatedAt: new Date(),
         };
-        rows.set(args.where.id, merged);
+        rows.set(a.where.id, merged);
         return { count: 1 };
       },
     ),
-    count: vi.fn(async (args: { where: Record<string, unknown> }) => {
-      const userIdFilter = args.where['userId'] as string;
-      const archivedAtFilter = args.where['archivedAt'];
+    count: vi.fn(async (args: object) => {
+      const a = args as { where: Record<string, unknown> };
+      const userIdFilter = a.where['userId'] as string;
+      const archivedAtFilter = a.where['archivedAt'];
       let n = 0;
       for (const r of rows.values()) {
         if (r.userId !== userIdFilter) continue;
