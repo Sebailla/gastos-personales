@@ -20,12 +20,13 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// The page imports `signIn` from `@/modules/auth` to wire the
-// Google / Credentials server actions. `signIn` transitively pulls
-// in `next-auth`, which requires `next/server` (a Next.js runtime
-// module unavailable in plain Vitest). We mock just the surface
-// the page uses so the test loads without booting the auth module.
-vi.mock('@/modules/auth', () => ({
+// The page imports `signIn` from `@/modules/auth/nextauth` to
+// wire the Google / Credentials server actions. `signIn`
+// transitively pulls in `next-auth`, which requires
+// `next/server` (a Next.js runtime module unavailable in
+// plain Vitest). We mock just the surface the page uses so
+// the test loads without booting the auth module.
+vi.mock('@/modules/auth/nextauth', () => ({
   signIn: vi.fn(),
 }));
 vi.mock('next/navigation', () => ({
@@ -47,7 +48,7 @@ function resetMocks(): void {
 
 import SignInPage, { credentialsSignInAction, googleSignInAction, safeCallbackUrl } from './page';
 
-const { signIn: mockSignIn } = (await import('@/modules/auth')) as unknown as {
+const { signIn: mockSignIn } = (await import('@/modules/auth/nextauth')) as unknown as {
   signIn: ReturnType<typeof vi.fn>;
 };
 const { redirect: mockRedirect } = (await import('next/navigation')) as unknown as {

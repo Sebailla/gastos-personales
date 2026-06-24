@@ -29,7 +29,7 @@
 
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
-import { auth } from '@/modules/auth';
+import { auth } from '@/modules/auth/nextauth';
 import { serverHonoRequest } from '@/lib/server-hono';
 import { AccountsListTable } from './accounts-list-table';
 import { EphemeralToast } from '../_components/ephemeral-toast';
@@ -61,10 +61,7 @@ export default async function AccountsPage() {
     <main className="p-6">
       <header className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-semibold">Accounts</h1>
-        <a
-          href="/accounts/new"
-          className="rounded bg-blue-600 text-white px-3 py-1"
-        >
+        <a href="/accounts/new" className="rounded bg-blue-600 text-white px-3 py-1">
           New account
         </a>
       </header>

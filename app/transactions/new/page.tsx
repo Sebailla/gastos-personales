@@ -20,7 +20,7 @@
  */
 
 import { redirect } from 'next/navigation';
-import { auth } from '@/modules/auth';
+import { auth } from '@/modules/auth/nextauth';
 import { serverHonoRequest } from '@/lib/server-hono';
 import { CreateTransactionForm } from './create-transaction-form';
 import type { ErrorEnvelope } from '../../_lib/account-types';

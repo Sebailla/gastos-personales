@@ -12,7 +12,7 @@
  */
 
 import { redirect } from 'next/navigation';
-import { auth } from '@/modules/auth';
+import { auth } from '@/modules/auth/nextauth';
 import { CreateAccountForm } from './create-account-form';
 
 export const dynamic = 'force-dynamic';

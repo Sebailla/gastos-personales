@@ -29,6 +29,7 @@ import type { UserRepositoryPort } from '@/modules/auth/domain/interfaces/user.r
 import type { PasswordHasherPort } from '@/modules/auth/domain/interfaces/password-hasher.port';
 import { EventDispatcher } from '@/shared/events/event-dispatcher';
 import { systemClock } from '@/shared/clock/system-clock';
+import { AccountService } from '@/modules/accounts';
 import { FxRateProviderStub } from '@/modules/accounts/infrastructure/external/fx-rate-provider.stub';
 import { InMemoryTransactionRepository } from '@/modules/transactions/application/fixtures/in-memory-transaction.repository';
 import { AccountCurrency as TxCurrency } from '@/modules/transactions/domain/entities/transaction';
@@ -56,6 +57,20 @@ function buildDeps(txDeps: TransactionActionDeps): HonoAppDeps {
   return {
     authService: buildAuthSvc(),
     authjsAuth: async () => ({ user: { id: TEST_USER_ID, email: 'a@b.com' } }),
+    // The composition root (buildAppDeps) builds the real
+    // AccountService from fxRateProvider; tests that do
+    // not exercise the account routes inject a fake
+    // surface so the createHonoApp contract is satisfied.
+    accountService: {
+      list: vi.fn(),
+      count: vi.fn(),
+      getById: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      archive: vi.fn(),
+      unarchive: vi.fn(),
+      getBalance: vi.fn(),
+    } as unknown as AccountService,
     fxRateProvider: new FxRateProviderStub(),
     transactionDeps: txDeps,
   };
@@ -270,6 +285,16 @@ describe('401 on every endpoint when no session', () => {
     const deps: HonoAppDeps = {
       authService: buildAuthSvc(),
       authjsAuth: async () => null,
+      accountService: {
+        list: vi.fn(),
+        count: vi.fn(),
+        getById: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        archive: vi.fn(),
+        unarchive: vi.fn(),
+        getBalance: vi.fn(),
+      } as unknown as AccountService,
       fxRateProvider: new FxRateProviderStub(),
       transactionDeps: buildTxDeps(),
     };

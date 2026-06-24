@@ -26,7 +26,7 @@
 
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { handlers } from '@/modules/auth';
+import { handlers } from '@/modules/auth/nextauth';
 import {
   assertWithinRateLimit,
   clientIpFromHeaders,

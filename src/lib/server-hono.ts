@@ -26,55 +26,19 @@
  *   ```
  *
  * The `authjsAuth` dep is the same shape as the production
- * catch-all in `app/api/[...path]/route.ts`. The accounts
- * deps (`accountService`, `fxRateProvider`) are wired the
- * same way `buildDefaultDeps()` does in
- * `src/modules/api/app.ts`.
+ * catch-all in `app/api/[...path]/route.ts`. The account
+ * deps (`accountService`, `fxRateProvider`,
+ * `transactionDeps`) are built by the composition root
+ * (`buildAppDeps()` in `src/composition/build-app-deps.ts`)
+ * and reused here - the Server-Component helper only
+ * overrides the session resolver with the in-process
+ * `auth()` from Next.
  */
 
-import { auth } from '@/modules/auth';
-import { createHonoApp, type HonoAppDeps } from '@/modules/api';
-import type { HonoContextVariables } from '@/modules/api/app';
-import { UserRepository } from '@/modules/auth/infrastructure/repositories/user.repository';
-import { Argon2idHasher } from '@/modules/auth/infrastructure/external/argon2.hasher';
-import { AuthService } from '@/modules/auth/domain/services/auth.service';
-import { dispatcher } from '@/shared/events/event-dispatcher';
-import { prisma } from '@/shared/db/prisma';
-import { systemClock } from '@/shared/clock/system-clock';
-import {
-  DolarApiClient,
-  FxRateProviderDolarApi,
-  UpstashFxRateCache,
-  withLock,
-} from '@/modules/fx';
+import { auth } from '@/modules/auth/nextauth';
+import { createHonoApp, type HonoAppDeps, type HonoContextVariables } from '@/modules/api';
+import { buildAppDeps } from '@/composition/build-app-deps';
 import { OpenAPIHono } from '@hono/zod-openapi';
-import { asPrismaDelegateView } from '@/shared/db/prisma-types';
-
-function buildAccountsDeps(): Omit<HonoAppDeps, 'authjsAuth'> {
-  // F-14: use the narrow delegate view instead of
-  // `as any`. The structural cast happens once inside
-  // `asPrismaDelegateView`.
-  // Slice-4 refactor: cast `prisma()` through `unknown` first
-  // because the Prisma client's methods are generic
-  // (`<T extends UserCreateArgs>(args: ...) => ...`) — not
-  // directly assignable to the narrow `(args: object) => Promise<unknown>`
-  // shape. The runtime contract is preserved.
-  const prismaClientForView = prisma() as unknown as Parameters<typeof asPrismaDelegateView>[0];
-  const prismaView = asPrismaDelegateView(prismaClientForView);
-  const userRepo = new UserRepository({ user: prismaView.user });
-  const hasher = new Argon2idHasher();
-  const authService = new AuthService(userRepo, hasher, dispatcher, systemClock);
-  // F-05: only the FX provider is wired at the deps level;
-  // the AccountService is built inside `createHonoApp`.
-  // PR-3 T3.6: the unconfigured stub is replaced by the
-  // real DolarAPI + Upstash cache + stampede lock implementation.
-  const fxProvider = new FxRateProviderDolarApi({
-    cache: new UpstashFxRateCache(),
-    lock: withLock,
-    dolarApi: new DolarApiClient(),
-  });
-  return { authService, fxRateProvider: fxProvider };
-}
 
 /**
  * Run a Server-Component-originated request through the
@@ -101,8 +65,14 @@ export async function serverHonoRequest(path: string, init: RequestInit = {}): P
           },
         }
       : null;
+  // Reuse the production composition root
+  // (buildAppDeps), then override the session resolver.
+  // The composition root owns the cross-module wiring
+  // (accountService, fxRateProvider, transactionDeps) -
+  // the §10.5 violation that lived here pre-refactor
+  // is closed.
   const deps: HonoAppDeps = {
-    ...buildAccountsDeps(),
+    ...buildAppDeps(),
     authjsAuth: async () => narrowed,
   };
   const app: OpenAPIHono<{ Variables: HonoContextVariables }> = createHonoApp(deps);

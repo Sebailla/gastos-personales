@@ -115,11 +115,27 @@ export function buildAppDeps(): HonoAppDeps {
     lock: withLock,
     dolarApi: new DolarApiClient(),
   });
+  // F-05: the production composition root builds the
+  // AccountService from the injected FX provider. Tests
+  // that want to mock the service surface inject
+  // `accountService` directly into the deps bag; the
+  // api module no longer builds the service inline (that
+  // wiring was a §10.5 violation - the api module used
+  // to import AccountRepositoryPrisma from
+  // @/modules/accounts/infrastructure/...).
+  const accountService = new AccountService(
+    new AccountRepositoryPrisma({
+      financialAccount: prismaView.financialAccount,
+    }),
+    fxProvider,
+    systemClock,
+  );
   const transactionDeps = buildTransactionDeps(fxProvider);
   return {
     authService,
     authjsAuth: async () => null,
     fxRateProvider: fxProvider,
+    accountService,
     transactionDeps,
   };
 }
