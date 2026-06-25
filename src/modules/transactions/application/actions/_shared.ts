@@ -20,22 +20,23 @@
  * `value`; failure carries `error`. Narrowing is `if (res.ok)`.
  *
  * Cross-module rule: this file imports the parent
- * `AccountRepositoryPort` from the local mirror at
- * `transactions/domain/interfaces/account.repository.port.mirror.ts`
- * and the FX port from
- * `transactions/domain/interfaces/fx-rate-provider.port.ts`.
- * The mirrors preserve the modules-isolated rule (root
- * AGENTS.md §10.5). The accounts domain is the source of
- * truth; the values stay in sync via the slice-2 deviation
- * log + the slice-1 design §2.1 "no drift" contract.
+ * `AccountRepositoryPort` and the `FxRateProvider` port from
+ * `@/shared/domain-kernel`. The kernel ports preserve the
+ * modules-isolated rule (root AGENTS.md §10.5): consumers
+ * depend on the structural minimum surface they need, while
+ * the canonical ports in `@/modules/accounts` carry the
+ * full surface used by `AccountService`. Drift between the
+ * kernel and canonical ports is detected at the type level
+ * (a Prisma adapter satisfies the canonical port and is
+ * structurally compatible with the kernel port).
  */
 
 import type { ZodError } from 'zod';
 import type {
-  AccountRepositoryPortMirror as AccountRepositoryPort,
-  FinancialAccountMirrorFields as FinancialAccount,
-} from '../../domain/interfaces/account.repository.port.mirror';
-import type { FxRateProvider } from '../../domain/interfaces/fx-rate-provider.port';
+  AccountRepositoryPort,
+  FinancialAccountFields as FinancialAccount,
+} from '@/shared/domain-kernel';
+import type { FxRateProvider } from '@/shared/domain-kernel';
 import type { EventDispatcher } from '@/shared/events/event-dispatcher';
 import type { logger as LoggerSingleton } from '@/shared/logger/logger';
 import { AppError } from '@/shared/errors/app-error';
@@ -58,7 +59,7 @@ import {
   TransactionDomainError,
 } from '../../domain/entities/transaction.errors';
 import { convertAndSnapshot } from '../../domain/services/fx-snapshot';
-import type { AccountFxCasa } from '../../domain/entities/transaction';
+import type { AccountFxCasa } from '@/shared/domain-kernel';
 import type { TransactionRepositoryPort } from '../../domain/interfaces/transaction.repository.port';
 
 export { InvalidAmountError, InvalidDirectionError, FutureTransactionDateError };

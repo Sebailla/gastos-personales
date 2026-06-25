@@ -46,7 +46,7 @@ import {
   InvalidAmountError,
   InvalidDirectionError,
 } from '../entities/transaction.errors';
-import type { FxRateProvider } from '../interfaces/fx-rate-provider.port';
+import type { FxRateProvider } from '@/shared/domain-kernel';
 import { convertAndSnapshot } from '../services/fx-snapshot';
 
 /**

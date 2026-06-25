@@ -12,8 +12,10 @@
  *   helpers `transactionsEqual` and `applyTransactionPatch`).
  * - The `TransactionDirection` const (UPPERCASE, mirrors the
  *   future Prisma enum).
- * - The local mirrors of `AccountCurrency` and `AccountFxCasa`
- *   (see `transaction.ts` for the module-isolation rationale).
+ * - The `AccountCurrency` and `AccountFxCasa` enums (re-exported
+ *   from `@/shared/domain-kernel`; the kernel is the
+ *   cross-module location, the accounts module is the original
+ *   source of truth).
  * - The three `NewTransactionInput` / `TransactionUpdatePatch`
  *   input types.
  * - The pure factory `createTransaction` (in
@@ -24,7 +26,7 @@
  * - The `TransactionRepositoryPort` interface and its supporting
  *   types (`ListTransactionsOptions`, `ListTransactionsPage`,
  *   `CreateTransactionInput`, `UpdateTransactionPatch`).
- * - Slice 2: the `FxRateProvider` port mirror and the
+ * - Slice 2: the `FxRateProvider` port (from the kernel) and the
  *   `convertAndSnapshot` helper + its types (`FxSnapshot`,
  *   `ConvertAndSnapshotInput`, `FxCasaString`,
  *   `FxConversionRequest`, `FxConversionResult`).
@@ -40,11 +42,10 @@ export {
   type Transaction,
   type NewTransactionInput,
   type TransactionUpdatePatch,
-  AccountCurrency,
-  AccountFxCasa,
   transactionsEqual,
   applyTransactionPatch,
 } from './entities/transaction';
+export { AccountCurrency, AccountFxCasa } from '@/shared/domain-kernel';
 export { TransactionDirection } from './entities/transaction-direction';
 export {
   TransactionDomainError,
@@ -65,7 +66,7 @@ export type {
   FxCasaString,
   FxConversionRequest,
   FxConversionResult,
-} from './interfaces/fx-rate-provider.port';
+} from '@/shared/domain-kernel';
 export {
   convertAndSnapshot,
   currencyForCasa,

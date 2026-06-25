@@ -18,7 +18,8 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { InMemoryTransactionRepository } from './in-memory-transaction.repository';
-import { AccountCurrency, TransactionDirection } from '../../domain/entities/transaction';
+import { AccountCurrency } from '@/shared/domain-kernel';
+import { TransactionDirection } from '../../domain/entities/transaction';
 
 describe('InMemoryTransactionRepository', () => {
   let repo: InMemoryTransactionRepository;
