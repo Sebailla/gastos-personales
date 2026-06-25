@@ -77,13 +77,19 @@ export async function createTransactionAction(
     // `convertAndSnapshot` short-circuits via the
     // native=casa check.
     const now = deps.clock();
-    // Slice-3 generates a server-side cuid here. Slice-4
+    // Slice-3 generates a server-side uuid here. Slice-4
     // replaces this with the Prisma adapter's id generator;
     // the action's contract is to pass the same `id` value
     // to the factory and the repository so the factory's
     // `TransactionRecorded` payload and the persisted row
     // share the identity.
-    const txId = `tx_${randomHex(TX_ID_BYTES)}`;
+    //
+    // crypto.randomUUID() returns a UUIDv4 (122 bits of
+    // entropy, format `xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx`).
+    // Stripping the dashes gives a 32-char hex segment which
+    // we prefix with `tx_` for the same convention as the
+    // slice-3 cuid-shaped id (`tx_<24-hex>` → `tx_<32-hex>`).
+    const txId = `tx_${crypto.randomUUID().replace(/-/g, '')}`;
     const txInput = {
       id: txId,
       userId,
@@ -140,35 +146,4 @@ export async function createTransactionAction(
     const mapped = mapDomainError(err);
     return domainErrorToActionError(mapped);
   }
-}
-
-/**
- * Tiny cuid-shaped hex generator. Used in the create
- * action to mint a stable `id` for the new transaction.
- * Slice-4's Prisma adapter replaces this with the database
- * id generator; the slice-3 path is fully self-contained.
- *
- * `TX_ID_BYTES` is the byte length of the random hex
- * segment (12 bytes → 24 hex chars). 96 bits of entropy
- * is far more than the cuid collision requirement (the
- * cuid library uses 8 bytes by default for a session-bound
- * token).
- *
- * Security: `globalThis.crypto.getRandomValues` is the only
- * entropy source. Predictable ids (e.g. via `Math.random`
- * fallback) are unacceptable for a financial capability —
- * if the Web Crypto API is unavailable in the runtime, we
- * fail loudly rather than ship a weak id. The supported
- * targets (Node 20+, modern browsers) all expose the API.
- */
-const TX_ID_BYTES = 12;
-function randomHex(bytes: number): string {
-  if (typeof globalThis.crypto?.getRandomValues !== 'function') {
-    throw new Error(
-      'createTransactionAction: globalThis.crypto.getRandomValues is unavailable; cannot generate a secure transaction id.',
-    );
-  }
-  const buf = new Uint8Array(bytes);
-  globalThis.crypto.getRandomValues(buf);
-  return Array.from(buf, (b) => b.toString(16).padStart(2, '0')).join('');
 }
