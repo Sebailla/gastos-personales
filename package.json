@@ -1,6 +1,6 @@
 {
   "name": "gastos-personales",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Multi-user personal finance app — auth foundation (Slice A)",
   "type": "module",
