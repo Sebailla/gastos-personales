@@ -11,6 +11,14 @@
  * boundary (BR-TX-10). When `accountId` is supplied, the
  * page is filtered to that account (REQ-TX-8).
  *
+ * `limit` uses `z.coerce.number()` because the query
+ * string is always a string at the HTTP boundary
+ * (`URLSearchParams` returns `string`), but the field is
+ * semantically a number. Coercion happens at the schema
+ * edge so downstream code (services, repos, tests) sees a
+ * real `number`. Coercion fails on non-numeric strings
+ * (e.g. `?limit=foo`), which is the desired behavior.
+ *
  * The `.strict()` modifier rejects unknown keys at the
  * boundary (BR-TX-8 closed form).
  */
@@ -20,13 +28,15 @@ import { z } from 'zod';
 export const TransactionListQuerySchema = z
   .object({
     cursor: z.string().min(1).optional(),
-    limit: z
+    limit: z.coerce
       .number()
       .int()
       .optional()
       // BR-TX-10: clamp out-of-range values rather than reject.
+      // `.default(20)` runs BEFORE `.transform()`, so the
+      // transform only sees a defined number; the page-size
+      // default (20) lives in one place.
       .transform((value) => {
-        if (value === undefined) return 20;
         if (value > 100) return 100;
         if (value < 1) return 1;
         return value;
