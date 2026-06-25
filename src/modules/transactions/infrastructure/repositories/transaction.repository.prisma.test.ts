@@ -35,9 +35,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { AccountCurrency, AccountFxCasa } from '@/shared/domain-kernel';
 import {
-  AccountCurrency,
-  AccountFxCasa,
   TransactionDirection,
   type Transaction,
 } from '../../domain/entities/transaction';

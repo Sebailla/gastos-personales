@@ -29,3 +29,25 @@ if ! echo "$current_branch" | grep -qE "$allowed_prefixes"; then
   echo "Expected pattern: <type>/<kebab-case-name> (e.g. feat/auth-foundation)"
   exit 1
 fi
+
+# Coverage gate: the project's root AGENTS.md §10.5 sets the
+# 80% coverage floor on domain+application. The
+# `test:coverage:enforced` script wires the thresholds into
+# vitest so the push fails when any of lines / branches /
+# functions / statements drops below 80%. We run it here (not
+# in pre-commit) because the full coverage run is slower than
+# the per-staged-file checks in pre-commit — gating at push
+# keeps the inner loop fast while still catching coverage
+# regressions before they reach the remote.
+#
+# Skip the coverage check on --delete pushes (a branch delete
+# has no source to cover).
+for arg in "$@"; do
+  case "$arg" in
+    :*|--delete|--delete=*)
+      exit 0
+      ;;
+  esac
+done
+
+SKIP_TIMING=true pnpm run test:coverage:enforced

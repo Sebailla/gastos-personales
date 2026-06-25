@@ -19,11 +19,8 @@
  * domain aggregate directly.
  */
 
-import {
-  AccountCurrency,
-  AccountFxCasa,
-  type Transaction,
-} from '../../domain/entities/transaction';
+import { AccountCurrency, AccountFxCasa } from '@/shared/domain-kernel';
+import type { Transaction } from '../../domain/entities/transaction';
 
 /**
  * Lowercase DolarAPI wire form for the `casaSnapshot` field.

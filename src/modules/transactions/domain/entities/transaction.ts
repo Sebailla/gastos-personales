@@ -16,16 +16,12 @@
  * `transaction-direction.ts` (UPPERCASE form, mirrors the future
  * Prisma enum).
  *
- * Note on shared enums: per the module-isolation rule (root
- * AGENTS.md §10.5, "A module does NOT import directly from
- * another module"), the `AccountCurrency` and `AccountFxCasa`
- * enums are re-declared here as local const enums with the same
- * UPPERCASE values. The accounts module is the source of truth
- * (the future Prisma column is `AccountCurrency`); the local
- * mirror is a slice-1 isolation move and a future shared-kernel
- * refactor will collapse the two. The values are kept in sync
- * via the design §2.1 "no drift" contract and verified by the
- * apply-progress TDD evidence.
+ * Note on shared enums: `AccountCurrency` and `AccountFxCasa`
+ * are imported from `@/shared/domain-kernel`. The transactions
+ * module owns `TransactionDirection` (slice-1 local); the shared
+ * kernel owns the account enums (the accounts module is the
+ * original source of truth; the kernel is the cross-module
+ * location).
  *
  * Invariants (enforced by the factory in `create-transaction.ts`):
  * - BR-TX-1: `amountMinor > 0` — sign comes from `direction`.
@@ -43,37 +39,9 @@
  */
 
 import { TransactionDirection } from './transaction-direction';
+import { AccountCurrency, AccountFxCasa } from '@/shared/domain-kernel';
 
 export { TransactionDirection };
-
-/**
- * Local mirror of the accounts-owned `AccountCurrency` enum.
- * See the file-level comment for the module-isolation rationale.
- * Values MUST stay in sync with
- * `src/modules/accounts/domain/entities/financial-account.ts`.
- */
-export const AccountCurrency = {
-  ARS: 'ARS',
-  USD: 'USD',
-  EUR: 'EUR',
-} as const;
-export type AccountCurrency = (typeof AccountCurrency)[keyof typeof AccountCurrency];
-
-/**
- * Local mirror of the accounts-owned `AccountFxCasa` enum. See
- * the file-level comment for the module-isolation rationale.
- * Values MUST stay in sync with
- * `src/modules/accounts/domain/entities/financial-account.ts`.
- */
-export const AccountFxCasa = {
-  OFICIAL: 'OFICIAL',
-  BLUE: 'BLUE',
-  MEP: 'MEP',
-  CCL: 'CCL',
-  CRIPTO: 'CRIPTO',
-  TARJETA: 'TARJETA',
-} as const;
-export type AccountFxCasa = (typeof AccountFxCasa)[keyof typeof AccountFxCasa];
 
 /**
  * The patch type consumed by `withUpdates`. Every field is

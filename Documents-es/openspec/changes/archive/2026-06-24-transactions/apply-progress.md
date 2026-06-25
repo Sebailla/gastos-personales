@@ -1537,6 +1537,137 @@ en `Documents-es/openspec/changes/archive/2026-06-24-transactions/apply-progress
   por sección (`buildPublicApp`, `buildProtectedApp`)
   - diferido, fuera del alcance de este fix.
 
+## Fix #2 — shared domain kernel + extracción de createHonoApp (post-archive)
+
+Después de que el cambio de transactions se archivó,
+quedaron dos pedazos de deuda técnica estructural en
+el footprint del slice de transactions: (1) los
+enums y ports cross-module que se levantaron como
+mirrors locales en el slice 1 (`AccountCurrency`,
+`AccountFxCasa`, `FxRateProvider`,
+`AccountRepositoryPort`); y (2) la factory
+`createHonoApp` que vivía dentro de
+`src/modules/api/app.ts` aunque fuera un concern de
+composición (la excepción §10.5 "modules
+isolated").
+
+Este fix cierra ambos en un PR
+(`refactor/domain-kernel-and-create-hono-app`):
+
+### Por qué este fix
+
+Los mirrors locales existían para evitar la regla
+§10.5 "Modules isolated" (un módulo NO importa
+directamente de otro módulo). El
+`@/shared/domain-kernel` siempre fue la ubicación de
+colapso planeada — NO es un módulo; es una primitiva
+estructural compartida a lo largo del codebase. La
+documentación del slice 1 lo señaló como follow-up;
+este PR lo ejecuta.
+
+La extracción de `createHonoApp` refleja la
+extracción de `buildAppDeps` del fix de BR-TX-5: la
+lógica de build (componer las llamadas per-module a
+`mountXxxRoutes`) es el concern de composición, no el
+concern del módulo api. Mantener la función en
+`src/modules/api/app.ts` significaba que el módulo api
+seguía importando los barrels de auth, accounts, fx y
+transactions para el build — el módulo api no debería
+ser el seam de composición.
+
+### Qué cambió (2 commits atómicos)
+
+1. `6c7fb65 refactor(domain-kernel): extract
+   cross-module enums + ports` — 30 files changed,
+   +277 / -271. Nuevo módulo
+   `src/shared/domain-kernel/{enums,ports,index.ts}`.
+   Borrados los mirrors del slice 3 en
+   `src/modules/transactions/domain/interfaces/{fx-rate-provider.port.ts,
+   account.repository.port.mirror.ts}`. Migrados 22
+   sitios de import a `@/shared/domain-kernel`. El
+   kernel exporta el enum dual-purpose (value + type
+   bajo el mismo nombre vía el patrón
+   `as const + typeof`) más los dos tipos de port. El
+   módulo accounts sigue exponiendo su propio
+   re-export del barrel para compatibilidad hacia
+   atrás.
+2. `feat refactor(api): extract createHonoApp to
+   composition layer` — 2 files changed (NEW
+   `src/composition/create-hono-app.ts`; rewrite de
+   `src/modules/api/app.ts` a un thin re-export). El
+   cuerpo de la factory sube un nivel en el seam de
+   composición; el módulo api se vuelve el host del
+   default de producción (`honoApp`) y del tipo
+   `AppType`. Los re-exports preservan la superficie
+   estable para los callers downstream (el route
+   handler + 4 suites de tests).
+
+### Verificación final
+
+- Typecheck: `pnpm run typecheck` → limpio.
+- Tests: `pnpm test` → 659 passed, 4 skipped (los
+  4 skipped son los tests de integración
+  testcontainers Postgres; pre-existentes, no
+  afectados por este PR).
+
+### Decisiones de diseño clave
+
+- **Kernel como primitiva estructural, no módulo.**
+  El `src/shared/domain-kernel` vive en la capa
+  compartida (hermano de `@/shared/http`,
+  `@/shared/env`, etc.). §10.5 "Modules isolated"
+  aplica a `src/modules/<x>/...` — el kernel es una
+  primitiva estructural compartida, como
+  `@/shared/events/event-dispatcher` ya lo era. Los
+  consumidores dependen de él sin violar la regla
+  de módulos.
+- **Export dual-purpose del enum.** El kernel
+  re-exporta `AccountCurrency` y `AccountFxCasa`
+  tanto como value (el objeto const) como type (vía
+  el patrón `as const + typeof` del archivo de
+  enum subyacente). El código downstream usa el
+  type como tipo de campo y el value como lookup
+  en runtime (`Record<AccountCurrency, …>`,
+  `Object.values`, etc.) bajo el mismo nombre de
+  import. Esto evita la proliferación de aliases
+  `*Value` / `*Type`.
+- **Kernel ports como mínimo estructural.** El
+  `FxRateProvider` y `AccountRepositoryPort` del
+  kernel exponen solo los métodos que la capa de
+  transactions consume realmente (`getDisplayAmount`
+  para el path de FX snapshot; `findById` para el
+  pre-check de BR-TX-5). Los ports canónicos en
+  `@/modules/accounts` llevan la superficie completa
+  usada por `AccountService`. El drift entre los
+  ports del kernel y los canónicos se detecta a
+  nivel de tipos: un adapter Prisma satisface el
+  port canónico (superficie completa) y es
+  estructuralmente compatible con el port del kernel
+  (superficie mínima).
+- **Re-exports finos en `app.ts`.** El `app.ts` del
+  módulo api re-exporta `createHonoApp`,
+  `HonoAppDeps`, y `HonoContextVariables` desde la
+  capa de composición para que los consumidores
+  existentes (`app/api/[...path]/route.ts`, las 4
+  suites `app.*.test.ts`, `client.ts`, `index.ts`)
+  mantengan su path de import
+  `@/modules/api/app`. Los tests que componen su
+  propio app con deps custom DEBERÍAN importar
+  `createHonoApp` directamente de
+  `@/composition/create-hono-app` — ese import
+  señala "estoy componiendo una instancia de app",
+  que es el concern de composición.
+
+### Desviaciones (ejecutadas)
+
+Ninguna. El plan coincidió con la ejecución.
+
+### Dual write
+
+`openspec/changes/archive/2026-06-24-transactions/apply-progress.md` (este archivo) +
+`Documents-es/openspec/changes/archive/2026-06-24-transactions/apply-progress.md`
+ambos actualizados en el commit 8 (este commit).
+
 ```
 
 ```

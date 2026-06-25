@@ -1,12 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { AccountCurrency, AccountFxCasa } from '@/shared/domain-kernel';
 import {
-  // Local re-exports of the accounts-owned enums. The test does
-  // NOT cross the module boundary at the type-import level
-  // (root AGENTS.md §10.5: "A module does NOT import directly
-  // from another module"). The `transaction.ts` entity file is
-  // the single seam that imports from `@/modules/accounts`.
-  AccountCurrency,
-  AccountFxCasa,
   type NewTransactionInput,
   TransactionDirection,
   type Transaction,

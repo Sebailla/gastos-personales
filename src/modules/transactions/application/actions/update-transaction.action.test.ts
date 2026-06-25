@@ -27,14 +27,11 @@ import { updateTransactionAction } from './update-transaction.action';
 import { InMemoryTransactionRepository } from '../fixtures/in-memory-transaction.repository';
 import { assertOk, assertFail } from './_narrow';
 import type { TransactionActionDeps } from './_shared';
-import {
-  AccountCurrency,
-  AccountFxCasa,
-  TransactionDirection,
-} from '../../domain/entities/transaction';
+import { AccountCurrency, AccountFxCasa } from '@/shared/domain-kernel';
+import { TransactionDirection } from '../../domain/entities/transaction';
 import { logger } from '@/shared/logger/logger';
 import { dispatcher } from '@/shared/events/event-dispatcher';
-import type { FxRateProvider } from '../../domain/interfaces/fx-rate-provider.port';
+import type { FxRateProvider } from '@/shared/domain-kernel';
 
 const FX_AS_OF = new Date('2026-06-23T10:00:00.000Z');
 const ACCOUNT_ID = 'a1b2c3d4-e5f6-7890-1234-567890abcdef';
