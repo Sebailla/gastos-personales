@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { AccountCurrency, AccountFxCasa } from '../entities/transaction';
-import type { FxRateProvider } from '../interfaces/fx-rate-provider.port';
+import { AccountCurrency, AccountFxCasa } from '@/shared/domain-kernel';
+import type { FxRateProvider } from '@/shared/domain-kernel';
 import {
   convertAndSnapshot,
   currencyForCasa,

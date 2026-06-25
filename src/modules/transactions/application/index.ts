@@ -77,7 +77,8 @@ export type { MountTransactionsRoutesDeps } from './routes';
 // §"Slice 2 deviations (executed)") documents this dual-mode
 // barrel; future shared-kernel refactors may collapse the
 // two layers.
-export { TransactionDirection, AccountCurrency, AccountFxCasa } from '../domain';
+export { TransactionDirection } from '../domain';
+export { AccountCurrency, AccountFxCasa } from '@/shared/domain-kernel';
 export type {
   Transaction,
   NewTransactionInput,

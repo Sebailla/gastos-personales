@@ -1505,6 +1505,132 @@ EN + ES apply-progress mirrored in the same commit
   `buildProtectedApp`) — deferred, out of scope
   for this fix.
 
+## Fix #2 — shared domain kernel + createHonoApp extraction (post-archive)
+
+After the transactions change archived, two pieces
+of structural tech debt remained in the transactions
+slice footprint: (1) the cross-module enums and
+ports that were lifted into local mirrors on slice 1
+(`AccountCurrency`, `AccountFxCasa`,
+`FxRateProvider`, `AccountRepositoryPort`); and
+(2) the `createHonoApp` factory that lived inside
+`src/modules/api/app.ts` even though it was a
+composition concern (the §10.5 "modules isolated"
+exception).
+
+This fix closes both in one PR (`refactor/domain-
+kernel-and-create-hono-app`):
+
+### Why this fix
+
+The local mirrors existed to avoid the §10.5
+"Modules isolated" rule (a module does NOT import
+directly from another module). The
+`@/shared/domain-kernel` was always the planned
+collapse location — it is NOT a module; it is a
+structural primitive shared across the codebase. The
+slice-1 docs called this out as a follow-up; this
+PR executes it.
+
+The `createHonoApp` extraction mirrors the
+`buildAppDeps` extraction from the BR-TX-5 fix: the
+build logic (composing per-module `mountXxxRoutes`
+calls) is the composition concern, not the api
+module concern. Keeping the function in
+`src/modules/api/app.ts` meant the api module still
+imported the auth, accounts, fx, and transactions
+barrels for the build — the api module should not
+be the composition seam.
+
+### What changed (2 atomic commits)
+
+1. `6c7fb65 refactor(domain-kernel): extract
+   cross-module enums + ports` — 30 files changed,
+   +277 / -271. New module
+   `src/shared/domain-kernel/{enums,ports,index.ts}`.
+   Deleted the slice-3 mirrors at
+   `src/modules/transactions/domain/interfaces/{fx-rate-provider.port.ts,
+   account.repository.port.mirror.ts}`. Migrated 22
+   import sites to `@/shared/domain-kernel`. Kernel
+   exports the dual-purpose enum (value + type under
+   the same name via the `as const + typeof` pattern)
+   plus the two port types. Accounts module continues
+   to expose its own barrel re-export for backward
+   compatibility.
+2. `feat refactor(api): extract createHonoApp to
+   composition layer` — 2 files changed (NEW
+   `src/composition/create-hono-app.ts`; rewrite
+   `src/modules/api/app.ts` to a thin re-export).
+   The factory body moves one level up the
+   composition seam; the api module becomes the
+   host for the production default (`honoApp`) and
+   the `AppType` type. Re-exports preserve the
+   stable surface for downstream callers (the route
+   handler + 4 test suites).
+
+### Final verification
+
+- Typecheck: `pnpm run typecheck` → clean.
+- Tests: `pnpm test` → 659 passed, 4 skipped (the
+  4 skipped are the testcontainers Postgres
+  integration tests; pre-existing, not affected by
+  this PR).
+
+### Key design decisions
+
+- **Kernel as structural primitive, not module.** The
+  `src/shared/domain-kernel` lives at the shared
+  layer (sibling to `@/shared/http`, `@/shared/env`,
+  etc.). §10.5 "Modules isolated" applies to
+  `src/modules/<x>/...` — the kernel is a
+  structural primitive shared across the codebase,
+  like `@/shared/events/event-dispatcher` already
+  was. Consumers depend on it without violating the
+  module rule.
+- **Dual-purpose enum export.** The kernel re-exports
+  `AccountCurrency` and `AccountFxCasa` as both a
+  value (the const object) and a type (via the
+  underlying enum file's `as const + typeof`
+  pattern). Downstream code uses the type as a
+  field type and the value as a runtime lookup
+  (`Record<AccountCurrency, …>`, `Object.values`,
+  etc.) under the same import name. This avoids
+  `*Value` / `*Type` alias proliferation.
+- **Kernel ports as structural minimum.** The kernel
+  `FxRateProvider` and `AccountRepositoryPort`
+  expose only the methods the transactions layer
+  actually consumes (`getDisplayAmount` for the FX
+  snapshot path; `findById` for the BR-TX-5
+  pre-check). The canonical ports in `@/modules/accounts`
+  carry the full surface used by `AccountService`.
+  Drift between the kernel and canonical ports is
+  detected at the type level: a Prisma adapter
+  satisfies the canonical port (full surface) and
+  is structurally compatible with the kernel port
+  (minimum surface).
+- **Thin `app.ts` re-exports.** The api module's
+  `app.ts` re-exports `createHonoApp`,
+  `HonoAppDeps`, and `HonoContextVariables` from
+  the composition layer so existing consumers
+  (`app/api/[...path]/route.ts`, the 4
+  `app.*.test.ts` suites, `client.ts`, `index.ts`)
+  keep their `@/modules/api/app` import path.
+  Tests that compose their own app with custom deps
+  SHOULD import `createHonoApp` directly from
+  `@/composition/create-hono-app` — that import
+  signals "I am composing an app instance", which
+  is the composition concern.
+
+### Deviations (executed)
+
+None. The plan matched the execution.
+
+### Dual write
+
+`openspec/changes/archive/2026-06-24-transactions/apply-progress.md` (this file) +
+`Documents-es/openspec/changes/archive/2026-06-24-transactions/apply-progress.md`
+both updated in commit 8 (this commit).
+
 ```
 
 ```

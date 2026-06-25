@@ -36,7 +36,7 @@ import type { UpdateTransactionPatch } from '../../domain/interfaces/transaction
 type MutableUpdatePatch = {
   -readonly [K in keyof UpdateTransactionPatch]: UpdateTransactionPatch[K];
 };
-import type { AccountFxCasa } from '../../domain/entities/transaction';
+import type { AccountFxCasa } from '@/shared/domain-kernel';
 
 export async function updateTransactionAction(
   deps: TransactionActionDeps,

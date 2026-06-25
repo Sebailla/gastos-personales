@@ -1,8 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { EventDispatcher, TransactionRecorded } from '@/shared/events/event-dispatcher';
+import { AccountCurrency, AccountFxCasa } from '@/shared/domain-kernel';
 import {
-  AccountCurrency,
-  AccountFxCasa,
   TransactionDirection,
   type NewTransactionInput,
 } from '../entities/transaction';
@@ -12,15 +11,17 @@ import {
   InvalidDirectionError,
   FutureTransactionDateError,
 } from '../entities/transaction.errors';
-import type { FxRateProvider } from '../interfaces/fx-rate-provider.port';
+import type { FxRateProvider } from '@/shared/domain-kernel';
 
-// `FxRateProvider` is the slice-2 port mirror under
-// `transactions/domain/interfaces/fx-rate-provider.port.ts`.
-// The accounts port is the source of truth; the local mirror
-// keeps the modules-isolated rule (AGENTS.md §10.5 + slice
-// prompt rule #9 "No imports from @/modules/accounts in domain
-// code"). The drift contract is documented in the local port
-// file's header.
+// `FxRateProvider` is the shared-kernel port imported from
+// `@/shared/domain-kernel`. The canonical port lives at
+// `@/modules/accounts/domain/interfaces/fx-rate-provider.port.ts`
+// (the source of truth that `AccountService` depends on); the
+// kernel port here is the structural minimum that the
+// transactions `convertAndSnapshot` helper consumes. Drift
+// between the two is detected at the type level: a
+// `PrismaFxRateProvider` satisfies the canonical port and is
+// structurally compatible with this kernel port.
 
 /**
  * RED: createTransaction factory contract (6 cases).

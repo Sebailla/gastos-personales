@@ -32,10 +32,10 @@ import { systemClock } from '@/shared/clock/system-clock';
 import { AccountService } from '@/modules/accounts';
 import { FxRateProviderStub } from '@/modules/accounts/infrastructure/external/fx-rate-provider.stub';
 import { InMemoryTransactionRepository } from '@/modules/transactions/application/fixtures/in-memory-transaction.repository';
-import { AccountCurrency as TxCurrency } from '@/modules/transactions/domain/entities/transaction';
+import { AccountCurrency as TxCurrency } from '@/shared/domain-kernel';
 import type { TransactionActionDeps } from '@/modules/transactions/application/actions/_shared';
 import { logger } from '@/shared/logger/logger';
-import type { AccountRepositoryPortMirror } from '@/modules/transactions/domain/interfaces/account.repository.port.mirror';
+import type { AccountRepositoryPort } from '@/shared/domain-kernel';
 
 const TEST_USER_ID = 'u-1';
 
@@ -82,7 +82,7 @@ function buildTxDeps(opts: { repo?: InMemoryTransactionRepository } = {}): Trans
   // parent account via `accountRepository.findById(userId, id)`.
   // The fixture returns a live, non-archived account so the
   // happy-path POST passes the check.
-  const accountRepository: AccountRepositoryPortMirror = {
+  const accountRepository: AccountRepositoryPort = {
     findById: vi.fn(async () => ({
       id: '00000000-0000-4000-8000-000000000001',
       userId: TEST_USER_ID,

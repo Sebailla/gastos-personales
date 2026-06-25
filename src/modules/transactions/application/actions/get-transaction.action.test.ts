@@ -16,10 +16,11 @@ import { getTransactionAction } from './get-transaction.action';
 import { InMemoryTransactionRepository } from '../fixtures/in-memory-transaction.repository';
 import { assertOk, assertFail } from './_narrow';
 import type { TransactionActionDeps } from './_shared';
-import { AccountCurrency, TransactionDirection } from '../../domain/entities/transaction';
+import { AccountCurrency } from '@/shared/domain-kernel';
+import { TransactionDirection } from '../../domain/entities/transaction';
 import { logger } from '@/shared/logger/logger';
 import { dispatcher } from '@/shared/events/event-dispatcher';
-import type { FxRateProvider } from '../../domain/interfaces/fx-rate-provider.port';
+import type { FxRateProvider } from '@/shared/domain-kernel';
 
 function makeDeps(): {
   deps: TransactionActionDeps;

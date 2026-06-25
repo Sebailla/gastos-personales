@@ -16,9 +16,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { toTransactionDto } from './transaction.dto';
+import { AccountCurrency, AccountFxCasa } from '@/shared/domain-kernel';
 import {
-  AccountCurrency,
-  AccountFxCasa,
   TransactionDirection,
   type Transaction,
 } from '../../domain/entities/transaction';
