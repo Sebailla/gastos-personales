@@ -49,23 +49,13 @@ import type {
 } from '../../domain/interfaces/transaction.repository.port';
 
 /**
- * Tiny cuid-shaped id generator. Format: `tx_<24-char hex>`.
+ * Tiny UUIDv4-based id generator. Format: `tx_<32-char hex>`.
  * Standalone — no `cuid2` dep — because slice 3 tests only
  * need uniqueness, not cryptographic strength. Slice 4
  * replaces this with the Prisma adapter.
  */
 function generateId(): string {
-  const bytes = new Uint8Array(12);
-  // globalThis.crypto is available in Node 20+; fall back
-  // to Math.random for non-browser targets.
-  if (typeof globalThis.crypto?.getRandomValues === 'function') {
-    globalThis.crypto.getRandomValues(bytes);
-  } else {
-    for (let i = 0; i < bytes.length; i++) {
-      bytes[i] = Math.floor(Math.random() * 256);
-    }
-  }
-  return 'tx_' + Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  return 'tx_' + crypto.randomUUID().replace(/-/g, '');
 }
 
 /**
