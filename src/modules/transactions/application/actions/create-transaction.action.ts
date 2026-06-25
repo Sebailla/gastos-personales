@@ -31,7 +31,7 @@
  */
 
 import { createTransaction } from '../../domain/factories/create-transaction';
-import type { AccountFxCasa } from '../../domain/entities/transaction';
+import type { AccountFxCasa } from '@/shared/domain-kernel';
 import {
   type ActionResult,
   type TransactionActionDeps,

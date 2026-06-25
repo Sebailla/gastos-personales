@@ -35,9 +35,8 @@
  * the adapter to read-then-delete and waste a round-trip.
  */
 
+import { AccountCurrency, AccountFxCasa } from '@/shared/domain-kernel';
 import type {
-  AccountCurrency,
-  AccountFxCasa,
   Transaction,
   TransactionDirection,
   TransactionUpdatePatch,

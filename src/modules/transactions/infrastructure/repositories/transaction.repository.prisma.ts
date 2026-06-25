@@ -45,11 +45,13 @@
 
 import { Prisma } from '@prisma/client';
 import type {
-  AccountCurrency,
-  AccountFxCasa,
   Transaction,
   TransactionDirection,
 } from '../../domain/entities/transaction';
+import {
+  AccountCurrency,
+  AccountFxCasa,
+} from '@/shared/domain-kernel';
 import {
   attachTransactionMethods,
 } from '../../domain/entities/transaction';
