@@ -33,10 +33,14 @@ export const TransactionListQuerySchema = z
       .int()
       .optional()
       // BR-TX-10: clamp out-of-range values rather than reject.
-      // `.default(20)` runs BEFORE `.transform()`, so the
-      // transform only sees a defined number; the page-size
-      // default (20) lives in one place.
+      // The `undefined` branch is a TypeScript narrow — at
+      // runtime `.default(20)` short-circuits before the
+      // transform runs, so this branch is never taken. The
+      // `.optional()` in the chain still types `value` as
+      // `number | undefined`, and `tsc` rejects arithmetic
+      // on a possibly-undefined value without the guard.
       .transform((value) => {
+        if (value === undefined) return 20;
         if (value > 100) return 100;
         if (value < 1) return 1;
         return value;
