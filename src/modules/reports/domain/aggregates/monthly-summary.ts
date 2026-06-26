@@ -117,12 +117,13 @@ export function createMonthlySummary(input: CreateMonthlySummaryInput): MonthlyS
       // strips the sign so a refund row still counts as an
       // EXPENSE magnitude. The sign lives on `netMinor`
       // (income - expense, can be negative).
+      const incomeMinor = isIncome ? Math.abs(row.convertedAmountMinor) : 0;
+      const expenseMinor = isExpense ? Math.abs(row.convertedAmountMinor) : 0;
       buckets.set(row.convertedCurrency, {
         convertedCurrency: row.convertedCurrency,
-        incomeMinor: isIncome ? Math.abs(row.convertedAmountMinor) : 0,
-        expenseMinor: isExpense ? Math.abs(row.convertedAmountMinor) : 0,
-        netMinor:
-          (isIncome ? row.convertedAmountMinor : 0) + (isExpense ? -row.convertedAmountMinor : 0),
+        incomeMinor,
+        expenseMinor,
+        netMinor: incomeMinor - expenseMinor,
         count: 1,
       });
     } else {
