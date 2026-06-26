@@ -49,7 +49,6 @@ import type {
   ReportSubscriberPort,
 } from '../../domain/ports/report-subscriber.port';
 import { ReportsDomainError } from '../../domain/errors/reports-domain-error';
-import { AccountNotFoundError } from '../../domain/errors/account-not-found-error';
 import { AppError } from '@/shared/errors/app-error';
 
 /**
@@ -174,22 +173,4 @@ export function domainErrorToActionError(
     };
   }
   return { ok: false, error: err };
-}
-
-/**
- * Project an `AccountNotFoundError` to the wire code `NOT_FOUND`
- * (404). The action layer throws this when the flow endpoint's
- * cross-user guard (`AccountRepositoryPort.findById` returns
- * `null`) fires.
- */
-export function accountNotFoundToActionError(
-  err: AccountNotFoundError,
-): ActionFailure {
-  return {
-    ok: false,
-    error: new AppError({
-      code: 'NOT_FOUND',
-      message: err.message,
-    }),
-  };
 }
