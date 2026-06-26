@@ -301,13 +301,23 @@ describe('MonthlySummary factory — triangulation (T-RPT-007)', () => {
       rows,
       clock: fixedClock,
     });
-    expect(summary.totals).toHaveLength(2);
-    const ars = summary.totals.find((b) => b.convertedCurrency === AccountCurrency.ARS);
-    const usd = summary.totals.find((b) => b.convertedCurrency === AccountCurrency.USD);
-    expect(ars?.expenseMinor).toBe(1000);
-    expect(ars?.netMinor).toBe(-1000);
-    expect(usd?.expenseMinor).toBe(500);
-    expect(usd?.netMinor).toBe(-500);
+    // Assert the exact expected shape — no `find()` calls.
+    expect(summary.totals).toEqual([
+      {
+        convertedCurrency: AccountCurrency.ARS,
+        incomeMinor: 0,
+        expenseMinor: 1000,
+        netMinor: -1000,
+        count: 1,
+      },
+      {
+        convertedCurrency: AccountCurrency.USD,
+        incomeMinor: 0,
+        expenseMinor: 500,
+        netMinor: -500,
+        count: 1,
+      },
+    ]);
   });
 
   it('handles a refund row (negative convertedAmountMinor) — reduces netMinor', () => {
@@ -364,17 +374,17 @@ describe('MonthlySummary factory — triangulation (T-RPT-007)', () => {
       rows,
       clock: fixedClock,
     });
-    // Totals shape has exactly the 5 MonthlyTotals fields — no
-    // memo / category leakage.
-    expect(summary.totals[0]).toEqual({
+    const [bucket] = summary.totals;
+    expect(bucket).toEqual({
       convertedCurrency: AccountCurrency.ARS,
       incomeMinor: 0,
       expenseMinor: 100,
       netMinor: -100,
       count: 1,
     });
-    expect(Object.keys(summary.totals[0]).sort()).toEqual(
-      ['convertedCurrency', 'count', 'expenseMinor', 'incomeMinor', 'netMinor'].sort(),
-    );
+    // Pin the absence of `memo` and `category` leakage on the
+    // totals row. The factory must not surface row-level fields.
+    expect('memo' in bucket!).toBe(false);
+    expect('category' in bucket!).toBe(false);
   });
 });
