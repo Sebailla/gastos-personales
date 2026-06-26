@@ -60,13 +60,13 @@ describe('AccountFlow factory — REQ-RPT-3 + BR-RPT-3', () => {
       tx({
         id: 'tx-1',
         transactionDate: new Date('2026-06-01T12:00:00.000Z'),
-        convertedAmountMinor: 100,
+        convertedAmountMinor: -100,
         direction: 'EXPENSE',
       }),
       tx({
         id: 'tx-2',
         transactionDate: new Date('2026-06-02T12:00:00.000Z'),
-        convertedAmountMinor: 200,
+        convertedAmountMinor: -200,
         direction: 'EXPENSE',
       }),
       tx({
@@ -78,7 +78,7 @@ describe('AccountFlow factory — REQ-RPT-3 + BR-RPT-3', () => {
     ];
     const flow: AccountFlow = createAccountFlow({
       userId: 'u-1',
-      accountId: 'c-aaaaaaaaaaaaaaaaaaaa',
+      accountId: 'caaaaaaaaaaaaaaaaaaaa',
       fromDate: new Date('2026-06-01T00:00:00.000Z'),
       toDate: new Date('2026-06-30T23:59:59.999Z'),
       rows,
@@ -128,7 +128,7 @@ describe('AccountFlow factory — REQ-RPT-3 + BR-RPT-3', () => {
     ];
     const flow = createAccountFlow({
       userId: 'u-1',
-      accountId: 'c-aaaaaaaaaaaaaaaaaaaa',
+      accountId: 'caaaaaaaaaaaaaaaaaaaa',
       fromDate: new Date('2026-06-01T00:00:00.000Z'),
       toDate: new Date('2026-06-30T23:59:59.999Z'),
       rows,
@@ -178,7 +178,7 @@ describe('AccountFlow factory — REQ-RPT-3 + BR-RPT-3', () => {
     ];
     const flow = createAccountFlow({
       userId: 'u-1',
-      accountId: 'c-aaaaaaaaaaaaaaaaaaaa',
+      accountId: 'caaaaaaaaaaaaaaaaaaaa',
       // fromDate carries a local-time component that the factory
       // must strip.
       fromDate: new Date('2026-06-15T12:00:00.000Z'),
@@ -212,7 +212,7 @@ describe('AccountFlow factory — REQ-RPT-3 + BR-RPT-3', () => {
     expect(() =>
       createAccountFlow({
         userId: 'u-1',
-        accountId: 'c-aaaaaaaaaaaaaaaaaaaa',
+        accountId: 'caaaaaaaaaaaaaaaaaaaa',
         fromDate: new Date('2026-01-01T00:00:00.000Z'),
         toDate: new Date('2027-01-02T00:00:00.000Z'),
         rows: [],
@@ -225,7 +225,7 @@ describe('AccountFlow factory — REQ-RPT-3 + BR-RPT-3', () => {
     expect(() =>
       createAccountFlow({
         userId: 'u-1',
-        accountId: 'c-aaaaaaaaaaaaaaaaaaaa',
+        accountId: 'caaaaaaaaaaaaaaaaaaaa',
         fromDate: new Date('2026-06-30T00:00:00.000Z'),
         toDate: new Date('2026-06-01T00:00:00.000Z'),
         rows: [],
@@ -237,7 +237,7 @@ describe('AccountFlow factory — REQ-RPT-3 + BR-RPT-3', () => {
   it('returns days: [] when no rows in the range (sparse representation)', () => {
     const flow = createAccountFlow({
       userId: 'u-1',
-      accountId: 'c-aaaaaaaaaaaaaaaaaaaa',
+      accountId: 'caaaaaaaaaaaaaaaaaaaa',
       fromDate: new Date('2026-06-01T00:00:00.000Z'),
       toDate: new Date('2026-06-30T23:59:59.999Z'),
       rows: [],
@@ -249,7 +249,7 @@ describe('AccountFlow factory — REQ-RPT-3 + BR-RPT-3', () => {
   it('stamps generatedAt from clock.now()', () => {
     const flow = createAccountFlow({
       userId: 'u-1',
-      accountId: 'c-aaaaaaaaaaaaaaaaaaaa',
+      accountId: 'caaaaaaaaaaaaaaaaaaaa',
       fromDate: new Date('2026-06-01T00:00:00.000Z'),
       toDate: new Date('2026-06-30T23:59:59.999Z'),
       rows: [],
