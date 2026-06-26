@@ -90,28 +90,28 @@ describe('CategoryBreakdown factory — REQ-RPT-2', () => {
         category: 'Food',
         convertedCurrency: AccountCurrency.ARS,
         convertedAmountMinor: 100,
-        direction: 'EXPENSE',
+        direction: 'INCOME',
       }),
       tx({
         id: 'tx-2',
         category: 'food',
         convertedCurrency: AccountCurrency.ARS,
         convertedAmountMinor: 200,
-        direction: 'EXPENSE',
+        direction: 'INCOME',
       }),
       tx({
         id: 'tx-3',
         category: '  FOOD  ',
         convertedCurrency: AccountCurrency.ARS,
         convertedAmountMinor: 300,
-        direction: 'EXPENSE',
+        direction: 'INCOME',
       }),
       tx({
         id: 'tx-4',
         category: 'Food',
         convertedCurrency: AccountCurrency.USD,
         convertedAmountMinor: 50,
-        direction: 'EXPENSE',
+        direction: 'INCOME',
       }),
     ];
     const breakdown: CategoryBreakdown = createCategoryBreakdown({
@@ -130,14 +130,14 @@ describe('CategoryBreakdown factory — REQ-RPT-2', () => {
         category: 'Food', // first raw observed value is preserved
         categoryNormalized: 'food',
         convertedCurrency: AccountCurrency.ARS,
-        amountMinor: -600, // 100 + 200 + 300 = 600, sign negative for EXPENSE
+        amountMinor: 600, // 100 + 200 + 300 = 600
         txCount: 3,
       },
       {
         category: 'Food',
         categoryNormalized: 'food',
         convertedCurrency: AccountCurrency.USD,
-        amountMinor: -50,
+        amountMinor: 50,
         txCount: 1,
       },
     ]);
@@ -150,21 +150,21 @@ describe('CategoryBreakdown factory — REQ-RPT-2', () => {
         category: null,
         convertedCurrency: AccountCurrency.ARS,
         convertedAmountMinor: 100,
-        direction: 'EXPENSE',
+        direction: 'INCOME',
       }),
       tx({
         id: 'tx-2',
         category: '',
         convertedCurrency: AccountCurrency.ARS,
         convertedAmountMinor: 200,
-        direction: 'EXPENSE',
+        direction: 'INCOME',
       }),
       tx({
         id: 'tx-3',
         category: '   ',
         convertedCurrency: AccountCurrency.ARS,
         convertedAmountMinor: 300,
-        direction: 'EXPENSE',
+        direction: 'INCOME',
       }),
     ];
     const breakdown = createCategoryBreakdown({
@@ -175,9 +175,11 @@ describe('CategoryBreakdown factory — REQ-RPT-2', () => {
       clock: fixedClock,
     });
     expect(breakdown.buckets).toHaveLength(1);
-    expect(breakdown.buckets[0].categoryNormalized).toBe('uncategorized');
-    expect(breakdown.buckets[0].txCount).toBe(3);
-    expect(breakdown.buckets[0].amountMinor).toBe(-600);
+    const [first] = breakdown.buckets;
+    expect(first).toBeDefined();
+    expect(first!.categoryNormalized).toBe('uncategorized');
+    expect(first!.txCount).toBe(3);
+    expect(first!.amountMinor).toBe(600);
   });
 
   it('sorts by amountMinor DESC primary, categoryNormalized ASC secondary', () => {
@@ -314,7 +316,9 @@ describe('CategoryBreakdown factory — REQ-RPT-2', () => {
       clock: fixedClock,
     });
     expect(breakdown.buckets).toHaveLength(1);
-    expect(breakdown.buckets[0].txCount).toBeGreaterThan(0);
+    const [first] = breakdown.buckets;
+    expect(first).toBeDefined();
+    expect(first!.txCount).toBeGreaterThan(0);
   });
 
   it('returns buckets: [] when no rows in the month', () => {
