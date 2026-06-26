@@ -1,0 +1,441 @@
+# Tasks — `reports`
+
+**Author**: Sebastián Illa
+**Change**: `reports`
+**Capability**: `reports` (new — first write of the canonical spec + design); one additive delta on `transactions` (`TransactionRecorded` gains at least one subscriber); no behaviour change on `accounts`, `errors`, `events` (the dispatcher union already has `TransactionRecorded`)
+**Status**: pending tasks (apply has not started) · **Created**: 2026-06-26
+**Stack**: v3 — Next.js 16 + Node 20 + Hono catch-all + Auth.js v5 (inherited from `auth-foundation`) + Prisma 6 + PostgreSQL (Neon) + Zod + Vitest + pnpm + Tailwind v4
+**Source artifacts**: `openspec/changes/reports/proposal.md` (v1) · `openspec/changes/reports/specs/reports/spec.md` (REQ-RPT-1..7) · `openspec/changes/reports/design.md` (1947 lines; 15 sections) — input for this phase
+**Preflight values**: interactive · `both` (OpenSpec + Engram) · `force-chained` · 400-line review budget
+**Strict TDD**: enabled per `openspec/config.yaml:27-30`; runner `pnpm test`; cycle RED → GREEN → TRIANGULATE → REFACTOR
+
+> One task = one atomic commit. Each commit lands one focus; the
+> PR is the review checkpoint. The apply worker flips `- [x]`
+> as commits land; the orchestrator verifies CI green and the
+> spec Requirements covered before opening the next PR.
+>
+> Commit discipline per the project's `work-unit-commits`
+> convention (commit by behaviour, tests-with-code,
+> docs-with-change, no `Co-authored-by`, conventional commit
+> format). Cross-module dependencies (T-RPT-001 kernel port,
+> T-RPT-002 port contract test, T-RPT-009 ports) land BEFORE
+> the tasks that consume them; the aggregator service
+> (T-RPT-007) lands AFTER the three aggregate factories
+> (T-RPT-002, T-RPT-004, T-RPT-006) so the service compiles
+> against the canonical types.
+>
+> **Skill-resolution provenance.** The orchestrator passed five
+> canonical `SKILL.md` paths; this phase loaded all five
+> (`sdd-tasks`, `work-unit-commits`, `chained-pr`,
+> `test-driven-development`, `verification-before-completion`).
+> `skill_resolution: paths-injected`.
+
+---
+
+## Review Workload Forecast
+
+| Field | Value |
+| --- | --- |
+| Estimated changed lines | ~760–1200 total across 4 chained PRs; per-slice LoC `reports-domain` 180–280, `reports-application` 220–340, `reports-routes` 160–260, `dashboard-ui` 200–320 |
+| 400-line budget risk per slice | **Low** (each slice's LoC band sits under 400 net additions) |
+| 400-line budget risk if collapsed | **High** — collapsing all four slices into a single PR would produce 760–1200 changed lines, well above the 400-line review budget |
+| Chained PRs recommended | **Yes** (4 chained PRs against `develop`) |
+| Proposed split | `feat/reports-1-domain` → `feat/reports-2-application` → `feat/reports-3-routes` → `feat/reports-4-dashboard-ui` |
+| Delivery strategy | `force-chained` (locked in design §10) |
+| Chain strategy | `stacked-to-main` (each PR merges to `develop`; release flow explicit) |
+| Decision needed before apply | **No** (slice plan, chained strategy, and sub-PR fallback are locked in design §10; orchestrator does not re-ask) |
+
+```
+Decision needed before apply: No
+Chained PRs recommended: Yes
+Chain strategy: stacked-to-main
+400-line budget risk: Low (per slice) · High (collapsed)
+```
+
+> Design §10 forecasts 180–280 / 220–340 / 160–260 / 200–320 LoC
+> per slice (all under 400 net additions). The mitigation
+> (4 chained PRs against `develop`, each one its own
+> squash-merge review checkpoint) is locked in the design. The
+> apply worker MUST surface the per-PR `git diff --stat` at
+> PR-open time so the reviewer sees the actual line count.
+
+---
+
+## Goal
+
+`sdd-apply` for `reports` lands the full `reports` capability (canonical at `openspec/specs/reports/spec.md` after sync) plus one additive delta on the `transactions` capability — the `TransactionRecorded` event gains at least one subscriber — in four chained PRs against `develop`:
+
+- **PR-1 `reports-domain`** lands the read-aggregate skeleton: the new shared-kernel port `TransactionRepositoryPort` (read-only surface; §2.2.1 of the design), the `ReportsRepositoryPort` and `ReportSubscriberPort` interfaces, the three aggregate factories (`MonthlySummary`, `CategoryBreakdown`, `AccountFlow`) with co-located tests, the pure aggregator service `aggregate-transactions.ts`, the five domain error classes, the `Month` value object, and the `domain/index.ts` barrel. No application layer, no routes, no composition-root change. After PR-1 the module is a fully tested library with no callers.
+
+- **PR-2 `reports-application`** lands the action layer: three Zod schemas (`monthlySummaryQuerySchema`, `categoryBreakdownQuerySchema`, `accountFlowQuerySchema` — the last enforcing the cuid regex per orchestrator correction #1), the three actions (`getMonthlySummaryAction`, `getCategoryBreakdownAction`, `getAccountFlowAction`), the three DTO mappers, the `InMemoryReportsRepository` fixture (composed on top of `InMemoryTransactionRepository`), the local `_shared.ts` (deps bag + helpers; modules-isolated rule), the `application/index.ts` barrel, and the routes stub. The Hono routes are NOT mounted yet — that lands in PR-3.
+
+- **PR-3 `reports-routes`** lands the wire-up: `mountReportsRoutes(protectedApp, deps)` factory, the three routes mounted on `protectedApp` via `createHonoApp`, the `ReportsRepositoryPrisma` adapter, the `NoopTransactionRecordedSubscriber`, the composition-root wiring (`buildAppDeps` + `buildReportsDeps`), and the `build-app-deps.test.ts` subscriber-count assertion (REQ-RPT-7). The Prisma adapter test uses testcontainers Postgres (mirrors the transactions pattern; skipped if no DB).
+
+- **PR-4 `dashboard-ui`** lands the smoke UI: `app/dashboard/page.tsx` (RSC, three-card grid + empty-state CTA), the three presentational Server Components (`MonthlySummaryCard`, `CategoryBreakdownCard`, `AccountFlowCard`), the wire types in `app/_lib/report-types.ts`, and the snapshot tests for the four UI surfaces. The dashboard does NOT deep-link to the flow endpoint in v1 — the `flow` card is empty until a future change adds an account picker.
+
+After the four PRs merge to `develop`, the canonical spec lands at `openspec/specs/reports/spec.md` via `sdd-sync`, and `reports` is archived.
+
+---
+
+## Sub-slice structure
+
+### Slice 1 — `reports-domain`
+
+- **Branch**: `feat/reports-1-domain`
+- **Base**: `develop`
+- **Scope (in)**:
+  - New shared-kernel port `src/shared/domain-kernel/ports/transaction-repository-port.ts` (≤ 30 lines) + 4-line addition to `src/shared/domain-kernel/index.ts`.
+  - `src/modules/reports/domain/aggregates/monthly-summary.ts` — `MonthlySummary` + `MonthlyTotals` + `createMonthlySummary` factory + invariants. The factory calls `Clock.now()` (no `new Date()` in domain code).
+  - `src/modules/reports/domain/aggregates/category-breakdown.ts` — `CategoryBreakdown` + `CategoryBucket` + `createCategoryBreakdown` factory + the free function `normalizeCategory(category)` (`lowercase + trim`, null/empty → `'uncategorized'`).
+  - `src/modules/reports/domain/aggregates/account-flow.ts` — `AccountFlow` + `AccountFlowDay` + `createAccountFlow` factory + sparse-day omission + running balance + UTC midnight anchoring.
+  - `src/modules/reports/domain/services/aggregate-transactions.ts` — pure functions `aggregateMonthly`, `aggregateCategoryBreakdown`, `aggregateAccountFlow` (zero I/O; consumed by the actions in slice 2).
+  - `src/modules/reports/domain/ports/reports-repository.port.ts` — `ReportsRepositoryPort` (3 methods, all `userId` first).
+  - `src/modules/reports/domain/ports/report-subscriber.port.ts` — `ReportSubscriberPort` (1 method `onTransactionRecorded`).
+  - `src/modules/reports/domain/value-objects/month.ts` — `Month` value object (`YYYY-MM` regex; derives `fromDate` / `toDate` UTC bounds).
+  - `src/modules/reports/domain/errors/{reports-domain-error,invalid-month-error,invalid-account-id-error,invalid-date-range-error,account-not-found-error}.ts` — base class + 4 subclasses; carries `BR-ACC-12` / `BR-TX-4` references.
+  - `src/modules/reports/domain/index.ts` — public domain barrel.
+  - **DI graph unchanged.** `buildAppDeps` at `src/composition/build-app-deps.ts` is NOT touched in slice 1.
+- **Scope (out)**: application layer, routes, Prisma adapter, noop subscriber, composition-root wiring, dashboard UI, canonical spec sync.
+- **Files touched** (concrete paths):
+  - `src/shared/domain-kernel/ports/transaction-repository-port.ts` (new, ~30 lines)
+  - `src/shared/domain-kernel/index.ts` (~4 lines added)
+  - `src/modules/reports/domain/aggregates/monthly-summary.ts` (new, ~80 lines)
+  - `src/modules/reports/domain/aggregates/monthly-summary.test.ts` (new, ~110 lines)
+  - `src/modules/reports/domain/aggregates/category-breakdown.ts` (new, ~90 lines)
+  - `src/modules/reports/domain/aggregates/category-breakdown.test.ts` (new, ~120 lines)
+  - `src/modules/reports/domain/aggregates/account-flow.ts` (new, ~110 lines)
+  - `src/modules/reports/domain/aggregates/account-flow.test.ts` (new, ~140 lines)
+  - `src/modules/reports/domain/services/aggregate-transactions.ts` (new, ~70 lines)
+  - `src/modules/reports/domain/services/aggregate-transactions.test.ts` (new, ~80 lines)
+  - `src/modules/reports/domain/ports/reports-repository.port.ts` (new, ~80 lines)
+  - `src/modules/reports/domain/ports/reports-repository.port.test.ts` (new, ~40 lines)
+  - `src/modules/reports/domain/ports/report-subscriber.port.ts` (new, ~30 lines)
+  - `src/modules/reports/domain/ports/report-subscriber.port.test.ts` (new, ~20 lines)
+  - `src/modules/reports/domain/value-objects/month.ts` (new, ~50 lines)
+  - `src/modules/reports/domain/value-objects/month.test.ts` (new, ~40 lines)
+  - `src/modules/reports/domain/errors/reports-domain-error.ts` (new, ~30 lines)
+  - `src/modules/reports/domain/errors/invalid-month-error.ts` (new, ~15 lines)
+  - `src/modules/reports/domain/errors/invalid-account-id-error.ts` (new, ~15 lines)
+  - `src/modules/reports/domain/errors/invalid-date-range-error.ts` (new, ~15 lines)
+  - `src/modules/reports/domain/errors/account-not-found-error.ts` (new, ~15 lines)
+  - `src/modules/reports/domain/index.ts` (new, ~30 lines)
+- **Verification gate (slice 1)**:
+  ```bash
+  pnpm test src/modules/reports/domain
+  # → all unit + contract tests pass (≥ 80% coverage on domain layer)
+  pnpm test src/shared/domain-kernel
+  # → kernel port additions compile + pass
+  pnpm run typecheck
+  # → 0 errors (no `any`, strict mode)
+  pnpm run lint
+  # → 0 errors (max-warnings 0)
+  ```
+- **Spanish mirror policy**: this slice does NOT touch any user-facing Markdown beyond the `tasks.md` pair (which lives at the canonical path; mirror is produced as part of this phase). No `Documents-es/` updates required in slice 1.
+
+### Slice 2 — `reports-application`
+
+- **Branch**: `feat/reports-2-application`
+- **Base**: `develop` (post-merge of slice 1)
+- **Scope (in)**:
+  - **Zod schemas** in `src/modules/reports/application/schemas/`:
+    - `monthly-summary-query.schema.ts` — `month` regex `/^\d{4}-\d{2}$/` + `1..12` refine + `.strict()`.
+    - `category-breakdown-query.schema.ts` — extends monthly (forward-compatibility seam).
+    - `account-flow-query.schema.ts` — `accountId` cuid regex `/^c[a-z0-9]{20,32}$/` (orchestrator correction #1), `month` OR `fromDate` + `toDate` union, `fromDate <= toDate` refine.
+  - **Actions** in `src/modules/reports/application/actions/`:
+    - `_shared.ts` — local copy of `_shared.ts` (modules-isolated rule, root `AGENTS.md` §10.5). Exports `ReportsActionDeps`, `ActionResult<T>`, `zodErrorToActionError`, `domainErrorToActionError`.
+    - `get-monthly-summary.action.ts` — Zod parse → port call → factory → DTO mapper → `ActionResult`.
+    - `get-category-breakdown.action.ts` — same shape.
+    - `get-account-flow.action.ts` — Zod parse → `accountRepository.findById(userId, accountId)` (404 if null) → 366-day range check → port call → factory → DTO mapper → `ActionResult`.
+  - **DTOs** in `src/modules/reports/application/dto/`:
+    - `monthly-summary.dto.ts` — `MonthlySummaryDTO` + `toMonthlySummaryDto` (Date → ISO-8601 string).
+    - `category-breakdown.dto.ts` — `CategoryBreakdownDTO` + `CategoryBucketDTO` + `toCategoryBreakdownDto`.
+    - `account-flow.dto.ts` — `AccountFlowDTO` + `AccountFlowDayDTO` + `toAccountFlowDto` (Date → YYYY-MM-DD string).
+  - **Fixtures** in `src/modules/reports/application/fixtures/`:
+    - `reports-repository.inmemory.ts` — `InMemoryReportsRepository` class implementing `ReportsRepositoryPort`. Composes `InMemoryTransactionRepository` from the transactions module for the underlying data source.
+  - **Routes stub** in `src/modules/reports/application/routes.ts` — factory exported but NOT yet mounted (slice 3 mounts it).
+  - **Barrel** `src/modules/reports/application/index.ts` — exports the three actions, the three DTO types, `ReportsActionDeps`, `MountReportsRoutesDeps`, `mountReportsRoutes`.
+- **Scope (out)**: Hono mounting on `protectedApp` (slice 3), Prisma adapter (slice 3), noop subscriber wiring (slice 3), smoke UI (slice 4), canonical spec sync.
+- **Files touched** (concrete paths):
+  - `src/modules/reports/application/schemas/monthly-summary-query.schema.ts` (new, ~30 lines)
+  - `src/modules/reports/application/schemas/monthly-summary-query.schema.test.ts` (new, ~40 lines)
+  - `src/modules/reports/application/schemas/category-breakdown-query.schema.ts` (new, ~25 lines)
+  - `src/modules/reports/application/schemas/category-breakdown-query.schema.test.ts` (new, ~30 lines)
+  - `src/modules/reports/application/schemas/account-flow-query.schema.ts` (new, ~50 lines)
+  - `src/modules/reports/application/schemas/account-flow-query.schema.test.ts` (new, ~70 lines)
+  - `src/modules/reports/application/actions/_shared.ts` (new, ~80 lines)
+  - `src/modules/reports/application/actions/get-monthly-summary.action.ts` (new, ~60 lines)
+  - `src/modules/reports/application/actions/get-monthly-summary.action.test.ts` (new, ~110 lines)
+  - `src/modules/reports/application/actions/get-category-breakdown.action.ts` (new, ~60 lines)
+  - `src/modules/reports/application/actions/get-category-breakdown.action.test.ts` (new, ~110 lines)
+  - `src/modules/reports/application/actions/get-account-flow.action.ts` (new, ~80 lines)
+  - `src/modules/reports/application/actions/get-account-flow.action.test.ts` (new, ~140 lines)
+  - `src/modules/reports/application/dto/monthly-summary.dto.ts` (new, ~40 lines)
+  - `src/modules/reports/application/dto/monthly-summary.dto.test.ts` (new, ~30 lines)
+  - `src/modules/reports/application/dto/category-breakdown.dto.ts` (new, ~40 lines)
+  - `src/modules/reports/application/dto/category-breakdown.dto.test.ts` (new, ~30 lines)
+  - `src/modules/reports/application/dto/account-flow.dto.ts` (new, ~50 lines)
+  - `src/modules/reports/application/dto/account-flow.dto.test.ts` (new, ~40 lines)
+  - `src/modules/reports/application/fixtures/reports-repository.inmemory.ts` (new, ~80 lines)
+  - `src/modules/reports/application/routes.ts` (new, ~70 lines — factory exported, not yet mounted)
+  - `src/modules/reports/application/index.ts` (new, ~30 lines)
+- **Verification gate (slice 2)**:
+  ```bash
+  pnpm test src/modules/reports/application
+  # → all schema + action + DTO + fixture tests pass (≥ 80% coverage on application layer)
+  pnpm test src/modules/reports/domain
+  # → slice-1 tests still pass
+  pnpm run typecheck
+  pnpm run lint
+  ```
+- **Spanish mirror policy**: same as slice 1.
+
+### Slice 3 — `reports-routes`
+
+- **Branch**: `feat/reports-3-routes`
+- **Base**: `develop` (post-merge of slice 2)
+- **Scope (in)**:
+  - **Infrastructure** in `src/modules/reports/infrastructure/`:
+    - `repositories/reports.repository.prisma.ts` — `ReportsRepositoryPrisma` adapter. Reuses `TransactionRepositoryPort.list(userId, { fromDate, toDate, accountId? })` for the read path (cheaper than a fresh Prisma query per design §6.1). Constructs UTC month windows via `Date.UTC(year, month - 1, 1)` / `Date.UTC(year, month, 1)`.
+    - `subscribers/noop-transaction-recorded.subscriber.ts` — `createNoopHandler(logger)` factory. Debug-logs `reports.noop.transaction-recorded` and returns `void`. Returns `Promise<void>`.
+  - **Composition root** in `src/composition/`:
+    - `build-app-deps.ts` — adds `buildReportsDeps({ txRepo, accountRepo, dispatcher, logger, clock })` factory; wires `ReportsRepositoryPrisma`; wires `dispatcher.subscribe('TransactionRecorded', createNoopHandler(logger))` exactly once (REQ-RPT-7, BR-RPT-5).
+    - `create-hono-app.ts` — adds `mountReportsRoutes(protectedApp, { reportsDeps: deps.reportsDeps })` call after the transactions mount and before `app.route('/', protectedApp)`.
+    - `build-app-deps.test.ts` (+~30 lines) — asserts `dispatcher.subscriberCount('TransactionRecorded')` is exactly `before + 1` after `buildAppDeps` returns.
+  - **Public barrel** `src/modules/reports/index.ts` — mirrors `src/modules/transactions/application/index.ts`. Exports the port types, the aggregate types, the DTO types, `ReportsActionDeps`, `mountReportsRoutes`. Does NOT export the Prisma adapter, the InMemory fixture, or the noop handler.
+  - **Kernel barrel** `src/shared/domain-kernel/index.ts` — re-exports `TransactionRepositoryPort` (already added in slice 1).
+- **Scope (out)**: smoke UI (slice 4), canonical spec sync.
+- **Files touched** (concrete paths):
+  - `src/modules/reports/infrastructure/repositories/reports.repository.prisma.ts` (new, ~110 lines)
+  - `src/modules/reports/infrastructure/repositories/reports.repository.prisma.test.ts` (new, ~150 lines; testcontainers, skipped if no DB)
+  - `src/modules/reports/infrastructure/subscribers/noop-transaction-recorded.subscriber.ts` (new, ~30 lines)
+  - `src/modules/reports/infrastructure/subscribers/noop-transaction-recorded.subscriber.test.ts` (new, ~40 lines)
+  - `src/modules/reports/index.ts` (new, ~50 lines)
+  - `src/composition/build-app-deps.ts` (~40 lines added; `buildReportsDeps` + subscribe call)
+  - `src/composition/create-hono-app.ts` (~3 lines added; mount call)
+  - `src/composition/build-app-deps.test.ts` (~30 lines added; subscriber-count assertion)
+  - `src/modules/reports/application/routes.test.ts` (new, ~180 lines — Hono integration test with in-memory deps)
+- **Verification gate (slice 3)**:
+  ```bash
+  pnpm test src/modules/reports/application/routes.test.ts
+  # → 401 unauth / 200 seeded / 400 bad month / 404 cross-user / 400 range > 366 days
+  pnpm test src/composition/build-app-deps.test.ts
+  # → subscriber count = before + 1 after buildAppDeps
+  pnpm test src/modules/reports/
+  # → all slice-1 + slice-2 + slice-3 tests pass (≥ 80% coverage on the module)
+  pnpm run typecheck
+  pnpm run lint
+  pnpm run build
+  # Manual end-to-end check (developer terminal):
+  pnpm dev
+  # 1. Sign in via /auth/signin
+  # 2. curl -H "Cookie: authjs.session-token=..." 'http://localhost:3000/api/reports/monthly?month=2026-06' → 200 JSON
+  # 3. curl -H "Cookie: authjs.session-token=..." 'http://localhost:3000/api/reports/breakdown?month=2026-06' → 200 JSON
+  # 4. curl -H "Cookie: authjs.session-token=..." 'http://localhost:3000/api/reports/accounts/<other-users-account>/flow' → 404
+  ```
+- **Spanish mirror policy**: same as slice 1.
+
+### Slice 4 — `dashboard-ui`
+
+- **Branch**: `feat/reports-4-dashboard-ui`
+- **Base**: `develop` (post-merge of slice 3)
+- **Scope (in)**:
+  - **Wire types** `app/_lib/report-types.ts` — `MonthlySummaryDTO`, `CategoryBreakdownDTO`, `AccountFlowDTO`, `ErrorEnvelope`. Mirrors `app/_lib/transaction-types.ts`. No logic, just types for RSC consumption.
+  - **Presentational Server Components** in `app/_components/`:
+    - `dashboard-monthly-summary.tsx` — `<MonthlySummaryCard summary={...} />`. Renders the totals table with `Ingresos / Gastos / Neto / #` columns. Empty state shows "Sin datos".
+    - `dashboard-category-breakdown.tsx` — `<CategoryBreakdownCard breakdown={...} />`. Renders the buckets table sorted by `amountMinor DESC`.
+    - `dashboard-account-flow.tsx` — `<AccountFlowCard flow={...} />`. Renders the days table; v1 always renders empty because the dashboard does not deep-link to an account.
+  - **Dashboard page** `app/dashboard/page.tsx` — RSC, `force-dynamic`. Resolves the session via `auth()`; calls `/api/reports/monthly` and `/api/reports/breakdown` in parallel via `serverHonoRequest`; renders the three cards (or the empty CTA linking to `/transactions/new`). Each card surfaces the UTC month label.
+  - **Snapshot tests** for each component + the dashboard page (using `react-dom/server`'s `renderToStaticMarkup`, the project's existing test seam).
+- **Scope (out)**: production UI (design-system primitives, accessibility audits) — those land in a future `transactions-ui` change.
+- **Files touched** (concrete paths):
+  - `app/_lib/report-types.ts` (new, ~80 lines)
+  - `app/_components/dashboard-monthly-summary.tsx` (new, ~70 lines)
+  - `app/_components/dashboard-monthly-summary.test.tsx` (new, ~50 lines)
+  - `app/_components/dashboard-category-breakdown.tsx` (new, ~70 lines)
+  - `app/_components/dashboard-category-breakdown.test.tsx` (new, ~50 lines)
+  - `app/_components/dashboard-account-flow.tsx` (new, ~60 lines)
+  - `app/_components/dashboard-account-flow.test.tsx` (new, ~40 lines)
+  - `app/dashboard/page.tsx` (new, ~100 lines)
+  - `app/dashboard/page.test.tsx` (new, ~80 lines)
+- **Verification gate (slice 4)**:
+  ```bash
+  pnpm test app/_components/dashboard-monthly-summary.test.tsx
+  pnpm test app/_components/dashboard-category-breakdown.test.tsx
+  pnpm test app/_components/dashboard-account-flow.test.tsx
+  pnpm test app/dashboard/page.test.tsx
+  # → all snapshot tests pass (empty + populated states for monthly + breakdown; empty state for flow; empty-state CTA for the page)
+  pnpm run typecheck
+  pnpm run lint
+  pnpm run build
+  # Manual end-to-end check (developer terminal):
+  pnpm dev
+  # 1. Sign in via /auth/signin
+  # 2. Visit /dashboard with no transactions → see three "Sin datos" cards + the "Registrar primera transacción" CTA
+  # 3. Click the CTA → /transactions/new → submit a valid expense → land on /transactions
+  # 4. Back to /dashboard → see the populated monthly + breakdown cards + the empty flow card
+  ```
+- **Spanish mirror policy**: `app/` does NOT have a `Documents-es/` mirror (per the existing project convention — only `docs/` and `openspec/` are mirrored). No `Documents-es/` updates required in slice 4.
+
+---
+
+## Tasks per slice
+
+### Slice 1 — `reports-domain` (12 tasks)
+
+> Ordered so a single commit lands one focus. Every behaviour-codifying
+> task has a RED test before the GREEN implementation.
+
+| ID | Title | Slice | File(s) | Type | Description | Test command | Acceptance | Commit | Dependency | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| T-RPT-001 | Add shared-kernel port for `TransactionRepositoryPort` (read-only surface) | reports-domain | `src/shared/domain-kernel/ports/transaction-repository-port.ts` (new) · `src/shared/domain-kernel/index.ts` (modified, +4 lines) | infra | New kernel port at `src/shared/domain-kernel/ports/transaction-repository-port.ts` re-exports the transactions port's `list` shape (read-only — never `create` / `update` / `delete`). Adds 4 lines to the kernel barrel. §2.2.1 of the design. The structural subtyping rule keeps the full transactions port assignable to the narrower kernel port. | `pnpm test src/shared/domain-kernel` | (1) `pnpm typecheck` exits 0; (2) kernel barrel exports `TransactionRepositoryPort`; (3) no runtime test (compile-time seam). | `feat(reports-domain): add kernel port for transaction read surface` | — | pending |
+| T-RPT-002 | RED: port contract test asserts `userId` first on every `ReportsRepositoryPort` method | reports-domain | `src/modules/reports/domain/ports/reports-repository.port.test.ts` (new) | red | Compile-time contract test. The test imports `ReportsRepositoryPort` and constructs a `vi.fn()` mock satisfying the interface; `tsc` enforces the contract. The test fails because the port file does not exist yet. | `pnpm test src/modules/reports/domain/ports/reports-repository.port.test.ts` | (1) Test fails with "cannot find module"; (2) failure reason is "feature missing", not a typo. | `test(reports-domain): port contract test asserts userId-first on every method` | T-RPT-001 | pending |
+| T-RPT-003 | GREEN: declare `ReportsRepositoryPort` (3 methods, all `userId` first) | reports-domain | `src/modules/reports/domain/ports/reports-repository.port.ts` (new) | green | Implements the port type with `findByUserAndMonth`, `findByUserAndMonthForBreakdown`, `findByUserAccountAndRange`. All three return `Promise<readonly TransactionDTO[]>`. All three take `userId` first (BR-TX-4 cross-module invariant carried). | `pnpm test src/modules/reports/domain/ports/reports-repository.port.test.ts` | (1) Port contract test passes; (2) `pnpm typecheck` exits 0. | `feat(reports-domain): add ReportsRepositoryPort interface` | T-RPT-002 | pending |
+| T-RPT-004 | GREEN: declare `ReportSubscriberPort` (1 method `onTransactionRecorded`) | reports-domain | `src/modules/reports/domain/ports/report-subscriber.port.ts` (new) · `src/modules/reports/domain/ports/report-subscriber.port.test.ts` (new) | green | Opaque `Unsubscribe = () => void` handle. The single method `onTransactionRecorded(handler: (event: TransactionRecordedPayload) => void \| Promise<void>): Unsubscribe` declares the seam for the no-op handler (REQ-RPT-7). Compile-time contract test included. | `pnpm test src/modules/reports/domain/ports/report-subscriber.port.test.ts` | (1) Contract test passes; (2) `pnpm typecheck` exits 0. | `feat(reports-domain): add ReportSubscriberPort interface` | T-RPT-001 | pending |
+| T-RPT-005 | RED: `MonthlySummary` factory test asserts grouping + invariants | reports-domain | `src/modules/reports/domain/aggregates/monthly-summary.test.ts` (new) | red | Tests (per §11.1 of the design): (1) groups by `convertedCurrency`; (2) returns `totals: []` when no rows; (3) `incomeMinor >= 0`, `expenseMinor >= 0`, `netMinor === incomeMinor - expenseMinor` invariant; (4) `generatedAt === clock.now()`; (5) throws `ReportsDomainError` when month out of range. Test fails because the factory does not exist. | `pnpm test src/modules/reports/domain/aggregates/monthly-summary.test.ts` | (1) Test fails with "cannot find module"; (2) `pnpm typecheck` exits 0. | `test(reports-domain): monthly-summary factory test asserts grouping + invariants` | T-RPT-003 | pending |
+| T-RPT-006 | GREEN: implement `MonthlySummary` aggregate + factory | reports-domain | `src/modules/reports/domain/aggregates/monthly-summary.ts` (new) | green | Implements `MonthlySummary` + `MonthlyTotals` interfaces and `createMonthlySummary` factory per §3.2 of the design. The factory calls `Clock.now()` (no `new Date()` in domain code). | `pnpm test src/modules/reports/domain/aggregates/monthly-summary.test.ts` | (1) All 5 tests pass; (2) `pnpm typecheck` exits 0. | `feat(reports-domain): add MonthlySummary aggregate with factory` | T-RPT-005 | pending |
+| T-RPT-007 | TRIANGULATE: edge cases (multi-currency, leap-year Feb, sparse rows) | reports-domain | `src/modules/reports/domain/aggregates/monthly-summary.test.ts` (modified, +5 cases) | triangulate | Adds (1) leap-year Feb (29 days) assertion; (2) sparse row (single transaction in 31-day month); (3) cross-currency weight (ARS + USD totals distinct); (4) signed minor units (negative `convertedAmountMinor` from a refund row reduces `netMinor`); (5) `null` memo + `null` category preserved verbatim in the row but does not appear on `MonthlyTotals` (memo/category is per-row, not per-bucket). | `pnpm test src/modules/reports/domain/aggregates/monthly-summary.test.ts` | (1) All 10 tests pass; (2) coverage on `monthly-summary.ts` ≥ 80%. | `test(reports-domain): monthly-summary edge cases — leap-year, sparse, cross-currency` | T-RPT-006 | pending |
+| T-RPT-008 | RED → GREEN: `CategoryBreakdown` aggregate with `normalizeCategory` | reports-domain | `src/modules/reports/domain/aggregates/category-breakdown.ts` (new) · `src/modules/reports/domain/aggregates/category-breakdown.test.ts` (new) | red+green | Tests: (1) lowercases + trims via `normalizeCategory`; (2) null/empty category → `'uncategorized'`; (3) groups by `(categoryNormalized, convertedCurrency)` tuple; (4) sorts by `amountMinor DESC` primary, `categoryNormalized ASC` secondary; (5) zero-count buckets dropped. RED first, then GREEN implements the factory + the free function. | `pnpm test src/modules/reports/domain/aggregates/category-breakdown.test.ts` | (1) All tests pass; (2) `pnpm typecheck` exits 0. | `feat(reports-domain): add CategoryBreakdown aggregate with normalization + sort` | T-RPT-006 | pending |
+| T-RPT-009 | RED → GREEN: `AccountFlow` aggregate with sparse-day omission + running balance | reports-domain | `src/modules/reports/domain/aggregates/account-flow.ts` (new) · `src/modules/reports/domain/aggregates/account-flow.test.ts` (new) | red+green | Tests: (1) UTC midnight anchoring (`fromDate → 00:00:00.000Z`, `toDate → 23:59:59.999Z`); (2) cuid regex on `accountId` (defense in depth); (3) sparse days omitted; (4) running balance = `prev.running + this.net`; (5) throws `InvalidDateRangeError` when `toDate - fromDate > 366 days`; (6) throws `InvalidAccountIdError` when `accountId` fails the cuid regex. | `pnpm test src/modules/reports/domain/aggregates/account-flow.test.ts` | (1) All tests pass; (2) cuid regex enforced; (3) `pnpm typecheck` exits 0. | `feat(reports-domain): add AccountFlow aggregate with sparse-day omission + running balance` | T-RPT-006 | pending |
+| T-RPT-010 | GREEN: pure aggregator service `aggregateMonthly` / `aggregateCategoryBreakdown` / `aggregateAccountFlow` | reports-domain | `src/modules/reports/domain/services/aggregate-transactions.ts` (new) · `src/modules/reports/domain/services/aggregate-transactions.test.ts` (new) | green | Pure functions; zero I/O; consumed by the actions in slice 2. Each function takes `readonly TransactionDTO[]` + `Clock` and returns the `{ field, generatedAt }` shape. Co-located test asserts cross-user row isolation in the aggregator output (the port filters, the aggregator trusts — but the test asserts the trust contract). | `pnpm test src/modules/reports/domain/services/aggregate-transactions.test.ts` | (1) All tests pass; (2) no `new Date()` in `aggregate-transactions.ts` (only `clock.now()`). | `feat(reports-domain): add pure aggregator services + cross-user isolation test` | T-RPT-006, T-RPT-008, T-RPT-009 | pending |
+| T-RPT-011 | GREEN: domain errors + `Month` value object | reports-domain | `src/modules/reports/domain/errors/*.ts` (5 new files) · `src/modules/reports/domain/value-objects/month.ts` (new) · `src/modules/reports/domain/value-objects/month.test.ts` (new) | green | `ReportsDomainError` base class + 4 subclasses (`InvalidMonthError`, `InvalidAccountIdError`, `InvalidDateRangeError`, `AccountNotFoundError`). `Month` value object (`YYYY-MM` regex + bounds; derives UTC `fromDate` / `toDate`). Co-located `month.test.ts` asserts the regex + bounds. | `pnpm test src/modules/reports/domain/value-objects/month.test.ts` | (1) All month tests pass; (2) errors extend `ReportsDomainError`; (3) `pnpm typecheck` exits 0. | `feat(reports-domain): add domain errors and Month value object` | T-RPT-003 | pending |
+| T-RPT-012 | GREEN: domain barrel + barrel surface contract test | reports-domain | `src/modules/reports/domain/index.ts` (new) · `src/modules/reports/domain/index.test.ts` (new) | green | Public domain barrel: re-exports the three aggregates + their types, the two ports, the five error classes, the `Month` value object, and the aggregator service. Barrel surface contract test (mirrors `src/modules/auth/index.test.ts`) asserts the exact set of exported names. | `pnpm test src/modules/reports/domain/index.test.ts` | (1) Barrel surface test passes; (2) no infrastructure exports from the domain barrel. | `feat(reports-domain): add domain barrel + barrel surface contract test` | T-RPT-006, T-RPT-008, T-RPT-009, T-RPT-010, T-RPT-011 | pending |
+
+### Slice 2 — `reports-application` (12 tasks)
+
+> All schemas and actions follow RED → GREEN → TRIANGULATE. The
+> InMemoryReportsRepository fixture reuses `InMemoryTransactionRepository`
+> from the transactions module.
+
+| ID | Title | Slice | File(s) | Type | Description | Test command | Acceptance | Commit | Dependency | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| T-RPT-101 | RED: `monthlySummaryQuerySchema` test asserts month regex + bounds | reports-application | `src/modules/reports/application/schemas/monthly-summary-query.schema.test.ts` (new) | red | Tests (per §5.6 of the design): (1) parses `{ month: '2026-06' }`; (2) rejects `{ month: '2026-13' }` (out of bounds); (3) rejects `{ month: 'foo' }` (regex fail); (4) rejects unknown keys (`.strict()`); (5) rejects `{ month: '' }`. Test fails because the schema does not exist. | `pnpm test src/modules/reports/application/schemas/monthly-summary-query.schema.test.ts` | (1) Test fails with "cannot find module"; (2) `pnpm typecheck` exits 0. | `test(reports-application): monthly-summary-query schema test` | — | pending |
+| T-RPT-102 | GREEN: implement `monthlySummaryQuerySchema` | reports-application | `src/modules/reports/application/schemas/monthly-summary-query.schema.ts` (new) | green | Implements the Zod schema per §5.6: `month: z.string().regex(/^\d{4}-\d{2}$/).refine((m) => { const month = Number.parseInt(m.slice(5, 7), 10); return month >= 1 && month <= 12; }, { message: 'month must be 01..12' })`. `.strict()` modifier. | `pnpm test src/modules/reports/application/schemas/monthly-summary-query.schema.test.ts` | (1) All 5 tests pass; (2) `pnpm typecheck` exits 0. | `feat(reports-application): monthly-summary-query schema` | T-RPT-101 | pending |
+| T-RPT-103 | RED: `accountFlowQuerySchema` test asserts cuid regex + month/range union | reports-application | `src/modules/reports/application/schemas/account-flow-query.schema.test.ts` (new) | red | Tests: (1) `{ accountId: 'c<20-char-cuid>', month: '2026-06' }` parses; (2) `{ accountId: 'not-a-cuid', month: '2026-06' }` fails with `VALIDATION_ERROR`; (3) `{ accountId, fromDate, toDate }` parses; (4) `{ fromDate: '2026-12-01', toDate: '2026-01-01' }` fails (fromDate > toDate); (5) `{ month: '2026-06', fromDate: '2026-06-01' }` fails (cannot mix month + range). | `pnpm test src/modules/reports/application/schemas/account-flow-query.schema.test.ts` | (1) All tests fail because schema missing; (2) `pnpm typecheck` exits 0. | `test(reports-application): account-flow-query schema test asserts cuid + union` | T-RPT-102 | pending |
+| T-RPT-104 | GREEN: implement `accountFlowQuerySchema` with cuid regex + month/range union | reports-application | `src/modules/reports/application/schemas/account-flow-query.schema.ts` (new) | green | Implements per §5.6: `accountId: z.string().regex(/^c[a-z0-9]{20,32}$/)` (orchestrator correction #1), `month` OR `fromDate` + `toDate` union, `fromDate <= toDate` refine. The 366-day upper bound is a service-level check (T-RPT-108); Zod does not have a built-in date-math primitive. | `pnpm test src/modules/reports/application/schemas/account-flow-query.schema.test.ts` | (1) All 5 tests pass; (2) cuid regex enforced; (3) `pnpm typecheck` exits 0. | `feat(reports-application): account-flow-query schema (cuid regex per orchestrator correction #1)` | T-RPT-103 | pending |
+| T-RPT-105 | GREEN: `categoryBreakdownQuerySchema` + tests | reports-application | `src/modules/reports/application/schemas/category-breakdown-query.schema.ts` (new) · `src/modules/reports/application/schemas/category-breakdown-query.schema.test.ts` (new) | green | Same shape as monthly (month-keyed) but a separate file for forward-compatibility (a future `?limit=100` filter attaches here without bleeding into monthly). Co-located test asserts the same 5 cases as T-RPT-101. | `pnpm test src/modules/reports/application/schemas/category-breakdown-query.schema.test.ts` | (1) All tests pass; (2) `pnpm typecheck` exits 0. | `feat(reports-application): category-breakdown-query schema` | T-RPT-102 | pending |
+| T-RPT-106 | RED: `InMemoryReportsRepository` fixture test | reports-application | `src/modules/reports/application/fixtures/reports-repository.inmemory.test.ts` (new) | red | Tests the in-memory fixture: (1) delegates `findByUserAndMonth` to `InMemoryTransactionRepository.list`; (2) cross-user rows not returned (trust-the-port contract); (3) `findByUserAccountAndRange` filters by `accountId` + date range; (4) empty range returns `[]`. Test fails because the fixture does not exist. | `pnpm test src/modules/reports/application/fixtures/reports-repository.inmemory.test.ts` | (1) Test fails; (2) `pnpm typecheck` exits 0. | `test(reports-application): in-memory reports repository fixture test` | T-RPT-001 (kernel port) | pending |
+| T-RPT-107 | GREEN: implement `InMemoryReportsRepository` fixture | reports-application | `src/modules/reports/application/fixtures/reports-repository.inmemory.ts` (new) | green | Composes `InMemoryTransactionRepository` from the transactions module for the underlying data source. Implements `ReportsRepositoryPort`. NOT exported from the public barrel (per design §2.3). | `pnpm test src/modules/reports/application/fixtures/reports-repository.inmemory.test.ts` | (1) All tests pass; (2) cross-user isolation verified. | `feat(reports-application): in-memory reports repository fixture` | T-RPT-106 | pending |
+| T-RPT-108 | RED: `getMonthlySummaryAction` tests cover empty / mixed-currency / cross-user | reports-application | `src/modules/reports/application/actions/get-monthly-summary.action.test.ts` (new) | red | Tests (per §5.3 of the design + §11.2): (1) returns `200` + `MonthlySummaryDTO` on valid month; (2) returns `200 { totals: [] }` for empty user; (3) returns `400 VALIDATION_ERROR` on bad month; (4) cross-user rows do not appear in the response. Test fails because the action does not exist. | `pnpm test src/modules/reports/application/actions/get-monthly-summary.action.test.ts` | (1) All tests fail with "cannot find module"; (2) `pnpm typecheck` exits 0. | `test(reports-application): get-monthly-summary action tests` | T-RPT-102, T-RPT-107 | pending |
+| T-RPT-109 | GREEN: implement `getMonthlySummaryAction` + local `_shared.ts` | reports-application | `src/modules/reports/application/actions/get-monthly-summary.action.ts` (new) · `src/modules/reports/application/actions/_shared.ts` (new) | green | The action follows §5.3: parse → port call → factory → DTO mapper → `ActionResult`. The local `_shared.ts` exports `ReportsActionDeps`, `ActionResult<T>`, `zodErrorToActionError`, `domainErrorToActionError`. Modules-isolated rule (root `AGENTS.md` §10.5): does NOT import `@/modules/transactions/application/actions/_shared.ts`. | `pnpm test src/modules/reports/application/actions/get-monthly-summary.action.test.ts` | (1) All 4 tests pass; (2) `pnpm typecheck` exits 0. | `feat(reports-application): get-monthly-summary action + local _shared.ts` | T-RPT-108 | pending |
+| T-RPT-110 | RED → GREEN: `getCategoryBreakdownAction` + `getAccountFlowAction` | reports-application | `src/modules/reports/application/actions/get-category-breakdown.action.ts` (new) · `src/modules/reports/application/actions/get-category-breakdown.action.test.ts` (new) · `src/modules/reports/application/actions/get-account-flow.action.ts` (new) · `src/modules/reports/application/actions/get-account-flow.action.test.ts` (new) | red+green | Per §5.4 and §5.5. The flow action tests cover (1) cross-user 404 (`AccountRepositoryPort.findById` returns null); (2) sparse days; (3) range > 366 days returns `VALIDATION_ERROR`; (4) valid month returns `200 + AccountFlowDTO`; (5) valid range returns `200 + AccountFlowDTO`. RED first, then GREEN implements both actions. | `pnpm test src/modules/reports/application/actions/get-category-breakdown.action.test.ts` `pnpm test src/modules/reports/application/actions/get-account-flow.action.test.ts` | (1) All tests pass; (2) `pnpm typecheck` exits 0; (3) 366-day check enforced in the flow action. | `feat(reports-application): get-category-breakdown + get-account-flow actions` | T-RPT-104, T-RPT-107, T-RPT-109 | pending |
+| T-RPT-111 | GREEN: DTO mappers + tests (3 mappers, 3 tests) | reports-application | `src/modules/reports/application/dto/{monthly-summary,category-breakdown,account-flow}.dto.ts` (3 new files) · `src/modules/reports/application/dto/*.test.ts` (3 new files) | green | Mappers per §3 + §5.7 of the design: Date → ISO-8601 string on the wire; `convertedCurrency` preserved; `null` memo/category preserved verbatim. Co-located tests assert (1) date stringification; (2) null preservation; (3) round-trip through the factory. | `pnpm test src/modules/reports/application/dto/` | (1) All mapper tests pass; (2) wire shape matches the design §9.2 example. | `feat(reports-application): DTO mappers + tests` | T-RPT-109, T-RPT-110 | pending |
+| T-RPT-112 | TRIANGULATE: integration test that exercises all three actions against `InMemoryReportsRepository` | reports-application | `src/modules/reports/application/integration.test.ts` (new) | triangulate | End-to-end-style test: seeds `InMemoryTransactionRepository` with mixed-currency rows for user `u1` + cross-user rows for user `u2`; asserts the three actions return the expected DTOs with no cross-user leakage. This is the acceptance gate for the application layer. | `pnpm test src/modules/reports/application/integration.test.ts` | (1) Integration test passes; (2) coverage on `src/modules/reports/application/` ≥ 80%. | `test(reports-application): integration test for all three actions against InMemoryReportsRepository` | T-RPT-110, T-RPT-111 | pending |
+
+### Slice 3 — `reports-routes` (10 tasks)
+
+> Wired through the composition root. The Prisma adapter test uses
+> testcontainers Postgres (skipped if no DB, per the existing
+> transactions pattern).
+
+| ID | Title | Slice | File(s) | Type | Description | Test command | Acceptance | Commit | Dependency | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| T-RPT-201 | RED: `noop-transaction-recorded` handler test | reports-routes | `src/modules/reports/infrastructure/subscribers/noop-transaction-recorded.subscriber.test.ts` (new) | red | Tests per §11.3: (1) returns `void` without throwing on a sample `TransactionRecordedPayload`; (2) calls `logger.debug` with the `reports.noop.transaction-recorded` event name + `{ userId, transactionId }` payload. Test fails because the handler does not exist. | `pnpm test src/modules/reports/infrastructure/subscribers/noop-transaction-recorded.subscriber.test.ts` | (1) Test fails; (2) `pnpm typecheck` exits 0. | `test(reports-routes): noop handler test asserts void + debug log` | T-RPT-004 | pending |
+| T-RPT-202 | GREEN: implement `createNoopHandler` | reports-routes | `src/modules/reports/infrastructure/subscribers/noop-transaction-recorded.subscriber.ts` (new) | green | Per §6.2 of the design. The factory returns `async (event: TransactionRecordedPayload): Promise<void> => { logger.debug('reports.noop.transaction-recorded', { userId, transactionId }); }`. No side effects beyond the debug log. | `pnpm test src/modules/reports/infrastructure/subscribers/noop-transaction-recorded.subscriber.test.ts` | (1) Test passes; (2) `pnpm typecheck` exits 0. | `feat(reports-routes): noop transaction-recorded handler` | T-RPT-201 | pending |
+| T-RPT-203 | GREEN: composition-root wires the noop handler | reports-routes | `src/composition/build-app-deps.ts` (modified, +5 lines) | wiring | Adds `dispatcher.subscribe('TransactionRecorded', createNoopHandler(logger))` exactly once in `buildAppDeps` after `buildReportsDeps` returns. Per BR-RPT-5. | `pnpm test src/composition/build-app-deps.test.ts` (after T-RPT-205 lands) | (1) Subscriber count assertion (T-RPT-205) passes; (2) `pnpm typecheck` exits 0. | `feat(reports-routes): composition-root wires noop handler exactly once` | T-RPT-202 | pending |
+| T-RPT-204 | RED: subscriber-count assertion in `build-app-deps.test.ts` | reports-routes | `src/composition/build-app-deps.test.ts` (modified, +30 lines) | red | Test asserts `dispatcher.subscriberCount('TransactionRecorded') === before + 1` after `buildAppDeps()` returns. Test fails because either the subscriber-count accessor does not exist yet (T-RPT-205) OR the wiring (T-RPT-203) is missing. | `pnpm test src/composition/build-app-deps.test.ts` | (1) Test fails; (2) `pnpm typecheck` exits 0. | `test(reports-routes): subscriber-count assertion in build-app-deps.test.ts` | T-RPT-203 | pending |
+| T-RPT-205 | GREEN: subscriber-count accessor on `EventDispatcher` (or test-only adapter) | reports-routes | `src/shared/events/event-dispatcher.ts` (modified, +1 method) OR `src/composition/build-app-deps.test.ts` (modified, +5 line adapter) | green | The implementer picks the lighter touch: (a) add a `subscriberCount(type: DomainEventType): number` method to `EventDispatcher` (production-code change, single line); OR (b) keep the dispatcher private and add a test-only adapter inside `build-app-deps.test.ts` (test-only code, no production change). The design §6.3 prefers (a) but flags (b) as acceptable. | `pnpm test src/composition/build-app-deps.test.ts` | (1) Subscriber-count assertion passes; (2) no behaviour change to the dispatcher's public API beyond the count accessor. | `feat(reports-routes): subscriberCount accessor on EventDispatcher` | T-RPT-204 | pending |
+| T-RPT-206 | RED: `ReportsRepositoryPrisma` integration test (testcontainers) | reports-routes | `src/modules/reports/infrastructure/repositories/reports.repository.prisma.test.ts` (new) | red | Tests against testcontainers Postgres (mirrors the transactions pattern at `src/modules/transactions/infrastructure/repositories/transaction.repository.prisma.test.ts`). Skipped if no DB. Tests: (1) `findByUserAndMonth` delegates to `TransactionRepositoryPort.list` with the UTC month window; (2) cross-user returns `[]`; (3) `findByUserAccountAndRange` filters by `accountId` + date range. Test fails because the adapter does not exist. | `pnpm test src/modules/reports/infrastructure/repositories/reports.repository.prisma.test.ts` | (1) Test passes when DB available; (2) skipped gracefully when no DB; (3) `pnpm typecheck` exits 0. | `test(reports-routes): ReportsRepositoryPrisma integration test (testcontainers)` | T-RPT-003 | pending |
+| T-RPT-207 | GREEN: implement `ReportsRepositoryPrisma` | reports-routes | `src/modules/reports/infrastructure/repositories/reports.repository.prisma.ts` (new) | green | Per §6.1 of the design. Constructs UTC month windows via `Date.UTC(year, month - 1, 1)` / `Date.UTC(year, month, 1)`. Delegates to `TransactionRepositoryPort.list` + `AccountRepositoryPort.findById`. | `pnpm test src/modules/reports/infrastructure/repositories/reports.repository.prisma.test.ts` | (1) Integration test passes; (2) `pnpm typecheck` exits 0. | `feat(reports-routes): ReportsRepositoryPrisma adapter` | T-RPT-206 | pending |
+| T-RPT-208 | RED: Hono integration test — 401 unauth / 200 seeded / 400 bad month / 404 cross-user | reports-routes | `src/modules/reports/application/routes.test.ts` (new) | red | Per §7.3 of the design. The test mounts `mountReportsRoutes(protectedApp, { reportsDeps: inMemoryDeps })` against an in-process Hono instance; uses `honoApp.request(new Request(...))`. Covers: (1) `GET /api/reports/monthly` 401 without session; (2) `GET /api/reports/monthly?month=2026-06` 200 + correct shape; (3) `GET /api/reports/monthly?month=foo` 400 `VALIDATION_ERROR`; (4) `GET /api/reports/breakdown?month=2026-06` 200; (5) `GET /api/reports/accounts/<cross-user-account>/flow` 404; (6) `GET /api/reports/accounts/<own-account>/flow?month=2026-06` 200; (7) range > 366 days 400. Test fails because `mountReportsRoutes` is not exported yet. | `pnpm test src/modules/reports/application/routes.test.ts` | (1) All tests fail; (2) `pnpm typecheck` exits 0. | `test(reports-routes): Hono integration test — 401 / 200 / 400 / 404 paths` | T-RPT-104, T-RPT-110, T-RPT-111, T-RPT-107 | pending |
+| T-RPT-209 | GREEN: implement `mountReportsRoutes(protectedApp, deps)` factory | reports-routes | `src/modules/reports/application/routes.ts` (modified, factory exported) | green | Per §7.2 of the design. The factory mounts the three routes on `protectedApp`. The composition root calls it in `createHonoApp` (T-RPT-210). `deps.reportsDeps` is optional — mirrors the transactions pattern so legacy accounts-only setups keep compiling. | `pnpm test src/modules/reports/application/routes.test.ts` | (1) All 7 tests pass; (2) `pnpm typecheck` exits 0. | `feat(reports-routes): mountReportsRoutes factory + Hono integration test passes` | T-RPT-208 | pending |
+| T-RPT-210 | WIRING + DOCS: mount routes in `createHonoApp` + module barrel + JSDoc on each route handler | reports-routes | `src/composition/create-hono-app.ts` (modified, +3 lines) · `src/modules/reports/index.ts` (new) | wiring+docs | (1) `createHonoApp` calls `mountReportsRoutes(protectedApp, { reportsDeps: deps.reportsDeps })` after the transactions mount and before `app.route('/', protectedApp)`. (2) `src/modules/reports/index.ts` re-exports `mountReportsRoutes`, `MountReportsRoutesDeps`, `ReportsActionDeps`, the port types, the aggregate types, the DTO types. Does NOT export the Prisma adapter, the InMemory fixture, or the noop handler. (3) Inline JSDoc on each route handler pointing back to REQ-RPT-N. | `pnpm test src/modules/reports/application/routes.test.ts` `pnpm run typecheck` `pnpm run lint` | (1) `pnpm run build` exits 0; (2) `pnpm run typecheck` exits 0; (3) `pnpm test src/composition/build-app-deps.test.ts` passes. | `feat(reports-routes): wire mount into createHonoApp + module barrel + inline JSDoc` | T-RPT-203, T-RPT-205, T-RPT-209 | pending |
+
+### Slice 4 — `dashboard-ui` (8 tasks)
+
+> Pure presentational components + one RSC page. No `'use client'`
+> directives; no client hooks.
+
+| ID | Title | Slice | File(s) | Type | Description | Test command | Acceptance | Commit | Dependency | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| T-RPT-301 | RED: `report-types.ts` test asserts wire shapes | dashboard-ui | `app/_lib/report-types.test.ts` (new) | red | Tests assert the wire-shape types match the action-layer DTOs: `MonthlySummaryDTO` has `{ totals: MonthlyTotalsDTO[]; generatedAt: string }`; `CategoryBreakdownDTO` has `{ buckets: CategoryBucketDTO[]; generatedAt: string }`; `AccountFlowDTO` has `{ days: AccountFlowDayDTO[]; generatedAt: string }`. Test fails because the file does not exist. | `pnpm test app/_lib/report-types.test.ts` | (1) Test fails; (2) `pnpm typecheck` exits 0. | `test(dashboard-ui): report-types wire shape test` | T-RPT-111 | pending |
+| T-RPT-302 | GREEN: implement `report-types.ts` (DTO mirror for RSC) | dashboard-ui | `app/_lib/report-types.ts` (new) | green | Mirrors the application-layer DTOs verbatim. No logic, just types for RSC consumption. Mirrors `app/_lib/transaction-types.ts`. | `pnpm test app/_lib/report-types.test.ts` | (1) Wire shape test passes; (2) types match the action-layer DTOs. | `feat(dashboard-ui): report-types.ts wire shapes` | T-RPT-301 | pending |
+| T-RPT-303 | RED → GREEN: `MonthlySummaryCard` snapshot (empty + populated) | dashboard-ui | `app/_components/dashboard-monthly-summary.tsx` (new) · `app/_components/dashboard-monthly-summary.test.tsx` (new) | red+green | Per §9.3 of the design. Server Component. Two snapshot tests: empty `totals: []` (asserts "Sin datos" + "Resumen mensual" in HTML) and populated (two rows, ARS + USD, asserting the `<table>` shape and the UTC month label). RED first, then GREEN. | `pnpm test app/_components/dashboard-monthly-summary.test.tsx` | (1) Both snapshots pass; (2) UTC label surfaces in the rendered HTML; (3) `pnpm typecheck` exits 0. | `feat(dashboard-ui): MonthlySummaryCard with empty + populated snapshots` | T-RPT-302 | pending |
+| T-RPT-304 | RED → GREEN: `CategoryBreakdownCard` snapshot (empty + populated, sorted DESC) | dashboard-ui | `app/_components/dashboard-category-breakdown.tsx` (new) · `app/_components/dashboard-category-breakdown.test.tsx` (new) | red+green | Server Component. Renders the buckets table sorted by `amountMinor DESC`. Two snapshots: empty + populated (3 buckets, asserts sort order). | `pnpm test app/_components/dashboard-category-breakdown.test.tsx` | (1) Both snapshots pass; (2) sort order asserted; (3) `pnpm typecheck` exits 0. | `feat(dashboard-ui): CategoryBreakdownCard with empty + populated snapshots` | T-RPT-302 | pending |
+| T-RPT-305 | RED → GREEN: `AccountFlowCard` snapshot (always empty in v1) | dashboard-ui | `app/_components/dashboard-account-flow.tsx` (new) · `app/_components/dashboard-account-flow.test.tsx` (new) | red+green | Server Component. v1 always renders empty (`days: []`) because the dashboard does NOT deep-link to an account in v1. Single snapshot test asserts the "Sin datos" empty state. | `pnpm test app/_components/dashboard-account-flow.test.tsx` | (1) Snapshot passes; (2) `pnpm typecheck` exits 0. | `feat(dashboard-ui): AccountFlowCard empty snapshot (v1 does not deep-link)` | T-RPT-302 | pending |
+| T-RPT-306 | RED: `app/dashboard/page.test.tsx` — empty + seeded fixture snapshots | dashboard-ui | `app/dashboard/page.test.tsx` (new) | red | Tests use a fixture that injects a session + three pre-seeded DTOs (`MonthlySummaryDTO`, `CategoryBreakdownDTO`, `AccountFlowDTO`). Two snapshots: empty user (three "Sin datos" cards + CTA) and seeded user (three populated cards). Test fails because `page.tsx` does not exist. | `pnpm test app/dashboard/page.test.tsx` | (1) Test fails; (2) `pnpm typecheck` exits 0. | `test(dashboard-ui): dashboard page empty + seeded snapshot test` | T-RPT-303, T-RPT-304, T-RPT-305 | pending |
+| T-RPT-307 | GREEN: implement `app/dashboard/page.tsx` RSC | dashboard-ui | `app/dashboard/page.tsx` (new) | green | Per §9.2 of the design. RSC, `force-dynamic`. Resolves session via `auth()`; calls `/api/reports/monthly` and `/api/reports/breakdown` in parallel via `serverHonoRequest`; renders the three cards or the empty-state CTA. Each card surfaces the "(UTC)" label. The CTA links to `/transactions/new`. | `pnpm test app/dashboard/page.test.tsx` | (1) Both snapshots pass; (2) `pnpm run build` exits 0; (3) `pnpm typecheck` exits 0. | `feat(dashboard-ui): app/dashboard/page.tsx RSC with three-card grid + empty CTA` | T-RPT-306 | pending |
+| T-RPT-308 | DOCS: surface "(UTC)" label on each card; link CTA to `/transactions/new` | dashboard-ui | `app/_components/dashboard-monthly-summary.tsx` (modified, +2 lines) · `app/_components/dashboard-category-breakdown.tsx` (modified, +2 lines) · `app/_components/dashboard-account-flow.tsx` (modified, +2 lines) · `app/dashboard/page.tsx` (modified, +1 line) | docs | Inline comments on each card explaining the "(UTC)" bucketing decision (per design §3.6 and BR-RPT-3). The CTA already links to `/transactions/new` per §9.2; the doc task confirms the link is in place. | `pnpm test app/dashboard/page.test.tsx` `pnpm test app/_components/dashboard-*.test.tsx` | (1) UTC label appears in all three card snapshots; (2) CTA link is `/transactions/new`; (3) `pnpm typecheck` exits 0. | `docs(dashboard-ui): surface (UTC) label on each card + CTA doc comment` | T-RPT-307 | pending |
+
+---
+
+## Per-slice summary
+
+| Slice | Branch | Tasks | LoC range | PR title (conventional) | Verification gate | Rollback |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 — `reports-domain` | `feat/reports-1-domain` | 12 (4 red, 5 green, 1 red+green, 1 triangulate, 1 infra) | 180–280 | `feat(reports-domain): add reports domain layer (aggregates, ports, errors, value objects)` | `pnpm test src/modules/reports/domain` exits 0; coverage ≥ 80% | `git revert <merge-sha>` (kernel port deletion is non-breaking; only `reports` imports it) |
+| 2 — `reports-application` | `feat/reports-2-application` | 12 (5 red, 6 green, 1 red+green, 1 triangulate) | 220–340 | `feat(reports-application): add reports application layer (schemas, actions, DTOs, fixtures)` | `pnpm test src/modules/reports/application` exits 0; coverage ≥ 80% | `git revert <merge-sha>` (application layer is additive; no callers until slice 3) |
+| 3 — `reports-routes` | `feat/reports-3-routes` | 10 (4 red, 4 green, 1 wiring, 1 wiring+docs) | 160–260 | `feat(reports-routes): wire reports routes + composition root + noop subscriber` | `pnpm test src/modules/reports/application/routes.test.ts` exits 0; `pnpm test src/composition/build-app-deps.test.ts` exits 0 with subscriber-count assertion | `git revert <merge-sha>` (routes are additive; no callers until slice 4) |
+| 4 — `dashboard-ui` | `feat/reports-4-dashboard-ui` | 8 (3 red, 4 green, 1 red+green, 1 docs) | 200–320 | `feat(dashboard-ui): add dashboard RSC with three reports cards + empty CTA` | `pnpm test app/_components/dashboard-*.test.tsx app/dashboard/page.test.tsx` exits 0; manual `pnpm dev` smoke | `git revert <merge-sha>` (dashboard route is additive; 404s if visited when slice reverted) |
+| **Total** | — | **42** | **760–1200** | — | — | — |
+
+---
+
+## Forecast (consumed by the orchestrator's Review Workload Guard)
+
+```
+Decision needed before apply: No
+Chained PRs recommended: Yes
+Chain strategy: stacked-to-main
+400-line budget risk: Low (per slice) · High (collapsed)
+```
+
+- **Chained PRs recommended**: Yes
+- **400-line budget risk per slice**: Low (each slice's LoC band sits under 400 net additions)
+- **400-line budget risk if collapsed into one PR**: High (760–1200 LoC)
+- **Decision needed before apply**: No (scope locked at design §10)
+- **Per-slice branch names**: `feat/reports-1-domain`, `feat/reports-2-application`, `feat/reports-3-routes`, `feat/reports-4-dashboard-ui`
+- **Per-slice PR titles** (conventional commit form):
+  - Slice 1: `feat(reports-domain): add reports domain layer (aggregates, ports, errors, value objects)`
+  - Slice 2: `feat(reports-application): add reports application layer (schemas, actions, DTOs, fixtures)`
+  - Slice 3: `feat(reports-routes): wire reports routes + composition root + noop subscriber`
+  - Slice 4: `feat(dashboard-ui): add dashboard RSC with three reports cards + empty CTA`
+- **Per-slice verification gate** (the test commands that must pass):
+  - Slice 1: `pnpm test src/modules/reports/domain` (coverage ≥ 80%)
+  - Slice 2: `pnpm test src/modules/reports/application` (coverage ≥ 80%)
+  - Slice 3: `pnpm test src/modules/reports/application/routes.test.ts` + `pnpm test src/composition/build-app-deps.test.ts` (subscriber-count assertion)
+  - Slice 4: `pnpm test app/_components/dashboard-*.test.tsx app/dashboard/page.test.tsx` (snapshot tests) + manual `pnpm dev` smoke
+- **Rollback strategy**: `git revert <merge-sha>` per slice. Each slice is additive; the rollback removes only that slice's changes.
+
+---
+
+## Strict TDD discipline (per-slice guards)
+
+- Every `green` task is preceded by a matching `red` task in the same slice (see T-RPT-005→006, T-RPT-101→102, T-RPT-103→104, T-RPT-108→109, T-RPT-201→202, T-RPT-204→205, T-RPT-206→207, T-RPT-208→209, T-RPT-301→302, T-RPT-306→307).
+- Every behavior-codifying task has a `triangulate` step (T-RPT-007, T-RPT-112).
+- The RED test runs and FAILS for the right reason ("cannot find module" / "feature missing", not a typo). The GREEN task runs and PASSES without breaking existing tests.
+- `pnpm run typecheck` exits 0 at every commit boundary (TypeScript strict mode; no `any`).
+- `pnpm run lint` exits 0 at every commit boundary (max-warnings 0).
+- `pnpm run build` exits 0 before each PR opens.
+
+---
+
+## Cross-cutting risks (flagged for the apply worker)
+
+1. **Carry-over BRs by reference** (design §12.1). The spec keeps BR-ACC-12, BR-TX-4, BR-TX-7, BR-TX-9 by **reference** rather than inlining their text. This is an intentional convention (matches the transactions archive). Flagging so the reviewer does not flag it as drift.
+2. **366-day range upper bound** (design §12.2). The Zod schema does NOT enforce the 366-day cap — it's a service-level check inside `getAccountFlowAction`. The apply worker MUST add the assertion in T-RPT-110.
+3. **cuid regex on `accountId`** (design §12.3, orchestrator correction #1). The Zod schema at `account-flow-query.schema.ts` validates `accountId` with `/^c[a-z0-9]{20,32}$/`. The factory in `account-flow.ts` also enforces the regex (defense in depth).
+4. **No-op subscriber could mask a wiring bug** (design §12.5). The subscriber-count assertion in `build-app-deps.test.ts` (T-RPT-204/205) is the only safety net.
+5. **Strict TDD risk** (design §12.6). The apply worker MUST watch every RED test fail before writing the GREEN implementation. The PR template (`.github/pull_request_template.md`) requires the reviewer to confirm the RED commit landed before the GREEN commit.
+6. **Zero-accounts sentinel** (design §12.7). `GET /api/reports/monthly` returns `200 { totals: [] }` for a user with zero accounts (NOT 404). The dashboard's empty-state branch handles both zero-accounts and zero-transactions uniformly.
+7. **Public barrel normalization** (design §12.8). `src/modules/reports/index.ts` is the public surface; the transactions module uses `src/modules/transactions/application/index.ts`. Out-of-scope for v1; flagging so the reviewer does not flag it as inconsistency.
+
+---
+
+## Test infrastructure prerequisites
+
+Before any slice-1 task can land, the following test seams must exist. Every entry cites the file:line where the existing pattern lives.
+
+| Prerequisite | Where it lives today | What task creates it |
+| --- | --- | --- |
+| `InMemoryTransactionRepository` (used by slice 2 fixture composition) | `src/modules/transactions/infrastructure/fixtures/in-memory-transaction.repository.ts` | No new file; imported directly by T-RPT-107. |
+| `systemClock` import for `Clock` injection in tests | `src/shared/clock/system-clock.ts` | Imported directly in T-RPT-005/006; no new setup. |
+| `EventDispatcher.subscriberCount` accessor OR test-only adapter | Does not exist today. `src/shared/events/event-dispatcher.ts:55-84` exposes `subscribers` as a private map. | T-RPT-205 (implementer picks the lighter touch). |
+| `asPrismaDelegateView` helper for the Prisma adapter | `src/shared/db/prisma-types.ts` | Imported directly in T-RPT-207; no new setup. |
+| `react-dom/server.renderToStaticMarkup` for snapshot tests | Already a dev dependency per `package.json` | Imported directly in T-RPT-303/304/305/306; no new setup. |
+| Testcontainers Postgres fixture (for the Prisma repository test) | The `accounts` Prisma repository test uses a similar fixture at `src/modules/accounts/infrastructure/repositories/account.repository.prisma.migration.test.ts` | Reuse the existing fixture from `account.repository.prisma.migration.test.ts` (copy the helper into T-RPT-206). |
+
+---
+
+## Open questions for the apply worker
+
+None. All five design questions locked at the pre-design session (proposal §"Open questions" Q1-Q5) are codified in the spec and the design carries them verbatim. The three orchestrator corrections (cuid regex, carry-over BRs, 366 days) are baked into the tasks without renegotiation.
