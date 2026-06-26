@@ -23,6 +23,7 @@ export default defineConfig({
         'src/modules/auth/**',
         'src/modules/accounts/**',
         'src/modules/fx/**',
+        'src/modules/reports/**',
         'src/shared/db/**',
         'src/shared/env/**',
         'src/shared/logger/**',
