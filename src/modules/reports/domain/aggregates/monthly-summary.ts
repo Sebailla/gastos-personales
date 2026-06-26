@@ -24,23 +24,18 @@
  * `create-transaction.ts` factory).
  */
 
-import type { AccountCurrency } from '@/shared/domain-kernel';
 import type { TransactionDTO } from '@/shared/domain-kernel';
 import type { Clock } from '@/shared/clock/clock.port';
 import { InvalidMonthError } from '../errors/invalid-month-error';
+import { aggregateMonthly, type MonthlyTotals } from '../services/aggregate-transactions';
 
 /**
- * The per-currency totals row. `incomeMinor` and `expenseMinor`
- * are always `>= 0`; the sign lives on `netMinor` (which is
- * `incomeMinor - expenseMinor`).
+ * Re-export the `MonthlyTotals` shape so downstream consumers
+ * (the DTO mapper, the public barrel) import from this
+ * aggregate module. The canonical declaration lives in the
+ * service layer (`aggregate-transactions.ts`).
  */
-export interface MonthlyTotals {
-  readonly convertedCurrency: AccountCurrency;
-  readonly incomeMinor: number;
-  readonly expenseMinor: number;
-  readonly netMinor: number;
-  readonly count: number;
-}
+export type { MonthlyTotals };
 
 /**
  * The aggregate. `totals` is empty when no rows in the window
@@ -100,59 +95,15 @@ export function createMonthlySummary(input: CreateMonthlySummaryInput): MonthlyS
     );
   }
 
-  // Group by `convertedCurrency`. The Map's insertion order
-  // reflects the order in which currencies are first observed
-  // in the input rows; the wire layer (slice 2) sorts for a
-  // stable response.
-  const buckets = new Map<AccountCurrency, MonthlyTotals>();
-
-  for (const row of input.rows) {
-    const existing = buckets.get(row.convertedCurrency);
-    const isIncome = row.direction === 'INCOME';
-    const isExpense = row.direction === 'EXPENSE';
-    if (existing === undefined) {
-      // `convertedAmountMinor` is signed (negative for refunds
-      // — see REQ-TX-1 + BR-ACC-12). The `incomeMinor` and
-      // `expenseMinor` fields are always `>= 0`; `Math.abs`
-      // strips the sign so a refund row still counts as an
-      // EXPENSE magnitude. The sign lives on `netMinor`
-      // (income - expense, can be negative).
-      const incomeMinor = isIncome ? Math.abs(row.convertedAmountMinor) : 0;
-      const expenseMinor = isExpense ? Math.abs(row.convertedAmountMinor) : 0;
-      buckets.set(row.convertedCurrency, {
-        convertedCurrency: row.convertedCurrency,
-        incomeMinor,
-        expenseMinor,
-        netMinor: incomeMinor - expenseMinor,
-        count: 1,
-      });
-    } else {
-      // Compute the next bucket state. We rebuild the
-      // MonthlyTotals object immutably (the interface is
-      // `readonly`; the Map entry is replaced).
-      const incomeMinor =
-        existing.incomeMinor + (isIncome ? Math.abs(row.convertedAmountMinor) : 0);
-      const expenseMinor =
-        existing.expenseMinor + (isExpense ? Math.abs(row.convertedAmountMinor) : 0);
-      const netMinor = incomeMinor - expenseMinor;
-      const count = existing.count + 1;
-      buckets.set(row.convertedCurrency, {
-        convertedCurrency: existing.convertedCurrency,
-        incomeMinor,
-        expenseMinor,
-        netMinor,
-        count,
-      });
-    }
-  }
-
-  const totals: MonthlyTotals[] = Array.from(buckets.values());
+  // Delegate the pure shape derivation to the service layer.
+  // The factory adds userId / year / month context.
+  const { totals, generatedAt } = aggregateMonthly(input.rows, input.clock);
 
   return {
     userId: input.userId,
     year: input.year,
     month: input.month,
     totals,
-    generatedAt: input.clock.now(),
+    generatedAt,
   };
 }

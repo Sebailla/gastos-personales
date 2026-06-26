@@ -32,31 +32,23 @@
  *   call in the read path.
  */
 
-import type { AccountCurrency } from '@/shared/domain-kernel';
 import type { TransactionDTO } from '@/shared/domain-kernel';
 import type { Clock } from '@/shared/clock/clock.port';
 import { InvalidAccountIdError } from '../errors/invalid-account-id-error';
 import { InvalidDateRangeError } from '../errors/invalid-date-range-error';
+import { aggregateAccountFlow, type AccountFlowDay } from '../services/aggregate-transactions';
+
+/**
+ * Re-export the `AccountFlowDay` shape so downstream consumers
+ * (the DTO mapper, the public barrel) import from this
+ * aggregate module. The canonical declaration lives in the
+ * service layer (`aggregate-transactions.ts`).
+ */
+export type { AccountFlowDay };
 
 const CUID_RE = /^c[a-z0-9]{20,32}$/;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const MAX_RANGE_DAYS = 366;
-
-/**
- * The per-day point. `date` is the UTC `YYYY-MM-DD` key (no
- * time component). `netMinor` is the net change for the date
- * only (sign preserved — INCOME positive, EXPENSE negative).
- * `runningBalanceMinor` is the cumulative net up to and
- * including `date`. `count` is the number of transactions on
- * `date` (always `> 0` — sparse days are omitted).
- */
-export interface AccountFlowDay {
-  readonly date: string;
-  readonly netMinor: number;
-  readonly runningBalanceMinor: number;
-  readonly count: number;
-  readonly convertedCurrency: AccountCurrency;
-}
 
 /**
  * The aggregate. `days` is sorted by `date` ASC; sparse days
@@ -89,9 +81,8 @@ export interface CreateAccountFlowInput {
  * Build an `AccountFlow` from the port's `TransactionDTO[]`
  * output. Validates the `accountId` (cuid regex) and the date
  * range (366-day upper bound), normalizes the range to UTC
- * midnight boundaries, groups by `(date, convertedCurrency)`,
- * omits sparse days, and computes the cumulative running
- * balance.
+ * midnight boundaries, then delegates the pure shape derivation
+ * to `aggregateAccountFlow` (the service layer).
  */
 export function createAccountFlow(input: CreateAccountFlowInput): AccountFlow {
   // Defense in depth — the action layer's Zod parse is the
@@ -131,63 +122,11 @@ export function createAccountFlow(input: CreateAccountFlowInput): AccountFlow {
     );
   }
 
-  // Group rows by `(YYYY-MM-DD UTC, convertedCurrency)`. The
-  // Map's key encodes both fields; the value carries the
-  // aggregated state.
-  interface DayBucket {
-    date: string; // YYYY-MM-DD
-    convertedCurrency: AccountCurrency;
-    netMinor: number;
-    count: number;
-  }
-  const buckets = new Map<string, DayBucket>();
-
-  for (const row of input.rows) {
-    const td = row.transactionDate;
-    const dateKey = dateToUtcKey(td);
-    const k = `${dateKey}|${row.convertedCurrency}`;
-    const existing = buckets.get(k);
-    if (existing === undefined) {
-      buckets.set(k, {
-        date: dateKey,
-        convertedCurrency: row.convertedCurrency,
-        netMinor: row.convertedAmountMinor,
-        count: 1,
-      });
-    } else {
-      existing.netMinor += row.convertedAmountMinor;
-      existing.count += 1;
-    }
-  }
-
-  // Build the days array, sorted by date ASC. Compute the
-  // running balance cumulatively per-currency — the
-  // `runningByCurrency` map tracks each currency's running
-  // balance separately, so the running balance RESETS to that
-  // currency's first observation when a new currency appears.
-  // v1 assumes a single `convertedCurrency` per account
-  // (design §3.4.1 last bullet); cross-currency mixes
-  // therefore maintain independent running balances per
-  // currency (no cross-currency aggregation).
-  const sortedBuckets = Array.from(buckets.values()).sort((a, b) => {
-    if (a.date !== b.date) return a.date < b.date ? -1 : 1;
-    // Within the same date, group by currency for stable order.
-    return a.convertedCurrency < b.convertedCurrency ? -1 : 1;
-  });
-
-  let runningByCurrency = new Map<AccountCurrency, number>();
-  const days: AccountFlowDay[] = sortedBuckets.map((b) => {
-    const prev = runningByCurrency.get(b.convertedCurrency) ?? 0;
-    const next = prev + b.netMinor;
-    runningByCurrency.set(b.convertedCurrency, next);
-    return {
-      date: b.date,
-      netMinor: b.netMinor,
-      runningBalanceMinor: next,
-      count: b.count,
-      convertedCurrency: b.convertedCurrency,
-    };
-  });
+  // The service layer's pure derivation does NOT throw on
+  // invalid inputs; it assumes the rows are pre-filtered to
+  // the (accountId, date range) by the caller. The factory's
+  // input validation above is the boundary.
+  const { days, generatedAt } = aggregateAccountFlow(input.rows, input.clock);
 
   return {
     userId: input.userId,
@@ -195,18 +134,6 @@ export function createAccountFlow(input: CreateAccountFlowInput): AccountFlow {
     fromDate: normalizedFrom,
     toDate: normalizedTo,
     days,
-    generatedAt: input.clock.now(),
+    generatedAt,
   };
-}
-
-/**
- * Convert a `Date` to a UTC `YYYY-MM-DD` key. Uses the UTC
- * components to anchor the date — the factory's range
- * normalization uses the same UTC components for consistency.
- */
-function dateToUtcKey(d: Date): string {
-  const year = d.getUTCFullYear().toString().padStart(4, '0');
-  const month = (d.getUTCMonth() + 1).toString().padStart(2, '0');
-  const day = d.getUTCDate().toString().padStart(2, '0');
-  return `${year}-${month}-${day}`;
 }

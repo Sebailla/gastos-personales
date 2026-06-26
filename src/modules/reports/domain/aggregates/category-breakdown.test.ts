@@ -27,11 +27,8 @@ import { describe, it, expect } from 'vitest';
 import { AccountCurrency } from '@/shared/domain-kernel';
 import type { TransactionDTO } from '@/shared/domain-kernel';
 import type { Clock } from '@/shared/clock/clock.port';
-import {
-  createCategoryBreakdown,
-  normalizeCategory,
-  type CategoryBreakdown,
-} from './category-breakdown';
+import { createCategoryBreakdown, type CategoryBreakdown } from './category-breakdown';
+import { normalizeCategory } from '../services/aggregate-transactions';
 
 const fixedClock: Clock = {
   now: () => new Date('2026-06-30T12:00:00.000Z'),
