@@ -72,14 +72,13 @@ const FIXTURES_BY_PREFIX: ReadonlyArray<readonly [string, () => Response]> = [
   ['/api/reports/monthly', () => new Response(JSON.stringify(SEEDED_MONTHLY), { status: 200 })],
   ['/api/reports/breakdown', () => new Response(JSON.stringify(SEEDED_BREAKDOWN), { status: 200 })],
 ];
-
-const mockServerHonoRequest = vi.fn(async (path: string) => {
+const mockServerHonoRequest = vi.fn(async (path: string, _init: RequestInit = {}) => {
   const match = FIXTURES_BY_PREFIX.find(([prefix]) => path.startsWith(prefix));
   return match ? match[1]() : new Response('not found', { status: 404 });
 });
 
 vi.mock('@/lib/server-hono', () => ({
-  serverHonoRequest: (path: string, init?: RequestInit) => mockServerHonoRequest(path, init),
+  serverHonoRequest: (path: string, init: RequestInit = {}) => mockServerHonoRequest(path, init),
 }));
 
 import DashboardPage from './page';
@@ -102,12 +101,14 @@ describe('DashboardPage — seeded user (dashboard-ui T-RPT-306)', () => {
     // The flow endpoint is NEVER called in v1.
     const flowCalls = mockServerHonoRequest.mock.calls.filter(([p]) => String(p).includes('/flow'));
     expect(flowCalls).toHaveLength(0);
-    // Both monthly and breakdown were fetched.
-    expect(mockServerHonoRequest).toHaveBeenCalledWith(
-      expect.stringContaining('/api/reports/monthly'),
-    );
-    expect(mockServerHonoRequest).toHaveBeenCalledWith(
-      expect.stringContaining('/api/reports/breakdown'),
-    );
+    // Both monthly and breakdown were fetched. We inspect the
+    // mock's call log directly rather than toHaveBeenCalledWith
+    // to keep the assertion pure (the page calls the helper
+    // with (path, init?) and Vitest's argument matcher needs
+    // every positional arg to match — easier to read the call
+    // log here).
+    const calledPaths = mockServerHonoRequest.mock.calls.map(([p]) => String(p));
+    expect(calledPaths.some((p) => p.startsWith('/api/reports/monthly'))).toBe(true);
+    expect(calledPaths.some((p) => p.startsWith('/api/reports/breakdown'))).toBe(true);
   });
 });

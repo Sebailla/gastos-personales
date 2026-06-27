@@ -63,14 +63,13 @@ const FIXTURES_BY_PREFIX: ReadonlyArray<readonly [string, () => Response]> = [
   ['/api/reports/monthly', () => new Response(JSON.stringify(EMPTY_MONTHLY), { status: 200 })],
   ['/api/reports/breakdown', () => new Response(JSON.stringify(EMPTY_BREAKDOWN), { status: 200 })],
 ];
-
-const mockServerHonoRequest = vi.fn(async (path: string) => {
+const mockServerHonoRequest = vi.fn(async (path: string, _init: RequestInit = {}) => {
   const match = FIXTURES_BY_PREFIX.find(([prefix]) => path.startsWith(prefix));
   return match ? match[1]() : new Response('not found', { status: 404 });
 });
 
 vi.mock('@/lib/server-hono', () => ({
-  serverHonoRequest: (path: string, init?: RequestInit) => mockServerHonoRequest(path, init),
+  serverHonoRequest: (path: string, init: RequestInit = {}) => mockServerHonoRequest(path, init),
 }));
 
 // Import AFTER the mocks are registered.
