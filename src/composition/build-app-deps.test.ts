@@ -12,11 +12,16 @@
  * (3) `deps.clock()` returns a `Date` - the slice-3 binding
  *     pins `clock: () => Date` (a function returning a
  *     Date), not the project's full `Clock` interface.
+ *
+ * Plus slice 3 (reports): the noop subscriber wiring
+ * (REQ-RPT-7, BR-RPT-5). The dispatcher is process-wide;
+ * capture the before count to assert `after === before + 1`.
  */
 
 import { describe, it, expect } from 'vitest';
-import { buildTransactionDeps } from '@/composition/build-app-deps';
+import { buildAppDeps, buildTransactionDeps } from '@/composition/build-app-deps';
 import { TransactionRepositoryPrisma } from '@/modules/transactions/infrastructure/repositories/transaction.repository.prisma';
+import { dispatcher } from '@/shared/events/event-dispatcher';
 
 describe('buildTransactionDeps (slice 5 DI factory extension)', () => {
   it('returns an object with every TransactionActionDeps field', () => {
@@ -37,5 +42,17 @@ describe('buildTransactionDeps (slice 5 DI factory extension)', () => {
   it('deps.clock returns a Date', () => {
     const deps = buildTransactionDeps();
     expect(deps.clock()).toBeInstanceOf(Date);
+  });
+});
+
+describe('buildAppDeps (slice 3 noop subscriber wiring)', () => {
+  it('subscribes exactly one noop handler for TransactionRecorded (REQ-RPT-7, BR-RPT-5)', () => {
+    // The dispatcher is process-wide; capture the before
+    // count so a previous test that already wired the
+    // subscriber does not affect the assertion.
+    const before = dispatcher.subscriberCount('TransactionRecorded');
+    buildAppDeps();
+    const after = dispatcher.subscriberCount('TransactionRecorded');
+    expect(after).toBe(before + 1);
   });
 });

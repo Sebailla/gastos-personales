@@ -81,6 +81,18 @@ export class EventDispatcher<E extends DomainEvent = DomainEvent> {
     }
     return count;
   }
+
+  /**
+   * Test seam — returns the number of registered subscribers
+   * for the given event type. Used by
+   * `src/composition/build-app-deps.test.ts` to assert the
+   * composition root wires the noop handler exactly once
+   * (REQ-RPT-7, BR-RPT-5). Production code does NOT call this
+   * method; it exists for the assertion only.
+   */
+  subscriberCount(type: E['type']): number {
+    return this.subscribers.get(type)?.size ?? 0;
+  }
 }
 
 /** Process-wide singleton. The auth module publishes; other modules subscribe. */

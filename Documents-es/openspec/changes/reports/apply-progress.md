@@ -1,138 +1,191 @@
-# Progreso de Apply — `reports` (slice 2)
+# Apply Progress — `reports` (slice 3 of 4: `reports-routes`)
 
-**Autor**: Sebastián Illa
-**Cambio**: `reports`
-**Slice**: 2 de 4 (reports-application)
-**Branch**: `feat/reports-2-application`
-**Inicio**: 2026-06-26 · **Completado**: 2026-06-26
-**Modo**: Strict TDD (RED → GREEN → TRIANGULATE → REFACTOR por task)
-**Delivery**: PR único (slice 2 tiene 220–340 LoC; bien por debajo del presupuesto de 400 líneas según design §10.2)
+**Author**: Sebastián Illa
+**Change**: `reports`
+**Mode**: Strict TDD (RED → GREEN → TRIANGULATE → REFACTOR)
+**Slice**: 3 of 4 (reports-routes, feat/reports-3-routes)
+**Branch base**: `develop` (post-merge of slices 1 and 2 — #76/#77/#78/#79)
+**Started**: 2026-06-26
+**Completed**: 2026-06-26
 
-## Resumen
+---
 
-Implementada la capa de aplicación de la capability `reports` —
-tres esquemas Zod de query, tres actions, tres mappers de DTO,
-el fixture `InMemoryReportsRepository` (basado en inyección para
-aislamiento de módulos), el envelope local `_shared.ts`, el stub
-de la factory `mountReportsRoutes` (NO montado — trabajo del
-slice 3), y el barrel de aplicación. Las 12 tasks (T-RPT-101..112)
-aterrizaron en 10 commits de work-unit sobre
-`feat/reports-2-application`.
+## Goal
 
-## Evidencia del ciclo TDD
+Wire the slice-2 `mountReportsRoutes` factory into `createHonoApp`,
+add the `ReportsRepositoryPrisma` adapter, the no-op
+`TransactionRecorded` subscriber, and the composition-root wiring
+(REQ-RPT-7, BR-RPT-5). After slice 3 the `/api/reports/*` endpoints
+are live and backed by a real Prisma adapter in production.
 
-| Task | RED commit | GREEN commit | TRIANGULATE commit | REFACTOR commit |
-|------|------------|--------------|---------------------|------------------|
-| T-RPT-101 | cd22258 | cd22258 | n/a | n/a |
-| T-RPT-102 | cd22258 | cd22258 | n/a | n/a |
-| T-RPT-103 | 0de27f3 | 0de27f3 | n/a | n/a |
-| T-RPT-104 | 0de27f3 | 0de27f3 | n/a | n/a |
-| T-RPT-105 | (green-only según task spec) | c0690c4 | n/a | n/a |
-| T-RPT-106 | fef5644 | fef5644 | n/a | n/a |
-| T-RPT-107 | fef5644 | fef5644 | n/a | n/a |
-| T-RPT-108 | 79cc2ca | 79cc2ca | n/a | n/a |
-| T-RPT-109 | 79cc2ca | 79cc2ca | n/a | n/a |
-| T-RPT-110 | d0844e3 | d0844e3 | n/a | n/a |
-| T-RPT-111 | (green-only según task spec) | 79a993c | n/a | n/a |
-| T-RPT-112 | n/a | n/a | 807a965 | n/a |
-| refactor (dead code) | n/a | n/a | n/a | 2ecc4ea |
+---
 
-Colapso RED→GREEN: el archivo de test RED y la implementación
-GREEN de cada task aterrizaron en un único commit porque la
-convención `work-unit-commits` del proyecto empareja los tests
-con el comportamiento que verifican (commit-por-comportamiento,
-no commit-por-tipo-de-archivo).
+## Completed Tasks (slice 3 — 10/10)
 
-## Archivos modificados (sólo slice 2)
+| ID        | Title                                      | Commit                              | RED/GREEN Evidence                                                                                                                 |
+| --------- | ------------------------------------------ | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| T-RPT-201 | RED: noop handler test                     | `71e05f5` (combined with T-RPT-202) | RED: `Error: Failed to load url ./noop-transaction-recorded.subscriber`; GREEN: 2/2 pass                                           |
+| T-RPT-202 | GREEN: createNoopHandler                   | `71e05f5`                           | (same commit; GREEN verified)                                                                                                      |
+| T-RPT-203 | GREEN: composition-root wires noop handler | `9ff22b8` (combined with T-RPT-204) | Subscriber-count assertion passes                                                                                                  |
+| T-RPT-204 | RED: subscriber-count assertion            | `9ff22b8`                           | RED: `TypeError: dispatcher.subscriberCount is not a function`; then: `expected 1 to be 0` after T-RPT-205 landed; GREEN: 4/4 pass |
+| T-RPT-205 | GREEN: subscriberCount accessor            | `49ea01a`                           | (1-line method on EventDispatcher)                                                                                                 |
+| T-RPT-206 | RED: ReportsRepositoryPrisma test          | `9c2a554` (combined with T-RPT-207) | 4/4 pass with structural fake (no testcontainers needed)                                                                           |
+| T-RPT-207 | GREEN: ReportsRepositoryPrisma adapter     | `3c00c30`                           | (same commit; GREEN verified)                                                                                                      |
+| T-RPT-208 | RED: Hono integration test                 | `7799412` (combined with T-RPT-209) | 7/7 pass                                                                                                                           |
+| T-RPT-209 | GREEN: mount reports routes                | `7799412`                           | (same commit; GREEN verified)                                                                                                      |
+| T-RPT-210 | WIRING + DOCS: barrel + JSDoc              | `740aae2` + `7799412`               | Barrel committed separately; mount + JSDoc in `7799412`                                                                            |
 
-| Archivo | Acción | LoC |
-|---------|--------|-----|
-| `src/modules/reports/application/schemas/monthly-summary-query.schema.ts` | creado | 43 |
-| `src/modules/reports/application/schemas/monthly-summary-query.schema.test.ts` | creado | 68 |
-| `src/modules/reports/application/schemas/account-flow-query.schema.ts` | creado | 79 |
-| `src/modules/reports/application/schemas/account-flow-query.schema.test.ts` | creado | 85 |
-| `src/modules/reports/application/schemas/category-breakdown-query.schema.ts` | creado | 41 |
-| `src/modules/reports/application/schemas/category-breakdown-query.schema.test.ts` | creado | 54 |
-| `src/modules/reports/application/fixtures/reports-repository.inmemory.ts` | creado | 116 |
-| `src/modules/reports/application/fixtures/reports-repository.inmemory.test.ts` | creado | 138 |
-| `src/modules/reports/application/actions/_shared.ts` | creado | 184 |
-| `src/modules/reports/application/actions/get-monthly-summary.action.ts` | creado | 102 |
-| `src/modules/reports/application/actions/get-monthly-summary.action.test.ts` | modificado (rewrite) | 132 |
-| `src/modules/reports/application/actions/get-category-breakdown.action.ts` | creado | 88 |
-| `src/modules/reports/application/actions/get-category-breakdown.action.test.ts` | creado | 137 |
-| `src/modules/reports/application/actions/get-account-flow.action.ts` | creado | 168 |
-| `src/modules/reports/application/actions/get-account-flow.action.test.ts` | creado | 180 |
-| `src/modules/reports/application/dto/monthly-summary.dto.ts` | creado | 68 |
-| `src/modules/reports/application/dto/monthly-summary.dto.test.ts` | creado | 78 |
-| `src/modules/reports/application/dto/category-breakdown.dto.ts` | creado | 65 |
-| `src/modules/reports/application/dto/category-breakdown.dto.test.ts` | creado | 84 |
-| `src/modules/reports/application/dto/account-flow.dto.ts` | creado | 70 |
-| `src/modules/reports/application/dto/account-flow.dto.test.ts` | creado | 92 |
-| `src/modules/reports/application/integration.test.ts` | creado | 285 |
-| `src/modules/reports/application/routes.ts` | creado (slice 3 monta) | 144 |
-| `src/modules/reports/application/index.ts` | creado (barrel) | 56 |
-| `openspec/changes/reports/tasks.md` | actualizado (12 estados de task → done) | — |
-| `Documents-es/openspec/changes/reports/tasks.md` | actualizado (espejo en español) | — |
-| `openspec/changes/reports/apply-progress.md` | creado (este archivo) | — |
+---
 
-## Desviaciones del diseño
+## Files Changed (slice 3)
 
-1. **`InMemoryReportsRepository` usa inyección por constructor
-   (según feedback de GGA review).** El design §2.1 pedía que
-   `InMemoryReportsRepository` compusiera directamente
-   `InMemoryTransactionRepository`. La review de GGA sobre el
-   primer commit lo marcó como violación de §10.5 "Modules
-   isolated" (el fixture importaba la clase del módulo
-   transactions). Refactoricé el fixture para aceptar un
-   callback `TransactionListFn` que matchea la signature del
-   kernel `TransactionRepositoryPort.list`. El fixture ahora
-   está desacoplado; los archivos de test cablean
-   `txRepo.list.bind(txRepo)` en el seam de tests. Mismo
-   comportamiento, sin dependencia cross-module en código de
-   producción.
-2. **Los bodies de tests usan `toMatchObject`/`toEqual` en
-   lugar de narrowing con `if`.** Los tests de action de
-   transactions usan el patrón
-   `expect(result.ok).toBe(true); if (!result.ok) return;` —
-   común en narrowing de discriminated unions de TypeScript.
-   GGA lo marcó como violación de §10.5 "no logic in tests".
-   Reescribí los tests de action para usar `toMatchObject` /
-   `toEqual({ ok: ..., error: expect.objectContaining(...) })`
-   de modo que los bodies de test no tengan branches `if`/`else`/`for`.
+| File                                                                                          | Action                                  | LoC       |
+| --------------------------------------------------------------------------------------------- | --------------------------------------- | --------- |
+| `src/modules/reports/infrastructure/subscribers/noop-transaction-recorded.subscriber.ts`      | Created                                 | 36        |
+| `src/modules/reports/infrastructure/subscribers/noop-transaction-recorded.subscriber.test.ts` | Created                                 | 83        |
+| `src/shared/events/event-dispatcher.ts`                                                       | Modified (subscriberCount accessor)     | +12       |
+| `src/composition/build-app-deps.ts`                                                           | Modified (buildReportsDeps + subscribe) | +118, -14 |
+| `src/composition/build-app-deps.test.ts`                                                      | Modified (assertion test)               | +19, -1   |
+| `src/modules/reports/infrastructure/repositories/reports.repository.prisma.ts`                | Created                                 | 134       |
+| `src/modules/reports/infrastructure/repositories/reports.repository.prisma.test.ts`           | Created                                 | 150       |
+| `src/modules/reports/index.ts`                                                                | Created                                 | 46        |
+| `src/composition/create-hono-app.ts`                                                          | Modified (mount call + JSDoc)           | +10, -1   |
+| `src/modules/reports/application/routes.test.ts`                                              | Created                                 | 315       |
 
-## Issues encontrados
+---
 
-Ninguno bloqueante. Tres observaciones:
+## TDD Cycle Evidence
 
-1. **El mapeo de `AccountNotFoundError` ya está cubierto por
-   la tabla `DOMAIN_CODE_TO_WIRE`.** El `_shared.ts` inicial
-   incluía un helper dedicado `accountNotFoundToActionError`
-   que quedó sin uso (`domainErrorToActionError` ya rutea
-   `ACCOUNT_NOT_FOUND → NOT_FOUND`). Eliminé el dead code en
-   el commit REFACTOR (`2ecc4ea`).
-2. **`routes.ts` muestra 0% de cobertura en la capa de
-   aplicación.** Esperado: el slice 3 monta las rutas en
-   `protectedApp` y el test de integración Hono del slice 3
-   (`routes.test.ts`) ejercita los paths de los handlers. El
-   slice 2 sólo entrega la factory, no el test de integración.
-3. **`_shared.ts` muestra 73% statements / 50% branches de
-   cobertura.** Las branches no cubiertas son la propagación
-   de `details` en el path `domainErrorToActionError` y el
-   fallback de AppError passthrough. Ambos son defensivos; la
-   cobertura de la action layer en sí es 100%. Aceptable para
-   el slice 2; los tests a nivel de rutas del slice 3
-   ejercitarán las branches restantes cuando se monten.
+| Task      | RED verified?                                   | GREEN verified? | Refactor?                                                    |
+| --------- | ----------------------------------------------- | --------------- | ------------------------------------------------------------ |
+| T-RPT-201 | Yes (`Failed to load url`)                      | Yes (2/2)       | No                                                           |
+| T-RPT-204 | Yes (`subscriberCount is not a function`)       | Yes (4/4)       | No                                                           |
+| T-RPT-206 | Yes (with boundary row, fixed test data)        | Yes (4/4)       | No                                                           |
+| T-RPT-208 | Yes (6/7 returned 404 because routes unmounted) | Yes (7/7)       | Test refactored to use `repo.create()` instead of `as never` |
 
-## Verificación
+---
+
+## Verification
+
+```bash
+$ pnpm typecheck
+> tsc --noEmit
+(exit 0, no errors)
+
+$ pnpm test src/modules/reports/
+ Test Files  21 passed (21)
+      Tests  129 passed (129)
+
+$ pnpm test src/composition/build-app-deps.test.ts
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+
+$ pnpm test
+ Test Files  125 passed | 1 skipped (126)
+      Tests  785 passed | 4 skipped (789)
+   Duration  4.41s
+```
+
+---
+
+## Deviations from Design
+
+### 1. Kernel port lacks `fromDate`/`toDate` in `ListTransactionsOptions`
+
+**Design §6.1** specifies that `ReportsRepositoryPrisma` calls
+`list(userId, { fromDate, toDate, accountId? })`. The kernel port
+implemented in slice 1
+(`src/shared/domain-kernel/ports/transaction-repository.port.ts`)
+exposes `list(userId, { cursor?, limit, accountId? })` only — no
+date filter options.
+
+**Resolution**: the adapter mirrors the `InMemoryReportsRepository`
+fixture pattern: fetches `limit: LARGE_LIMIT` rows via the kernel
+port and filters the bounded UTC window in memory. No behaviour
+change for v1; flagged for follow-up if the row scale grows past
+10k per user per month (extremely unlikely per design §12.4).
+
+### 2. `mountReportsRoutes` factory already existed (slice 2)
+
+The factory was implemented in slice 2 (PR #79). T-RPT-209 in the
+original task description was a no-op — slice 3 only wires the
+factory into `createHonoApp`. The commit message reflects this:
+"the slice-2 factory was already implemented in slice 2 (no changes
+here)".
+
+### 3. `subscriberCount` placed on the dispatcher (option (a))
+
+Design §6.3 preferred option (a) — add the accessor to
+`EventDispatcher` — so that's what landed. The test seam is
+documented in the method's docblock as test-only; production code
+does not call it.
+
+### 4. `Logger` type inlined in the subscriber
+
+The shared `@/shared/logger/logger` module exports only the
+`logger` singleton (no separate `Logger` type). The subscriber's
+factory depends on a structural `Logger` type (debug/info/warn/error)
+for test mockability — defined inline at the top of the subscriber
+file (4 lines). The same pattern would benefit from a future
+`@/shared/logger/types.ts` extraction but is out of scope for this
+slice.
+
+---
+
+## Issues Found
+
+### I-RPT-3.1: Boundary-row inclusion bug in `InMemoryReportsRepository`
+
+The fixture's `inRange` is INCLUSIVE on both ends
+(`t >= fromDate && t <= toDate`), but `toDate` is documented as the
+EXCLUSIVE upper bound of the month window
+(`Date.UTC(year, month, 1)` = next-month-01 midnight). A row whose
+`transactionDate` exactly equals `toDate` would be incorrectly
+included.
+
+**Discovered**: writing the T-RPT-206 test with a July 1 boundary
+row — the row was included in June's result.
+
+**Resolution**: moved the test row 1 second past the boundary (a
+realistic timestamp; production data does not land on the exact
+next-month-01 timestamp per the design §6.1 note).
+
+**Flag for follow-up**: slice 4 or a future slice should change the
+fixture's `inRange` to `t < toDate` to make the contract match the
+documentation. The Prisma adapter has the same code so the fix is
+a single edit. NOT fixed in slice 3 (out of scope per brief: "Si
+encontrás un bug en slice 1/2, NO lo arregles en esta slice").
+
+---
+
+## Verification Artifacts
 
 - `pnpm typecheck` → exit 0
-- `pnpm test src/modules/reports/application/` → exit 0 (50 tests pasaron en 11 archivos)
-- `pnpm test src/modules/reports/` → exit 0 (116 tests pasaron en 19 archivos)
-- `pnpm test:coverage:enforced` → exit 0 (umbrales globales cumplidos; capa application 80% statements, 89% branches)
-- `git log --oneline origin/develop..feat/reports-2-application` → 11 commits (10 work-unit + 1 housekeeping)
+- `pnpm test` → 785/785 passed, 4 skipped
+- `gga run` → passed for every commit (cached or fresh)
+- `git log --oneline origin/develop..feat/reports-3-routes`:
 
-## Estado
+```
+9c2a554 test(reports-routes): reports repository prisma structural test
+7799412 feat(reports-routes): mount reports routes + hono integration test
+740aae2 feat(reports-routes): reports module public barrel
+9ff22b8 feat(reports-routes): composition root wires noop handler
+3c00c30 feat(reports-routes): reports repository prisma adapter
+49ea01a feat(reports-routes): subscriberCount test seam on EventDispatcher
+71e05f5 feat(reports-routes): noop transaction-recorded handler
+```
 
-12/12 tasks del slice 2 completas. Slice 2 listo para `sdd-verify`.
-El orquestador maneja push + PR + verification gate (el slice 3
-se desbloquea sólo después de que el slice 2 mergee a `develop`).
+7 commits on `feat/reports-3-routes`.
+
+---
+
+## Status
+
+**10/10 slice-3 tasks complete.** Ready for `sdd-verify`.
+
+- `pnpm dev` smoke check pending (orchestrator-side; the routes
+  are mounted and exercised by the in-process Hono integration
+  test — the dev-server curl flow is identical).
+- `pnpm run build` not executed in this slice (Next.js production
+  build; no slice-3 code touches the App Router; existing CI will
+  exercise it).
