@@ -1,6 +1,6 @@
 # Proposal — `reports`
 
-**Status**: draft · **Author**: Sebastián Illa
+**Status**: implemented · **Author**: Sebastián Illa
 **Created**: 2026-06-26 · **Target slice**: MVP-3 (aggregation surface)
 **Upstream**: `openspec/AGENTS.md` (project lifecycle) · `openspec/config.yaml` (`reports` capability slot reserved; strict TDD; auto-forecast, 400 lines)
 **Upstream**: global SDD preflight (interactive, both, auto-forecast, 400 lines; review budget 400)

@@ -1,6 +1,6 @@
 # Diseño — `reports`
 
-**Estado**: borrador · **Autor**: Sebastián Illa · **Creado**: 2026-06-26
+**Estado**: implementado · **Autor**: Sebastián Illa · **Creado**: 2026-06-26
 **Cambio**: `reports`
 **Propuesta**: `openspec/changes/reports/proposal.md` (v1, 2026-06-26)
 **Especificación (delta)**: `openspec/changes/reports/specs/reports/spec.md` (REQ-RPT-1 a REQ-RPT-7)
