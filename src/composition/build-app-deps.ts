@@ -38,6 +38,10 @@ import { AccountRepositoryPrisma } from '@/modules/accounts/infrastructure/repos
 import { DolarApiClient, FxRateProviderDolarApi, UpstashFxRateCache, withLock } from '@/modules/fx';
 import { TransactionRepositoryPrisma } from '@/modules/transactions/infrastructure/repositories/transaction.repository.prisma';
 import type { TransactionActionDeps } from '@/modules/transactions/application';
+import type { ReportsActionDeps } from '@/modules/reports';
+import { ReportsRepositoryPrisma } from '@/modules/reports/infrastructure/repositories/reports.repository.prisma';
+import { createNoopHandler } from '@/modules/reports/infrastructure/subscribers/noop-transaction-recorded.subscriber';
+import type { ReportSubscriberPort } from '@/modules/reports/domain/ports/report-subscriber.port';
 import { logger } from '@/shared/logger/logger';
 import type { AuthUser } from '@/modules/api/middlewares/variables';
 
@@ -80,6 +84,15 @@ export interface HonoAppDeps {
    * tests hermetic (no Prisma round-trip).
    */
   transactionDeps?: TransactionActionDeps;
+  /**
+   * Slice 3 (reports): the action-layer deps bag for the
+   * reports capability. The factory builds the real one
+   * (Prisma adapter + `ReportSubscriberPort` seam +
+   * shared dispatcher + clock + logger); tests inject a
+   * fake one with an in-memory repository to keep the
+   * route integration tests hermetic.
+   */
+  reportsDeps?: ReportsActionDeps;
 }
 
 /**
@@ -123,20 +136,34 @@ export function buildAppDeps(): HonoAppDeps {
   // wiring was a §10.5 violation - the api module used
   // to import AccountRepositoryPrisma from
   // @/modules/accounts/infrastructure/...).
-  const accountService = new AccountService(
-    new AccountRepositoryPrisma({
-      financialAccount: prismaView.financialAccount,
-    }),
-    fxProvider,
-    systemClock,
-  );
-  const transactionDeps = buildTransactionDeps(fxProvider);
+  const accountRepository = new AccountRepositoryPrisma({
+    financialAccount: prismaView.financialAccount,
+  });
+  const accountService = new AccountService(accountRepository, fxProvider, systemClock);
+  const transactionDeps = buildTransactionDeps(fxProvider, prismaView);
+  // BR-RPT-5: subscribe the noop TransactionRecorded
+  // handler at composition time so the future
+  // materializer can replace it in-place without an
+  // interface change. Registered AFTER all deps are
+  // built so the subscriber count assertion
+  // (REQ-RPT-7) sees exactly one new handler per
+  // `buildAppDeps()` call (subsequent calls add another
+  // — the test captures `before + 1` not `=== 1`).
+  const reportsDeps = buildReportsDeps({
+    txRepo: transactionDeps.repo,
+    accountRepo: accountRepository,
+    dispatcher,
+    logger,
+    clock: systemClock,
+  });
+  dispatcher.subscribe('TransactionRecorded', (event) => createNoopHandler(logger)(event.payload));
   return {
     authService,
     authjsAuth: async () => null,
     fxRateProvider: fxProvider,
     accountService,
     transactionDeps,
+    reportsDeps,
   };
 }
 
@@ -168,7 +195,10 @@ export function buildAppDeps(): HonoAppDeps {
  * passes the same instance the `AccountService`
  * consumes.
  */
-export function buildTransactionDeps(fxRateProvider?: FxRateProvider): TransactionActionDeps {
+export function buildTransactionDeps(
+  fxRateProvider?: FxRateProvider,
+  prismaView?: ReturnType<typeof asPrismaDelegateView>,
+): TransactionActionDeps {
   const fx: FxRateProvider =
     fxRateProvider ??
     new FxRateProviderDolarApi({
@@ -176,16 +206,73 @@ export function buildTransactionDeps(fxRateProvider?: FxRateProvider): Transacti
       lock: withLock,
       dolarApi: new DolarApiClient(),
     });
-  const prismaClientForView = prisma() as unknown as Parameters<typeof asPrismaDelegateView>[0];
-  const prismaView = asPrismaDelegateView(prismaClientForView);
+  const view =
+    prismaView ??
+    asPrismaDelegateView(prisma() as unknown as Parameters<typeof asPrismaDelegateView>[0]);
   return {
-    repo: new TransactionRepositoryPrisma({ transaction: prismaView.transaction }),
+    repo: new TransactionRepositoryPrisma({ transaction: view.transaction }),
     accountRepository: new AccountRepositoryPrisma({
-      financialAccount: prismaView.financialAccount,
+      financialAccount: view.financialAccount,
     }),
     clock: () => new Date(),
     logger,
     dispatcher,
     fxRateProvider: fx,
+  };
+}
+
+/**
+ * Build the `ReportsActionDeps` bag the slice-3 Hono
+ * routes consume.
+ *
+ * Composition (slice 3 binding):
+ * - `reportsRepository`: `ReportsRepositoryPrisma`
+ *   wired against the kernel's `TransactionRepositoryPort`
+ *   read surface (`TransactionRepositoryPrisma.list`
+ *   satisfies the narrower kernel port by structural
+ *   subtyping — the canonical port returns `Transaction[]`,
+ *   the kernel port expects `TransactionDTO[]`; the
+ *   reports domain consumes the DTO subset via the
+ *   adapter's mapper).
+ * - `accountRepository`: reuses the same Prisma-backed
+ *   instance the transactions and accounts services
+ *   consume (one connection pool, one factory).
+ * - `subscriber`: a thin port adapter over the central
+ *   dispatcher. The noop handler the composition root
+ *   registers IS the consumer of this seam in v1; the
+ *   future materializer swaps the handler in place.
+ * - `clock`, `logger`, `dispatcher`: process-wide
+ *   singletons.
+ *
+ * Per design §8.1.
+ */
+export function buildReportsDeps(args: {
+  txRepo: ConstructorParameters<typeof ReportsRepositoryPrisma>[0]['transactionRepository'];
+  accountRepo: import('@/shared/domain-kernel').AccountRepositoryPort;
+  dispatcher: import('@/shared/events/event-dispatcher').EventDispatcher;
+  logger: typeof logger;
+  clock: import('@/shared/clock/clock.port').Clock;
+}): ReportsActionDeps {
+  const reportsRepo = new ReportsRepositoryPrisma({
+    transactionRepository: args.txRepo,
+  });
+  const subscriber: ReportSubscriberPort = {
+    onTransactionRecorded: (handler) => {
+      args.dispatcher.subscribe('TransactionRecorded', (event) => handler(event.payload));
+      // The kernel dispatcher does not currently expose
+      // an `unsubscribe` method (see
+      // `EventDispatcher.subscribe`); the port's
+      // `Unsubscribe` handle is a forward-compatibility
+      // seam. v1 returns a no-op handle.
+      return () => undefined;
+    },
+  };
+  return {
+    reportsRepository: reportsRepo,
+    accountRepository: args.accountRepo,
+    subscriber,
+    clock: args.clock,
+    logger: args.logger,
+    dispatcher: args.dispatcher,
   };
 }

@@ -43,3 +43,11 @@ export type {
   AccountRepositoryPort,
   FinancialAccountFields,
 } from './ports/account-repository.port';
+
+export {
+  type TransactionRepositoryPort,
+  type TransactionDTO,
+  type TransactionDirectionLiteral,
+  type ListTransactionsOptions,
+  type ListTransactionsPage,
+} from './ports/transaction-repository.port';
