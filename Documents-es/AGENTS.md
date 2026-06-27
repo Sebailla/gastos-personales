@@ -367,6 +367,34 @@ its own.
 6. **Tag** — user creates the git tag (`git tag -a v1.4.2 -m
    "Release v1.4.2"; git push origin v1.4.2`). Agent does not tag.
 
+#### 5.5.1 Protocolo de override (§5.5 exención de emergencia)
+
+En casos raros el usuario puede pedir explícitamente al agente que
+realice los pasos 5 o 6 del release flow (abrir el release PR o
+taggear `main`). Esto se permite bajo el siguiente protocolo:
+
+1. **Pedido explícito** — el usuario debe nombrar el paso exacto
+   ("abrí el release PR", "taggeá v0.3.0") en su mensaje. Pedidos
+   implícitos o inferidos no califican.
+2. **Confirmación pre-acción** — el agente DEBE usar la herramienta
+   `question` para presentar la opción de override antes de actuar
+   (per §4.7). El usuario confirma seleccionando la opción de
+   override.
+3. **Trazabilidad de auditoría** — el agente DEBE documentar el
+   override en el body del PR o del commit. Formato:
+   > Per §4.7 de `AGENTS.md`, este PR/commit fue [abierto / taggeado]
+   > por el orquestador bajo override explícito del usuario de §5.5
+   > (que normalmente reserva [release PRs / main tagging] para el
+   > maintainer). Registrado acá por auditabilidad.
+4. **Alcance** — los overrides son de un solo uso. NO enmiendan §5.5
+   permanentemente. Un release futuro sin override explícito debe
+   seguir §5.5 normalmente.
+
+Este protocolo **no** es una licencia para que el agente abra PRs
+a `main` o taggee por iniciativa propia. El default es §5.5 (el
+maintainer hace estos pasos). El override es la excepción, no la
+regla.
+
 ### 5.6 No surprises in history
 
 Do not amend, rebase, or squash already-pushed reviewed commits
@@ -549,61 +577,63 @@ invariants and the §2 delegation rule.
 | Docs language | English source + Spanish mirror in `./Documents-es/` |
 | Cost threshold | > 1 MB or > 100 writes/session — flag and propose budget |
 
-### 9.5 Delegation and risk
+### 9.5 Delegación y riesgo
 
-| Question | Default |
+| Pregunta | Default |
 |---|---|
-| Delegation | Delegate; inline only for 1 file + 1 tool call + trivial |
-| Subagent types | `scout`, `context-builder`, `worker`, `reviewer`, `oracle`, `judge` |
-| Reviewer context | `context: "fresh"` for adversarial review, conflict, incident |
-| Output mode | `file-only` for large reports; parent summarizes |
-| Destructive ops | Confirm in prose. Always |
-| Acceptance criteria | 4 questions: Goal, Scope, Constraints, Acceptance |
+| Delegación | Delegar; inline solo para 1 archivo + 1 tool call + trivial |
+| Tipos de subagente | `scout`, `context-builder`, `worker`, `reviewer`, `oracle`, `judge` |
+| Contexto del reviewer | `context: "fresh"` para review adversarial, conflictos, incidentes |
+| Modo de output | `file-only` para reportes grandes; el parent resume |
+| Operaciones destructivas | Confirmar en prosa. Siempre |
+| Criterios de aceptación | 4 preguntas: Objetivo, Alcance, Restricciones, Aceptación |
 
-### 9.6 Hierarchy of authority
+### 9.6 Jerarquía de autoridad
 
-When defaults conflict: user's explicit instruction > project
-conventions (manifests, README, AGENTS.md, CLAUDE.md, GEMINI.md, CI) >
-this file's defaults > agent's judgment (last resort; flag it).
+Cuando hay defaults en conflicto: instrucción explícita del usuario
+> convenciones del proyecto (manifests, README, AGENTS.md, CLAUDE.md,
+GEMINI.md, CI) > defaults de este archivo > juicio del agente (último
+recurso; flagear).
 
-### 9.7 Environment quirks (macOS, this user's home directory)
+### 9.7 Quirks del entorno (macOS, home directory de este usuario)
 
-The repo is host-agnostic, but the local development environment has
-a few quirks every agent needs to know about. These are workarounds,
-not bugs in the repo — the agent must apply them when working in
-this user's setup.
+El repo es host-agnostic, pero el entorno de desarrollo local tiene
+algunos quirks que todo agente tiene que conocer. Son workarounds,
+no bugs del repo — el agente los aplica cuando trabaja en el setup
+de este usuario.
 
-- **`/Users/sebailla/pnpm-workspace.yaml` hijacks the workspace root.**
-  This file exists at the user's `$HOME` and pnpm treats it as a
-  workspace root, so a plain `pnpm install --frozen-lockfile` in
-  any worktree silently no-ops (no `node_modules/` is created).
-  Workaround for fresh worktrees:
+- **`/Users/sebailla/pnpm-workspace.yaml` secuestra el workspace root.**
+  Este archivo existe en `$HOME` del usuario y pnpm lo trata como
+  workspace root, así que un `pnpm install --frozen-lockfile` plano
+  en cualquier worktree no hace nada silenciosamente (no se crea
+  `node_modules/`). Workaround para worktrees nuevos:
 
   ```bash
-  pnpm install --ignore-workspace   # not --frozen-lockfile
-  npx prisma generate               # the install skipped build scripts
+  pnpm install --ignore-workspace   # no --frozen-lockfile
+  npx prisma generate               # el install se saltó build scripts
   ```
 
-  Once the worktree has a `node_modules/` populated this way, all
-  subsequent `pnpm test`, `pnpm typecheck`, etc. work normally.
-  The lockfile is regenerated in the process — restore it with
-  `git checkout pnpm-lock.yaml` before committing (the regenerated
-  lockfile drifts because the workspace hijack changes resolution).
+  Una vez que el worktree tiene un `node_modules/` poblado así, todos
+  los `pnpm test`, `pnpm typecheck`, etc. funcionan normal. El
+  lockfile se regenera en el proceso — restaurarlo con
+  `git checkout pnpm-lock.yaml` antes de committear (el lockfile
+  regenerado driftea porque el hijack del workspace cambia la
+  resolución).
 
-- **`.npmrc` in a worktree breaks lint-staged.** If a worktree has
-  a `.npmrc` file (created by some pnpm version on install), the
-  pre-commit hook fails with `error: invalid object 100644 ... for
-  '.npmrc'` because lint-staged tries to stage it. Fix: delete the
-  file before committing (`rm .npmrc`) or add it to `.gitignore`.
-  The repo does NOT need `.npmrc` — pnpm reads `pnpm-workspace.yaml`
-  if any, otherwise its built-in defaults.
+- **`.npmrc` en un worktree rompe lint-staged.** Si un worktree tiene
+  un archivo `.npmrc` (creado por alguna versión de pnpm al
+  instalar), el pre-commit hook falla con `error: invalid object
+  100644 ... for '.npmrc'` porque lint-staged trata de stagearlo.
+  Fix: borrar el archivo antes de committear (`rm .npmrc`) o
+  agregarlo a `.gitignore`. El repo NO necesita `.npmrc` — pnpm lee
+  `pnpm-workspace.yaml` si existe, si no sus defaults built-in.
 
-- **Pre-commit hook can take 1–2 minutes.** `pnpm exec lint-staged && gga run`
-  in `.husky/pre-commit` runs the full coverage gate. If your shell
-  tool has a 2-minute command timeout, the first commit attempt
-  will be killed before `gga run` completes. Workaround: retry the
-  commit with a longer timeout (5 minutes is safe). The second
-  attempt is usually faster because `gga run` caches its result.
+- **El pre-commit hook puede tardar 1–2 minutos.** `pnpm exec lint-staged && gga run`
+  en `.husky/pre-commit` corre el coverage gate completo. Si tu shell
+  tiene un timeout de 2 minutos por comando, el primer intento de
+  commit se mata antes de que `gga run` termine. Workaround: reintentar
+  el commit con timeout más largo (5 minutos es seguro). El segundo
+  intento suele ser más rápido porque `gga run` cachea el resultado.
 
 ---
 

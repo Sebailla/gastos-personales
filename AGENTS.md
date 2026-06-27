@@ -377,6 +377,33 @@ its own.
 6. **Tag** — user creates the git tag (`git tag -a v1.4.2 -m
    "Release v1.4.2"; git push origin v1.4.2`). Agent does not tag.
 
+#### 5.5.1 Override protocol (§5.5 emergency exemption)
+
+In rare cases the user may explicitly request the agent to perform
+release-flow steps 5 or 6 (open the release PR or tag `main`). This
+is permitted under the following protocol:
+
+1. **Explicit request** — the user must name the exact step
+   ("open the release PR", "tag v0.3.0") in their message. Implicit
+   or inferred requests do not qualify.
+2. **Pre-action confirmation** — the agent MUST use the `question`
+   tool to present the override choice before acting (per §4.7).
+   The user confirms by selecting the override option.
+3. **Audit trail** — the agent MUST document the override in the PR
+   body or the commit body. Format:
+   > Per §4.7 of `AGENTS.md`, this PR/commit was [opened / tagged]
+   > by the orchestrator on explicit user override of §5.5 (which
+   > normally reserves [release PRs / main tagging] for the
+   > maintainer). Recorded here for auditability.
+4. **Scope** — overrides are one-shot. They do NOT amend §5.5
+   permanently. A future release without an explicit override must
+   follow §5.5 normally.
+
+This protocol is **not** a license for the agent to open PRs to
+`main` or tag on its own initiative. The default is §5.5 (the
+maintainer does these steps). The override is the exception, not
+the rule.
+
 ### 5.6 No surprises in history
 
 Do not amend, rebase, or squash already-pushed reviewed commits
