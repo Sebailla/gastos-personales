@@ -33,3 +33,9 @@ dist/mirror-pdf-drive/
 # 4R review outputs (subagent artifacts; not deliverables)
 review-*.md
 progress.md
+
+# Local pnpm runtime artifact (some pnpm versions create a stray
+# .npmrc on install that breaks the pre-commit hook — see
+# AGENTS.md §9.7). The repo does not need a .npmrc — pnpm reads
+# pnpm-workspace.yaml if any, otherwise its built-in defaults.
+.npmrc
