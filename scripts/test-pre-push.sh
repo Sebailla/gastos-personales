@@ -153,6 +153,27 @@ run_hook \
   $'\n  \n' \
   "${REMOTE_ARGS[@]}"
 
+# 10. The original bug: pre-fix, the script matched `--delete` in $@
+#     (which git never passes — only `<remote> <url>`), so
+#     `git push origin --delete <branch>` was rejected with
+#     "branch name 'develop' does not match the convention"
+#     when run from a worktree on develop. Post-fix, the script
+#     reads STDIN (where git writes refspecs with `remote_sha`
+#     == 40 zeros for deletes), so even with `--delete` in $@
+#     AND an empty STDIN (corner case), the delete path
+#     short-circuits BEFORE the branch check.
+#
+#     This test pins the regression: if a future refactor
+#     accidentally re-introduces the `$@` match, this case
+#     fails because the script falls through to the branch
+#     check (which then rejects "develop").
+run_hook \
+  "delete with --delete flag in \$@ (regression guard) — exit 0" \
+  "develop" "" \
+  0 "" \
+  "refs/heads/feat/x abc123 refs/heads/feat/x $ZERO_SHA" \
+  "origin" "git@github.com:user/repo.git" "--delete"
+
 echo
 echo "=== Results: $PASS passed, $FAIL failed ==="
 
