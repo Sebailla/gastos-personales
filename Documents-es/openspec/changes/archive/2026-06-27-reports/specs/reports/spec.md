@@ -163,24 +163,24 @@ contrato que cruza la frontera `reports` ↔ consumer (UI,
 El rollup por mes y por moneda. Una fila por `convertedCurrency`
 presente en las transacciones del usuario para el mes solicitado.
 
-| Field                    | Type                       | Constraints                                                                |
-| ------------------------ | -------------------------- | -------------------------------------------------------------------------- |
-| `userId`                 | `string` (cuid)            | Owner. Llevado por trazabilidad; la response lo omite (session-scoped).    |
-| `year`                   | `number`                   | Año calendario UTC. Integer. `2000..2100`.                                 |
-| `month`                  | `number`                   | Mes calendario UTC. Integer. `1..12`.                                      |
-| `totalsByCurrency`       | `MonthlyTotalByCurrency[]` | Una entrada por `convertedCurrency`. Array vacío cuando no hay filas en la ventana. |
-| `accountCount`           | `number`                   | Conteo de `accountId` distintos entre las transacciones del usuario en el mes. ≥ 0. |
-| `generatedAt`            | `DateTime`                 | `Clock.now()` al momento de agregar. ISO-8601.                             |
+| Field              | Type                       | Constraints                                                                         |
+| ------------------ | -------------------------- | ----------------------------------------------------------------------------------- |
+| `userId`           | `string` (cuid)            | Owner. Llevado por trazabilidad; la response lo omite (session-scoped).             |
+| `year`             | `number`                   | Año calendario UTC. Integer. `2000..2100`.                                          |
+| `month`            | `number`                   | Mes calendario UTC. Integer. `1..12`.                                               |
+| `totalsByCurrency` | `MonthlyTotalByCurrency[]` | Una entrada por `convertedCurrency`. Array vacío cuando no hay filas en la ventana. |
+| `accountCount`     | `number`                   | Conteo de `accountId` distintos entre las transacciones del usuario en el mes. ≥ 0. |
+| `generatedAt`      | `DateTime`                 | `Clock.now()` al momento de agregar. ISO-8601.                                      |
 
 `MonthlyTotalByCurrency`:
 
-| Field            | Type             | Constraints                                                          |
-| ---------------- | ---------------- | -------------------------------------------------------------------- |
-| `currency`       | `AccountCurrency` | Uno de `{ ARS, USD, EUR }`.                                          |
-| `inflowMinor`    | `Int`            | Suma de `convertedAmountMinor` para `direction = INCOME` en esta moneda. ≥ 0. |
-| `outflowMinor`   | `Int`            | Suma de `convertedAmountMinor` para `direction = EXPENSE` en esta moneda. ≥ 0. |
-| `netMinor`       | `Int`            | `inflowMinor - outflowMinor`. Puede ser negativo.                    |
-| `txCount`        | `Int`            | Cantidad de transacciones en esta moneda para el mes. ≥ 0.            |
+| Field          | Type              | Constraints                                                                    |
+| -------------- | ----------------- | ------------------------------------------------------------------------------ |
+| `currency`     | `AccountCurrency` | Uno de `{ ARS, USD, EUR }`.                                                    |
+| `inflowMinor`  | `Int`             | Suma de `convertedAmountMinor` para `direction = INCOME` en esta moneda. ≥ 0.  |
+| `outflowMinor` | `Int`             | Suma de `convertedAmountMinor` para `direction = EXPENSE` en esta moneda. ≥ 0. |
+| `netMinor`     | `Int`             | `inflowMinor - outflowMinor`. Puede ser negativo.                              |
+| `txCount`      | `Int`             | Cantidad de transacciones en esta moneda para el mes. ≥ 0.                     |
 
 Invariantes:
 
@@ -198,23 +198,23 @@ El rollup por mes y por categoría. Una fila por categoría
 normalizada por `convertedCurrency` presente en las transacciones
 del usuario para el mes.
 
-| Field                    | Type                            | Constraints                                                            |
-| ------------------------ | ------------------------------- | ---------------------------------------------------------------------- |
-| `userId`                 | `string` (cuid)                 | Owner. Llevado por trazabilidad; la response lo omite.                 |
-| `year`                   | `number`                        | Año calendario UTC. `2000..2100`.                                      |
-| `month`                  | `number`                        | Mes calendario UTC. `1..12`.                                          |
-| `buckets`                | `CategoryBucket[]`              | Ordenado por `amountMinor` DESC, después `categoryNormalized` ASC.     |
-| `generatedAt`            | `DateTime`                      | `Clock.now()` al momento de agregar. ISO-8601.                         |
+| Field         | Type               | Constraints                                                        |
+| ------------- | ------------------ | ------------------------------------------------------------------ |
+| `userId`      | `string` (cuid)    | Owner. Llevado por trazabilidad; la response lo omite.             |
+| `year`        | `number`           | Año calendario UTC. `2000..2100`.                                  |
+| `month`       | `number`           | Mes calendario UTC. `1..12`.                                       |
+| `buckets`     | `CategoryBucket[]` | Ordenado por `amountMinor` DESC, después `categoryNormalized` ASC. |
+| `generatedAt` | `DateTime`         | `Clock.now()` al momento de agregar. ISO-8601.                     |
 
 `CategoryBucket`:
 
-| Field                  | Type               | Constraints                                                                |
-| ---------------------- | ------------------ | -------------------------------------------------------------------------- |
-| `category`             | `string \| null`   | El string crudo de categoría de la fila `Transaction`. Preservado verbatim. |
-| `categoryNormalized`   | `string`           | `lowercase + trim` de `category`; `null`/vacío → `"uncategorized"`.         |
-| `currency`             | `AccountCurrency`  | El `convertedCurrency` de las filas en este bucket.                        |
-| `amountMinor`          | `Int`              | Suma de `convertedAmountMinor` en este bucket. Puede ser negativo (neto de refunds). |
-| `txCount`              | `Int`              | Cantidad de transacciones en este bucket. `> 0` (los buckets con count 0 se descartan). |
+| Field                | Type              | Constraints                                                                             |
+| -------------------- | ----------------- | --------------------------------------------------------------------------------------- |
+| `category`           | `string \| null`  | El string crudo de categoría de la fila `Transaction`. Preservado verbatim.             |
+| `categoryNormalized` | `string`          | `lowercase + trim` de `category`; `null`/vacío → `"uncategorized"`.                     |
+| `currency`           | `AccountCurrency` | El `convertedCurrency` de las filas en este bucket.                                     |
+| `amountMinor`        | `Int`             | Suma de `convertedAmountMinor` en este bucket. Puede ser negativo (neto de refunds).    |
+| `txCount`            | `Int`             | Cantidad de transacciones en este bucket. `> 0` (los buckets con count 0 se descartan). |
 
 Invariantes:
 
@@ -231,24 +231,24 @@ El rollup de flujo diario por cuenta en un rango de fechas. Una
 fila por día calendario UTC en el que el usuario tiene al menos
 una transacción en la cuenta dentro del rango.
 
-| Field                    | Type                | Constraints                                                                |
-| ------------------------ | ------------------- | -------------------------------------------------------------------------- |
-| `userId`                 | `string` (cuid)     | Owner. Llevado por trazabilidad; la response lo omite.                     |
-| `accountId`              | `string` (cuid)     | La cuenta del flow. Debe pertenecer al caller.                             |
-| `fromDate`               | `DateTime`          | Límite inferior inclusivo. UTC `YYYY-MM-DD` parseado como `00:00:00Z`.     |
-| `toDate`                 | `DateTime`          | Límite superior inclusivo. UTC `YYYY-MM-DD` parseado como `23:59:59.999Z`. |
-| `points`                 | `AccountFlowPoint[]`| Ordenado por `date` ASC.                                                   |
-| `generatedAt`            | `DateTime`          | `Clock.now()` al momento de agregar. ISO-8601.                             |
+| Field         | Type                 | Constraints                                                                |
+| ------------- | -------------------- | -------------------------------------------------------------------------- |
+| `userId`      | `string` (cuid)      | Owner. Llevado por trazabilidad; la response lo omite.                     |
+| `accountId`   | `string` (cuid)      | La cuenta del flow. Debe pertenecer al caller.                             |
+| `fromDate`    | `DateTime`           | Límite inferior inclusivo. UTC `YYYY-MM-DD` parseado como `00:00:00Z`.     |
+| `toDate`      | `DateTime`           | Límite superior inclusivo. UTC `YYYY-MM-DD` parseado como `23:59:59.999Z`. |
+| `points`      | `AccountFlowPoint[]` | Ordenado por `date` ASC.                                                   |
+| `generatedAt` | `DateTime`           | `Clock.now()` al momento de agregar. ISO-8601.                             |
 
 `AccountFlowPoint`:
 
-| Field                  | Type             | Constraints                                                          |
-| ---------------------- | ---------------- | -------------------------------------------------------------------- |
-| `date`                 | `string`         | Día calendario UTC `YYYY-MM-DD` (clave solo-fecha, sin componente de hora). |
-| `runningBalanceMinor`  | `Int`            | Neto acumulado de `convertedAmountMinor` a lo largo del rango hasta e incluyendo `date`. Signo: INCOME positivo, EXPENSE negativo. |
-| `netMinor`             | `Int`            | Cambio neto solo para `date` (suma de `convertedAmountMinor` con signo desde `direction`). |
-| `txCount`              | `Int`            | Cantidad de transacciones en `date`. `> 0` (días sparse omitidos).   |
-| `currency`             | `AccountCurrency` | El `convertedCurrency` de las filas en este point.                   |
+| Field                 | Type              | Constraints                                                                                                                        |
+| --------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `date`                | `string`          | Día calendario UTC `YYYY-MM-DD` (clave solo-fecha, sin componente de hora).                                                        |
+| `runningBalanceMinor` | `Int`             | Neto acumulado de `convertedAmountMinor` a lo largo del rango hasta e incluyendo `date`. Signo: INCOME positivo, EXPENSE negativo. |
+| `netMinor`            | `Int`             | Cambio neto solo para `date` (suma de `convertedAmountMinor` con signo desde `direction`).                                         |
+| `txCount`             | `Int`             | Cantidad de transacciones en `date`. `> 0` (días sparse omitidos).                                                                 |
+| `currency`            | `AccountCurrency` | El `convertedCurrency` de las filas en este point.                                                                                 |
 
 Invariantes:
 
@@ -711,11 +711,11 @@ No se introducen nuevos códigos de error. Las fallas de reports
 reusan el enum existente en
 `src/shared/errors/error-codes.ts`. El mapeo es normativo.
 
-| Code                | HTTP | Trigger                                                                | Caller surface                                                            |
-| ------------------- | ---- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `VALIDATION_ERROR`  | 400  | Cualquier falla de schema Zod (`month` fuera de rango, `accountId` no UUID v4, `fromDate > toDate`, rango > 366 días, clave de fecha malformada). | Banner de error inline en el dashboard; primer mensaje de `error.details`. |
-| `NOT_FOUND`         | 404  | `accountId` cross-user en el endpoint de flow. Envelope idéntico al de un recurso inexistente. | CTA de empty-state en el dashboard.                                       |
-| `UNAUTHORIZED`      | 401  | Sin sesión, cookie faltante, sesión expirada o usuario desconocido (según `auth/spec.md`). | Redirect 307 para páginas App Router; 401 JSON para Hono.                |
+| Code               | HTTP | Trigger                                                                                                                                           | Caller surface                                                             |
+| ------------------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `VALIDATION_ERROR` | 400  | Cualquier falla de schema Zod (`month` fuera de rango, `accountId` no UUID v4, `fromDate > toDate`, rango > 366 días, clave de fecha malformada). | Banner de error inline en el dashboard; primer mensaje de `error.details`. |
+| `NOT_FOUND`        | 404  | `accountId` cross-user en el endpoint de flow. Envelope idéntico al de un recurso inexistente.                                                    | CTA de empty-state en el dashboard.                                        |
+| `UNAUTHORIZED`     | 401  | Sin sesión, cookie faltante, sesión expirada o usuario desconocido (según `auth/spec.md`).                                                        | Redirect 307 para páginas App Router; 401 JSON para Hono.                  |
 
 El sistema MUST NOT incluir stack traces, objetos de error de
 Prisma ni bodies de request en ninguna response de error.
@@ -756,7 +756,7 @@ cambio devuelvan los mismos valores.
 - **Auth spec**: `openspec/specs/auth/spec.md` — el invariante
   del helper server-side `auth()` (cross-module contracts
   §"auth() server-side helper") y la regla "todo `WHERE
-  userId = ?` de cualquier otro módulo MUST scopear al caller".
+userId = ?` de cualquier otro módulo MUST scopear al caller".
   La capability `reports` sigue este invariante en todo
   endpoint.
 - **Transactions delta**:
@@ -786,13 +786,13 @@ cambio devuelvan los mismos valores.
   en BR-RPT-1 / REQ-RPT-6); Q4 granularidad diaria con claves
   de fecha `YYYY-MM-DD` UTC y omisión de días sparse
   (codificada en BR-RPT-3 / REQ-RPT-3); Q5 tres cards vacías
-  + CTA en el dashboard (codificada en el escenario cross-user
-  de REQ-RPT-4 + la rama empty-state de la página del
-  dashboard). Scope: agregaciones lazy compute-on-read sobre las
-  filas `Transaction`; sin migración de Prisma; sin nuevos
-  códigos de error; sin llamadas a FX en el read path;
-  composition-root cablea la suscripción no-op a
-  `TransactionRecorded`.
+  - CTA en el dashboard (codificada en el escenario cross-user
+    de REQ-RPT-4 + la rama empty-state de la página del
+    dashboard). Scope: agregaciones lazy compute-on-read sobre las
+    filas `Transaction`; sin migración de Prisma; sin nuevos
+    códigos de error; sin llamadas a FX en el read path;
+    composition-root cablea la suscripción no-op a
+    `TransactionRecorded`.
 
 ## References
 
