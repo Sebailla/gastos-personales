@@ -37,3 +37,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [0.2.0]: https://github.com/Sebailla/gastos-personales/releases/tag/v0.2.0
 [0.2.1]: https://github.com/Sebailla/gastos-personales/releases/tag/v0.2.1
+
+## [0.3.0] - 2026-06-27
+
+### Added
+
+- `reports` capability end-to-end: 3 read aggregates (`MonthlySummary`, `CategoryBreakdown`, `AccountFlow`) at `src/modules/reports/domain/aggregates/`. Each aggregate has a pure factory + co-located tests; the three are joined into one `aggregate-transactions.ts` service module with cross-user isolation tests. Domain errors (`InvalidMonthError`, `InvalidAccountIdError`, `InvalidDateRangeError`, `AccountNotFoundError`) extend a new `ReportsDomainError` base class. `Month` value object at `src/modules/reports/domain/value-objects/month.ts` derives `fromDate` / `toDate` UTC bounds from a `YYYY-MM` regex input.
+- 3 Hono routes mounted under `protectedApp` via `mountReportsRoutes`: `GET /api/reports/monthly?month=YYYY-MM`, `GET /api/reports/breakdown?month=YYYY-MM`, `GET /api/reports/accounts/:accountId/flow?month=YYYY-MM` (or `?fromDate=&toDate=` for a custom range). All three routes require session via `requireSession` middleware and scope every read to the session's `userId` (BR-TX-4 cross-user isolation enforced at the application layer + the `Transaction` read delegate).
+- New `src/shared/domain-kernel/ports/transaction-repository-port.ts` kernel port exposes the read-only surface (`list(userId, opts)` shape) that the reports adapter consumes. Reports consume the kernel, not `@/modules/transactions` directly — root `AGENTS.md` §10.5 "Modules isolated" preserved.
+- Dashboard smoke UI at `app/dashboard/page.tsx` (RSC, `force-dynamic`, parallel `serverHonoRequest` for monthly + breakdown). Three presentational Server Components (`MonthlySummaryCard`, `CategoryBreakdownCard`, `AccountFlowCard`) under `app/_components/`. The flow card is empty in v1 by design (the dashboard does NOT deep-link to an account picker yet). Wire types re-declared locally at `app/_lib/report-types.ts` per the `app/_lib/transaction-types.ts` precedent — UI cannot import from `src/modules/reports/...` (architecture rule).
+- New `NoopTransactionRecordedSubscriber` infrastructure handler at `src/modules/reports/infrastructure/subscribers/` debug-logs `reports.noop.transaction-recorded` and returns `void`. Wired exactly once in `buildAppDeps` per BR-RPT-5. The subscriber-count assertion in `src/composition/build-app-deps.test.ts` (REQ-RPT-7) catches wiring regressions: a missing `dispatcher.subscribe` call fails the test with the exact diff.
+
+### Changed
+
+- `vitest.config.ts` now includes `src/modules/reports/**` in `coverage.include` (alphabetical position between `fx` and `shared/db`) so the coverage gate (`pnpm run test:coverage:enforced` from the pre-push hook) reports the new module. Without this entry the gate would silently miss the ~1100 LoC of pure domain code.
+- `InMemoryReportsRepository` (slice-2 fixture) uses constructor-injection (`TransactionListFn` callback) instead of composing `InMemoryTransactionRepository` directly. The fixture preserves modules-isolation (root `AGENTS.md` §10.5): the test file wires `txRepo.list.bind(txRepo)` at the seam, the fixture itself has zero cross-module dependencies.
+- Husky pre-push hook now correctly detects `git push --delete origin <branch>` via STDIN parsing (`remote_sha == 40 zeros` per refspec) instead of looking for `--delete` in `$@` (which git never passes). Without this fix `git push --delete` from a worktree on `develop` was rejected with "branch name 'develop' does not match the convention" — a workaround (`--no-verify`) was used during the slice cycle; the fix removes the workaround.
+
+### Fixed
+
+- I-RPT-3.1 (boundary-row inclusion bug): `InMemoryReportsRepository`'s `inRange` filter was inclusive on both ends (`t <= toDate`) but `toDate` is documented as the EXCLUSIVE upper bound of the month window per design §6.1 (`year-(month+1)-01 00:00:00.000Z` for a June query, i.e. the first instant of July). A row whose `transactionDate` exactly equalled `toDate` would have been incorrectly included in the current month's report. Now uses half-open range (`t < toDate`). The corresponding Prisma adapter uses SQL `toDate < nextMonth` (correct from day one), so the production path was never affected — only the in-memory fixture diverged.
+
+[0.2.0]: https://github.com/Sebailla/gastos-personales/releases/tag/v0.2.0
+[0.2.1]: https://github.com/Sebailla/gastos-personales/releases/tag/v0.2.1
+[0.3.0]: https://github.com/Sebailla/gastos-personales/releases/tag/v0.3.0
