@@ -160,30 +160,30 @@ The per-month, per-currency rollup. One row per
 `convertedCurrency` present in the user's transactions for
 the requested month.
 
-| Field                    | Type                       | Constraints                                                              |
-| ------------------------ | -------------------------- | ------------------------------------------------------------------------ |
-| `userId`                 | `string` (cuid)            | Owner. Carried for traceability; the response omits it (session-scoped). |
-| `year`                   | `number`                   | UTC calendar year. Integer. `2000..2100`.                               |
-| `month`                  | `number`                   | UTC calendar month. Integer. `1..12`.                                    |
-| `totalsByCurrency`       | `MonthlyTotalByCurrency[]` | One entry per `convertedCurrency`. Empty array when no rows in window.  |
-| `accountCount`           | `number`                   | Distinct `accountId` count among the user's transactions in the month. ≥ 0. |
-| `generatedAt`            | `DateTime`                 | `Clock.now()` at aggregate time. ISO-8601.                              |
+| Field              | Type                       | Constraints                                                                 |
+| ------------------ | -------------------------- | --------------------------------------------------------------------------- |
+| `userId`           | `string` (cuid)            | Owner. Carried for traceability; the response omits it (session-scoped).    |
+| `year`             | `number`                   | UTC calendar year. Integer. `2000..2100`.                                   |
+| `month`            | `number`                   | UTC calendar month. Integer. `1..12`.                                       |
+| `totalsByCurrency` | `MonthlyTotalByCurrency[]` | One entry per `convertedCurrency`. Empty array when no rows in window.      |
+| `accountCount`     | `number`                   | Distinct `accountId` count among the user's transactions in the month. ≥ 0. |
+| `generatedAt`      | `DateTime`                 | `Clock.now()` at aggregate time. ISO-8601.                                  |
 
 `MonthlyTotalByCurrency`:
 
-| Field            | Type             | Constraints                                                          |
-| ---------------- | ---------------- | -------------------------------------------------------------------- |
-| `currency`       | `AccountCurrency` | One of `{ ARS, USD, EUR }`.                                          |
-| `inflowMinor`    | `Int`            | Sum of `convertedAmountMinor` for `direction = INCOME` in this currency. ≥ 0. |
-| `outflowMinor`   | `Int`            | Sum of `convertedAmountMinor` for `direction = EXPENSE` in this currency. ≥ 0. |
-| `netMinor`       | `Int`            | `inflowMinor - outflowMinor`. May be negative.                       |
-| `txCount`        | `Int`            | Number of transactions in this currency for the month. ≥ 0.          |
+| Field          | Type              | Constraints                                                                    |
+| -------------- | ----------------- | ------------------------------------------------------------------------------ |
+| `currency`     | `AccountCurrency` | One of `{ ARS, USD, EUR }`.                                                    |
+| `inflowMinor`  | `Int`             | Sum of `convertedAmountMinor` for `direction = INCOME` in this currency. ≥ 0.  |
+| `outflowMinor` | `Int`             | Sum of `convertedAmountMinor` for `direction = EXPENSE` in this currency. ≥ 0. |
+| `netMinor`     | `Int`             | `inflowMinor - outflowMinor`. May be negative.                                 |
+| `txCount`      | `Int`             | Number of transactions in this currency for the month. ≥ 0.                    |
 
 Invariants:
 
 - UTC bucketing: a transaction is in month M iff its
   `transactionDate` UTC components fall in `[year-M-01,
-  year-(M+1)-01)` (BR-RPT-1 codifies Q1).
+year-(M+1)-01)` (BR-RPT-1 codifies Q1).
 - One row per `convertedCurrency`, never per raw `currency`
   (BR-RPT-1).
 - `generatedAt = Clock.now()` (no `new Date()` in domain
@@ -195,23 +195,23 @@ The per-month, per-category rollup. One row per normalized
 category per `convertedCurrency` present in the user's
 transactions for the month.
 
-| Field                    | Type                            | Constraints                                                            |
-| ------------------------ | ------------------------------- | ---------------------------------------------------------------------- |
-| `userId`                 | `string` (cuid)                 | Owner. Carried for traceability; the response omits it.                |
-| `year`                   | `number`                        | UTC calendar year. `2000..2100`.                                       |
-| `month`                  | `number`                        | UTC calendar month. `1..12`.                                           |
-| `buckets`                | `CategoryBucket[]`              | Ordered by `amountMinor` DESC, then `categoryNormalized` ASC.          |
-| `generatedAt`            | `DateTime`                      | `Clock.now()` at aggregate time. ISO-8601.                             |
+| Field         | Type               | Constraints                                                   |
+| ------------- | ------------------ | ------------------------------------------------------------- |
+| `userId`      | `string` (cuid)    | Owner. Carried for traceability; the response omits it.       |
+| `year`        | `number`           | UTC calendar year. `2000..2100`.                              |
+| `month`       | `number`           | UTC calendar month. `1..12`.                                  |
+| `buckets`     | `CategoryBucket[]` | Ordered by `amountMinor` DESC, then `categoryNormalized` ASC. |
+| `generatedAt` | `DateTime`         | `Clock.now()` at aggregate time. ISO-8601.                    |
 
 `CategoryBucket`:
 
-| Field                  | Type               | Constraints                                                                |
-| ---------------------- | ------------------ | -------------------------------------------------------------------------- |
-| `category`             | `string \| null`   | The raw category string from the `Transaction` row. Preserved verbatim.    |
-| `categoryNormalized`   | `string`           | `lowercase + trim` of `category`; `null`/empty → `"uncategorized"`.        |
-| `currency`             | `AccountCurrency`  | The `convertedCurrency` of the rows in this bucket.                       |
-| `amountMinor`          | `Int`              | Sum of `convertedAmountMinor` in this bucket. May be negative (net of refunds). |
-| `txCount`              | `Int`              | Number of transactions in this bucket. `> 0` (zero-count buckets are dropped). |
+| Field                | Type              | Constraints                                                                     |
+| -------------------- | ----------------- | ------------------------------------------------------------------------------- |
+| `category`           | `string \| null`  | The raw category string from the `Transaction` row. Preserved verbatim.         |
+| `categoryNormalized` | `string`          | `lowercase + trim` of `category`; `null`/empty → `"uncategorized"`.             |
+| `currency`           | `AccountCurrency` | The `convertedCurrency` of the rows in this bucket.                             |
+| `amountMinor`        | `Int`             | Sum of `convertedAmountMinor` in this bucket. May be negative (net of refunds). |
+| `txCount`            | `Int`             | Number of transactions in this bucket. `> 0` (zero-count buckets are dropped).  |
 
 Invariants:
 
@@ -228,24 +228,24 @@ The per-account daily flow rollup over a date range. One row
 per UTC calendar day on which the user has at least one
 transaction in the account within the range.
 
-| Field                    | Type                | Constraints                                                                |
-| ------------------------ | ------------------- | -------------------------------------------------------------------------- |
-| `userId`                 | `string` (cuid)     | Owner. Carried for traceability; the response omits it.                    |
-| `accountId`              | `string` (cuid)     | The account the flow is for. Must belong to the caller.                    |
-| `fromDate`               | `DateTime`          | Inclusive lower bound. UTC `YYYY-MM-DD` parsed as `00:00:00Z`.            |
-| `toDate`                 | `DateTime`          | Inclusive upper bound. UTC `YYYY-MM-DD` parsed as `23:59:59.999Z`.        |
-| `points`                 | `AccountFlowPoint[]`| Ordered by `date` ASC.                                                     |
-| `generatedAt`            | `DateTime`          | `Clock.now()` at aggregate time. ISO-8601.                                 |
+| Field         | Type                 | Constraints                                                        |
+| ------------- | -------------------- | ------------------------------------------------------------------ |
+| `userId`      | `string` (cuid)      | Owner. Carried for traceability; the response omits it.            |
+| `accountId`   | `string` (cuid)      | The account the flow is for. Must belong to the caller.            |
+| `fromDate`    | `DateTime`           | Inclusive lower bound. UTC `YYYY-MM-DD` parsed as `00:00:00Z`.     |
+| `toDate`      | `DateTime`           | Inclusive upper bound. UTC `YYYY-MM-DD` parsed as `23:59:59.999Z`. |
+| `points`      | `AccountFlowPoint[]` | Ordered by `date` ASC.                                             |
+| `generatedAt` | `DateTime`           | `Clock.now()` at aggregate time. ISO-8601.                         |
 
 `AccountFlowPoint`:
 
-| Field                  | Type             | Constraints                                                          |
-| ---------------------- | ---------------- | -------------------------------------------------------------------- |
-| `date`                 | `string`         | UTC calendar day `YYYY-MM-DD` (date-only key, no time component).    |
-| `runningBalanceMinor`  | `Int`            | Cumulative net of `convertedAmountMinor` across the range up to and including `date`. Sign: INCOME positive, EXPENSE negative. |
-| `netMinor`             | `Int`            | Net change for `date` only (sum of `convertedAmountMinor` with sign from `direction`). |
-| `txCount`              | `Int`            | Number of transactions on `date`. `> 0` (sparse days omitted).       |
-| `currency`             | `AccountCurrency` | The `convertedCurrency` of the rows in this point.                   |
+| Field                 | Type              | Constraints                                                                                                                    |
+| --------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `date`                | `string`          | UTC calendar day `YYYY-MM-DD` (date-only key, no time component).                                                              |
+| `runningBalanceMinor` | `Int`             | Cumulative net of `convertedAmountMinor` across the range up to and including `date`. Sign: INCOME positive, EXPENSE negative. |
+| `netMinor`            | `Int`             | Net change for `date` only (sum of `convertedAmountMinor` with sign from `direction`).                                         |
+| `txCount`             | `Int`             | Number of transactions on `date`. `> 0` (sparse days omitted).                                                                 |
+| `currency`            | `AccountCurrency` | The `convertedCurrency` of the rows in this point.                                                                             |
 
 Invariants:
 
@@ -672,11 +672,11 @@ No new error codes are introduced. Reports failures reuse the
 existing enum at `src/shared/errors/error-codes.ts`. The
 mapping is normative.
 
-| Code                | HTTP | Trigger                                                                | Caller surface                                                            |
-| ------------------- | ---- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `VALIDATION_ERROR`  | 400  | Any Zod schema failure (`month` out of range, `accountId` not UUID v4, `fromDate > toDate`, range > 366 days, malformed date key). | Inline error banner on the dashboard; first message from `error.details`. |
-| `NOT_FOUND`         | 404  | Cross-user `accountId` on the flow endpoint. Identical envelope to a non-existent resource. | Empty-state CTA on the dashboard.                                         |
-| `UNAUTHORIZED`      | 401  | No session, missing cookie, expired session, or unknown user (per `auth/spec.md`). | 307 redirect for App Router pages; 401 JSON for Hono.                     |
+| Code               | HTTP | Trigger                                                                                                                            | Caller surface                                                            |
+| ------------------ | ---- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `VALIDATION_ERROR` | 400  | Any Zod schema failure (`month` out of range, `accountId` not UUID v4, `fromDate > toDate`, range > 366 days, malformed date key). | Inline error banner on the dashboard; first message from `error.details`. |
+| `NOT_FOUND`        | 404  | Cross-user `accountId` on the flow endpoint. Identical envelope to a non-existent resource.                                        | Empty-state CTA on the dashboard.                                         |
+| `UNAUTHORIZED`     | 401  | No session, missing cookie, expired session, or unknown user (per `auth/spec.md`).                                                 | 307 redirect for App Router pages; 401 JSON for Hono.                     |
 
 The system MUST NOT include stack traces, Prisma error
 objects, or request bodies in any error response.

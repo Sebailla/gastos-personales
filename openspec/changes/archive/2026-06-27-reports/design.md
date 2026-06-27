@@ -19,7 +19,7 @@
 > (1) `cuid` regex (not UUID v4) for `accountId` validation,
 > (2) carried-over BRs by reference (matches the repo convention),
 > (3) the 366-day range upper bound on `GET
-> /api/reports/accounts/:accountId/flow` (one calendar year +
+/api/reports/accounts/:accountId/flow` (one calendar year +
 > leap-day buffer).
 
 ---
@@ -231,7 +231,10 @@ to, accountId? })` call only — never `create`, `update`, or
  * the kernel port is the reader's view. The two are
  * structurally compatible.
  */
-export type { ListTransactionsOptions, ListTransactionsPage } from '@/modules/transactions/domain/interfaces/transaction.repository.port';
+export type {
+  ListTransactionsOptions,
+  ListTransactionsPage,
+} from '@/modules/transactions/domain/interfaces/transaction.repository.port';
 export type { Transaction } from '@/modules/transactions/domain/entities/transaction';
 ```
 
@@ -308,26 +311,26 @@ this; the kernel is the cross-module enum source.
 
 export interface MonthlyTotals {
   readonly convertedCurrency: AccountCurrency;
-  readonly incomeMinor: number;     // sum of convertedAmountMinor where direction = INCOME (≥ 0)
-  readonly expenseMinor: number;    // sum of convertedAmountMinor where direction = EXPENSE (≥ 0)
-  readonly netMinor: number;        // incomeMinor - expenseMinor (may be negative)
-  readonly count: number;           // number of transactions in this bucket (≥ 0)
+  readonly incomeMinor: number; // sum of convertedAmountMinor where direction = INCOME (≥ 0)
+  readonly expenseMinor: number; // sum of convertedAmountMinor where direction = EXPENSE (≥ 0)
+  readonly netMinor: number; // incomeMinor - expenseMinor (may be negative)
+  readonly count: number; // number of transactions in this bucket (≥ 0)
 }
 
 export interface MonthlySummary {
-  readonly userId: string;                       // cuid (cross-module invariant)
-  readonly year: number;                        // UTC calendar year, 2000..2100
-  readonly month: number;                       // UTC calendar month, 1..12
-  readonly totals: MonthlyTotals[];             // one entry per convertedCurrency
-  readonly generatedAt: Date;                   // Clock.now() at aggregate time (ISO-8601 on the wire)
+  readonly userId: string; // cuid (cross-module invariant)
+  readonly year: number; // UTC calendar year, 2000..2100
+  readonly month: number; // UTC calendar month, 1..12
+  readonly totals: MonthlyTotals[]; // one entry per convertedCurrency
+  readonly generatedAt: Date; // Clock.now() at aggregate time (ISO-8601 on the wire)
 }
 
 export interface CreateMonthlySummaryInput {
   readonly userId: string;
   readonly year: number;
   readonly month: number;
-  readonly rows: readonly TransactionDTO[];      // pure input
-  readonly clock: Clock;                        // injected; never new Date() in domain code
+  readonly rows: readonly TransactionDTO[]; // pure input
+  readonly clock: Clock; // injected; never new Date() in domain code
 }
 
 export function createMonthlySummary(input: CreateMonthlySummaryInput): MonthlySummary;
@@ -361,11 +364,11 @@ export function createMonthlySummary(input: CreateMonthlySummaryInput): MonthlyS
 // src/modules/reports/domain/aggregates/category-breakdown.ts
 
 export interface CategoryBucket {
-  readonly category: string | null;             // raw string from Transaction.category, preserved verbatim
-  readonly categoryNormalized: string;         // lowercase + trim; null/empty → "uncategorized"
-  readonly convertedCurrency: AccountCurrency;  // grouping key (BR-RPT-1)
-  readonly amountMinor: number;                // sum of convertedAmountMinor; may be negative (refund net)
-  readonly txCount: number;                    // > 0 (zero-count buckets dropped)
+  readonly category: string | null; // raw string from Transaction.category, preserved verbatim
+  readonly categoryNormalized: string; // lowercase + trim; null/empty → "uncategorized"
+  readonly convertedCurrency: AccountCurrency; // grouping key (BR-RPT-1)
+  readonly amountMinor: number; // sum of convertedAmountMinor; may be negative (refund net)
+  readonly txCount: number; // > 0 (zero-count buckets dropped)
 }
 
 export interface CategoryBreakdown {
@@ -391,10 +394,10 @@ export function createCategoryBreakdown(input: CreateCategoryBreakdownInput): Ca
 
 - `categoryNormalized` is computed by `normalizeCategory(category)`
   (a free function in the same file): `category?.trim().toLowerCase()
-  ?? 'uncategorized'`; an empty string after `trim()` is also
+?? 'uncategorized'`; an empty string after `trim()` is also
   `'uncategorized'`.
 - The factory groups by the tuple `(categoryNormalized,
-  convertedCurrency)` — the currency is part of the grouping key
+convertedCurrency)` — the currency is part of the grouping key
   (BR-RPT-1, REQ-RPT-6).
 - Buckets with `txCount === 0` are excluded.
 - Sort is `amountMinor DESC` primary; `categoryNormalized ASC`
@@ -410,19 +413,19 @@ export function createCategoryBreakdown(input: CreateCategoryBreakdownInput): Ca
 // src/modules/reports/domain/aggregates/account-flow.ts
 
 export interface AccountFlowDay {
-  readonly date: string;                       // YYYY-MM-DD UTC (date-only key, no time)
-  readonly netMinor: number;                   // net change for `date` only
-  readonly runningBalanceMinor: number;        // cumulative net up to and including `date`
-  readonly count: number;                      // > 0 (sparse days omitted)
+  readonly date: string; // YYYY-MM-DD UTC (date-only key, no time)
+  readonly netMinor: number; // net change for `date` only
+  readonly runningBalanceMinor: number; // cumulative net up to and including `date`
+  readonly count: number; // > 0 (sparse days omitted)
   readonly convertedCurrency: AccountCurrency; // grouping key
 }
 
 export interface AccountFlow {
   readonly userId: string;
-  readonly accountId: string;                  // cuid (matches /ˆc[a-z0-9]{20,32}$/)
-  readonly fromDate: Date;                     // inclusive lower bound, UTC 00:00:00Z
-  readonly toDate: Date;                       // inclusive upper bound, UTC 23:59:59.999Z
-  readonly days: readonly AccountFlowDay[];    // ordered by date ASC; sparse days omitted
+  readonly accountId: string; // cuid (matches /ˆc[a-z0-9]{20,32}$/)
+  readonly fromDate: Date; // inclusive lower bound, UTC 00:00:00Z
+  readonly toDate: Date; // inclusive upper bound, UTC 23:59:59.999Z
+  readonly days: readonly AccountFlowDay[]; // ordered by date ASC; sparse days omitted
   readonly generatedAt: Date;
 }
 
@@ -431,7 +434,7 @@ export interface CreateAccountFlowInput {
   readonly accountId: string;
   readonly fromDate: Date;
   readonly toDate: Date;
-  readonly rows: readonly TransactionDTO[];    // only rows on `accountId` in the range
+  readonly rows: readonly TransactionDTO[]; // only rows on `accountId` in the range
   readonly clock: Clock;
 }
 
@@ -544,7 +547,7 @@ import type { TransactionDTO } from '@/shared/domain-kernel/ports/transaction-re
 
 export interface ListForMonthlyOptions {
   readonly year: number;
-  readonly month: number;                       // 1..12
+  readonly month: number; // 1..12
 }
 
 export interface ListForBreakdownOptions {
@@ -678,13 +681,13 @@ exports:
 
 The mapping table:
 
-| Domain code                  | Wire code         | HTTP |
-| ---------------------------- | ----------------- | ---- |
-| `INVALID_MONTH`              | `VALIDATION_ERROR`| 400  |
-| `INVALID_ACCOUNT_ID`         | `VALIDATION_ERROR`| 400  |
-| `INVALID_DATE_RANGE`         | `VALIDATION_ERROR`| 400  |
-| `ACCOUNT_NOT_FOUND`          | `NOT_FOUND`       | 404  |
-| `OUT_OF_RANGE` (range > 366) | `VALIDATION_ERROR`| 400  |
+| Domain code                  | Wire code          | HTTP |
+| ---------------------------- | ------------------ | ---- |
+| `INVALID_MONTH`              | `VALIDATION_ERROR` | 400  |
+| `INVALID_ACCOUNT_ID`         | `VALIDATION_ERROR` | 400  |
+| `INVALID_DATE_RANGE`         | `VALIDATION_ERROR` | 400  |
+| `ACCOUNT_NOT_FOUND`          | `NOT_FOUND`        | 404  |
+| `OUT_OF_RANGE` (range > 366) | `VALIDATION_ERROR` | 400  |
 
 The reports module does NOT import
 `@/modules/transactions/application/actions/_shared.ts` — per the
@@ -710,7 +713,7 @@ export interface ReportsActionDeps {
   readonly subscriber: ReportSubscriberPort;
   readonly clock: Clock;
   readonly logger: Logger;
-  readonly dispatcher: EventDispatcher;            // unused in v1 actions; held for symmetry with transactions
+  readonly dispatcher: EventDispatcher; // unused in v1 actions; held for symmetry with transactions
 }
 ```
 
@@ -742,10 +745,10 @@ export async function getMonthlySummaryAction(
 1. Parse `rawQuery` with `monthlySummaryQuerySchema` (Zod, see
    §5.6). On failure → `zodErrorToActionError`.
 2. Compute the UTC window: `fromDate = new Date(Date.UTC(year,
-   month - 1, 1))`, `toDate = new Date(Date.UTC(year, month, 1))`
+month - 1, 1))`, `toDate = new Date(Date.UTC(year, month, 1))`
    (exclusive upper bound).
 3. Call `deps.reportsRepository.findByUserAndMonth(userId, {
-   year, month })`. The port internally widens the year/month to
+year, month })`. The port internally widens the year/month to
    the date range and delegates to `TransactionRepositoryPort.list`.
 4. Call `createMonthlySummary({ userId, year, month, rows, clock })`.
 5. Map to `MonthlySummaryDTO` via `toMonthlySummaryDto`.
@@ -774,7 +777,7 @@ endpoint.
 
 export interface GetAccountFlowInput {
   readonly userId: string;
-  readonly accountId: string;  // raw from the URL path; NOT yet validated
+  readonly accountId: string; // raw from the URL path; NOT yet validated
   readonly rawQuery: unknown;
 }
 
@@ -791,7 +794,7 @@ export async function getAccountFlowAction(
 1. Parse `rawQuery` with `accountFlowQuerySchema` (Zod, §5.6).
    The schema accepts EITHER `{ month: 'YYYY-MM' }` (derive
    `fromDate` / `toDate`) OR `{ fromDate: 'YYYY-MM-DD',
-   toDate: 'YYYY-MM-DD' }`. The route layer is the only caller
+toDate: 'YYYY-MM-DD' }`. The route layer is the only caller
    that passes `accountId` separately (the URL path); the
    schema validates it under the `accountId` field with the
    **cuid regex** `/^c[a-z0-9]{20,32}$/` (orchestrator
@@ -805,9 +808,9 @@ export async function getAccountFlowAction(
      code is `NOT_FOUND`, HTTP 404 (REQ-RPT-4, BR-RPT-4).
    - Account found → proceed.
 4. Call `deps.reportsRepository.findByUserAccountAndRange(userId,
-   { accountId, fromDate, toDate })`.
+{ accountId, fromDate, toDate })`.
 5. Call `createAccountFlow({ userId, accountId, fromDate, toDate,
-   rows, clock })`.
+rows, clock })`.
 6. Map to `AccountFlowDTO` via `toAccountFlowDto`.
 7. Return `{ ok: true, value: dto }`.
 
@@ -824,15 +827,18 @@ import { z } from 'zod';
 
 export const monthlySummaryQuerySchema = z
   .object({
-    month: z.string().regex(/^\d{4}-\d{2}$/, {
-      message: 'month must match YYYY-MM',
-    }).refine(
-      (m) => {
-        const month = Number.parseInt(m.slice(5, 7), 10);
-        return month >= 1 && month <= 12;
-      },
-      { message: 'month must be 01..12' },
-    ),
+    month: z
+      .string()
+      .regex(/^\d{4}-\d{2}$/, {
+        message: 'month must match YYYY-MM',
+      })
+      .refine(
+        (m) => {
+          const month = Number.parseInt(m.slice(5, 7), 10);
+          return month >= 1 && month <= 12;
+        },
+        { message: 'month must be 01..12' },
+      ),
   })
   .strict();
 
@@ -865,17 +871,22 @@ const baseAccountFlow = z
   })
   .strict();
 
-const monthShape = baseAccountFlow.extend({
-  month: z.string().regex(/^\d{4}-\d{2}$/),
-}).strict();
+const monthShape = baseAccountFlow
+  .extend({
+    month: z.string().regex(/^\d{4}-\d{2}$/),
+  })
+  .strict();
 
-const rangeShape = baseAccountFlow.extend({
-  fromDate: z.string().regex(ISO_DATE, { message: 'fromDate must be YYYY-MM-DD' }),
-  toDate: z.string().regex(ISO_DATE, { message: 'toDate must be YYYY-MM-DD' }),
-}).strict().refine(
-  (q) => q.fromDate <= q.toDate,
-  { message: 'fromDate must be <= toDate', path: ['toDate'] },
-);
+const rangeShape = baseAccountFlow
+  .extend({
+    fromDate: z.string().regex(ISO_DATE, { message: 'fromDate must be YYYY-MM-DD' }),
+    toDate: z.string().regex(ISO_DATE, { message: 'toDate must be YYYY-MM-DD' }),
+  })
+  .strict()
+  .refine((q) => q.fromDate <= q.toDate, {
+    message: 'fromDate must be <= toDate',
+    path: ['toDate'],
+  });
 
 export const accountFlowQuerySchema = z.union([monthShape, rangeShape]);
 ```
@@ -889,13 +900,13 @@ date-math primitive, so the comparison lives in the action.
 
 ### 5.7 Error mapping
 
-| Trigger                                              | Wire code         | HTTP |
-| ---------------------------------------------------- | ----------------- | ---- |
-| Zod parse failure (bad month, bad accountId, etc.)   | `VALIDATION_ERROR`| 400  |
-| Range > 366 days or `fromDate > toDate`              | `VALIDATION_ERROR`| 400  |
-| Cross-user or unknown `accountId` on flow            | `NOT_FOUND`       | 404  |
-| No session                                           | `UNAUTHORIZED`    | 401  |
-| Internal error (Prisma down, etc.)                   | `INTERNAL_ERROR`  | 500  |
+| Trigger                                            | Wire code          | HTTP |
+| -------------------------------------------------- | ------------------ | ---- |
+| Zod parse failure (bad month, bad accountId, etc.) | `VALIDATION_ERROR` | 400  |
+| Range > 366 days or `fromDate > toDate`            | `VALIDATION_ERROR` | 400  |
+| Cross-user or unknown `accountId` on flow          | `NOT_FOUND`        | 404  |
+| No session                                         | `UNAUTHORIZED`     | 401  |
+| Internal error (Prisma down, etc.)                 | `INTERNAL_ERROR`   | 500  |
 
 ---
 
@@ -1022,11 +1033,11 @@ the transactions mount (line 165) and before
 
 ### 7.1 Route table
 
-| Method | Path                                          | Action                          | Validator                              | Success (200)                                                       | Error codes                                                            |
-| ------ | --------------------------------------------- | ------------------------------- | -------------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `GET`  | `/api/reports/monthly`                        | `getMonthlySummaryAction`       | `monthlySummaryQuerySchema`            | `{ data: MonthlySummaryDTO }`                                       | `400 VALIDATION_ERROR`, `401 UNAUTHORIZED`                             |
-| `GET`  | `/api/reports/breakdown`                      | `getCategoryBreakdownAction`    | `categoryBreakdownQuerySchema`         | `{ data: CategoryBreakdownDTO }`                                    | `400 VALIDATION_ERROR`, `401 UNAUTHORIZED`                             |
-| `GET`  | `/api/reports/accounts/:accountId/flow`       | `getAccountFlowAction`          | `accountFlowQuerySchema`               | `{ data: AccountFlowDTO }`                                          | `400 VALIDATION_ERROR`, `401 UNAUTHORIZED`, `404 NOT_FOUND` (cross-user) |
+| Method | Path                                    | Action                       | Validator                      | Success (200)                    | Error codes                                                              |
+| ------ | --------------------------------------- | ---------------------------- | ------------------------------ | -------------------------------- | ------------------------------------------------------------------------ |
+| `GET`  | `/api/reports/monthly`                  | `getMonthlySummaryAction`    | `monthlySummaryQuerySchema`    | `{ data: MonthlySummaryDTO }`    | `400 VALIDATION_ERROR`, `401 UNAUTHORIZED`                               |
+| `GET`  | `/api/reports/breakdown`                | `getCategoryBreakdownAction` | `categoryBreakdownQuerySchema` | `{ data: CategoryBreakdownDTO }` | `400 VALIDATION_ERROR`, `401 UNAUTHORIZED`                               |
+| `GET`  | `/api/reports/accounts/:accountId/flow` | `getAccountFlowAction`       | `accountFlowQuerySchema`       | `{ data: AccountFlowDTO }`       | `400 VALIDATION_ERROR`, `401 UNAUTHORIZED`, `404 NOT_FOUND` (cross-user) |
 
 **Sentinel for "user has no accounts"** (orchestrator decision,
 documented in the proposal §"Open questions" Q5 follow-up):
@@ -1054,14 +1065,14 @@ import type { AuthUser } from '@/modules/api/middlewares/variables';
 type ReportsProtectedVariables = { user: AuthUser; requestId: string };
 
 export interface MountReportsRoutesDeps {
-  reportsDeps?: ReportsActionDeps;  // optional — mirror transactions' pattern
+  reportsDeps?: ReportsActionDeps; // optional — mirror transactions' pattern
 }
 
 export function mountReportsRoutes(
   protectedApp: OpenAPIHono<{ Variables: ReportsProtectedVariables }>,
   deps: MountReportsRoutesDeps,
 ): void {
-  if (!deps.reportsDeps) return;  // legacy accounts-only setups keep compiling
+  if (!deps.reportsDeps) return; // legacy accounts-only setups keep compiling
   const rDeps = deps.reportsDeps;
   const statusFor = (code: string): never => ErrorStatus[code as keyof typeof ErrorStatus] as never;
 
@@ -1138,7 +1149,13 @@ export interface HonoAppDeps {
 
 export function buildAppDeps(): HonoAppDeps {
   // ... existing wiring unchanged ...
-  const reportsDeps = buildReportsDeps({ txRepo, accountRepo, dispatcher, logger, clock: systemClock });
+  const reportsDeps = buildReportsDeps({
+    txRepo,
+    accountRepo,
+    dispatcher,
+    logger,
+    clock: systemClock,
+  });
 
   // BR-RPT-5: wire the noop handler at composition time.
   dispatcher.subscribe('TransactionRecorded', createNoopHandler(logger));
@@ -1158,7 +1175,9 @@ export function buildReportsDeps(args: {
 }): ReportsActionDeps {
   const reportsRepo = new ReportsRepositoryPrisma({
     transactionRepository: args.txRepo,
-    prismaView: asPrismaDelegateView(prisma() as unknown as Parameters<typeof asPrismaDelegateView>[0]),
+    prismaView: asPrismaDelegateView(
+      prisma() as unknown as Parameters<typeof asPrismaDelegateView>[0],
+    ),
   });
   const subscriber: ReportSubscriberPort = {
     onTransactionRecorded: (handler) => {
@@ -1383,16 +1402,16 @@ PR with a clear start, finish, verification, and rollback.
 
 ### 10.1 Slice 1 — `reports-domain`
 
-| Field              | Value                                                            |
-| ------------------ | ---------------------------------------------------------------- |
-| Branch             | `feat/reports-1-domain`                                          |
-| Scope              | `src/modules/reports/domain/` (full domain skeleton, no routes, no application layer, no Hono changes) |
-| Files (new)        | All files under `src/modules/reports/domain/` (aggregates × 3, services × 1, ports × 2, errors × 5, value-objects × 1, barrel × 1) + co-located tests + new kernel port `src/shared/domain-kernel/ports/transaction-repository-port.ts` + kernel barrel update |
-| LoC low            | 180                                                               |
-| LoC high           | 280                                                               |
-| Verification gate  | `pnpm test src/modules/reports/domain` exits 0; port contract test asserts cross-user isolation; ≥ 80% coverage on the domain layer |
-| Rollback           | `git revert <merge-sha>`; the kernel port deletion is non-breaking (only `reports` imports it) |
-| Follow-up          | Slice 2 consumes the port; no external dependency on slice 1 changes after merge |
+| Field             | Value                                                                                                                                                                                                                                                          |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Branch            | `feat/reports-1-domain`                                                                                                                                                                                                                                        |
+| Scope             | `src/modules/reports/domain/` (full domain skeleton, no routes, no application layer, no Hono changes)                                                                                                                                                         |
+| Files (new)       | All files under `src/modules/reports/domain/` (aggregates × 3, services × 1, ports × 2, errors × 5, value-objects × 1, barrel × 1) + co-located tests + new kernel port `src/shared/domain-kernel/ports/transaction-repository-port.ts` + kernel barrel update |
+| LoC low           | 180                                                                                                                                                                                                                                                            |
+| LoC high          | 280                                                                                                                                                                                                                                                            |
+| Verification gate | `pnpm test src/modules/reports/domain` exits 0; port contract test asserts cross-user isolation; ≥ 80% coverage on the domain layer                                                                                                                            |
+| Rollback          | `git revert <merge-sha>`; the kernel port deletion is non-breaking (only `reports` imports it)                                                                                                                                                                 |
+| Follow-up         | Slice 2 consumes the port; no external dependency on slice 1 changes after merge                                                                                                                                                                               |
 
 **Commit plan** (atomic, conventional; mirrors the work-unit-commits
 pattern):
@@ -1421,16 +1440,16 @@ pattern):
 
 ### 10.2 Slice 2 — `reports-application`
 
-| Field              | Value                                                            |
-| ------------------ | ---------------------------------------------------------------- |
-| Branch             | `feat/reports-2-application`                                     |
-| Scope              | `src/modules/reports/application/` (actions × 3, schemas × 3, DTOs × 3, fixtures × 1, routes stub × 1, barrel × 1, co-located tests) |
-| Files (new)        | All files under `src/modules/reports/application/`               |
-| LoC low            | 220                                                               |
-| LoC high           | 340                                                               |
-| Verification gate  | `pnpm test src/modules/reports/application` exits 0; action tests cover empty state, mixed-currency, cross-user isolation, 400/401/404 paths |
-| Rollback           | `git revert <merge-sha>`; the application layer is additive (no callers until slice 3) |
-| Follow-up          | Slice 3 mounts the routes on `protectedApp` and wires the composition root |
+| Field             | Value                                                                                                                                        |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Branch            | `feat/reports-2-application`                                                                                                                 |
+| Scope             | `src/modules/reports/application/` (actions × 3, schemas × 3, DTOs × 3, fixtures × 1, routes stub × 1, barrel × 1, co-located tests)         |
+| Files (new)       | All files under `src/modules/reports/application/`                                                                                           |
+| LoC low           | 220                                                                                                                                          |
+| LoC high          | 340                                                                                                                                          |
+| Verification gate | `pnpm test src/modules/reports/application` exits 0; action tests cover empty state, mixed-currency, cross-user isolation, 400/401/404 paths |
+| Rollback          | `git revert <merge-sha>`; the application layer is additive (no callers until slice 3)                                                       |
+| Follow-up         | Slice 3 mounts the routes on `protectedApp` and wires the composition root                                                                   |
 
 **Commit plan**:
 
@@ -1458,17 +1477,17 @@ pattern):
 
 ### 10.3 Slice 3 — `reports-routes`
 
-| Field              | Value                                                            |
-| ------------------ | ---------------------------------------------------------------- |
-| Branch             | `feat/reports-3-routes`                                          |
-| Scope              | `src/modules/reports/application/routes.ts` (mount function), `src/composition/build-app-deps.ts` (deps wiring + noop subscribe), `src/composition/create-hono-app.ts` (mount call), `src/modules/reports/infrastructure/repositories/reports.repository.prisma.ts` (Prisma adapter), `src/modules/reports/infrastructure/subscribers/noop-transaction-recorded.subscriber.ts` (noop handler), `src/modules/reports/index.ts` (public barrel), `src/shared/domain-kernel/index.ts` (re-export port), `src/composition/build-app-deps.test.ts` (subscriber-count assertion) |
-| Files (new)        | `routes.ts`, `routes.test.ts`, `reports.repository.prisma.ts`, `reports.repository.prisma.test.ts`, `noop-transaction-recorded.subscriber.ts`, `noop-transaction-recorded.subscriber.test.ts`, `src/modules/reports/index.ts` |
-| Files (modified)   | `src/composition/build-app-deps.ts`, `src/composition/create-hono-app.ts`, `src/shared/domain-kernel/index.ts`, `src/composition/build-app-deps.test.ts` |
-| LoC low            | 160                                                               |
-| LoC high           | 260                                                               |
-| Verification gate  | `pnpm test src/modules/reports/application/routes.test.ts` exits 0; `pnpm test src/composition/build-app-deps.test.ts` asserts the subscriber count (REQ-RPT-7); manual `curl` smoke against `pnpm dev` with seeded data |
-| Rollback           | `git revert <merge-sha>`; the three routes are additive (no callers until slice 4); the noop subscribe is removable without callers until a future change |
-| Follow-up          | Slice 4 consumes the routes from `app/dashboard/page.tsx` |
+| Field             | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Branch            | `feat/reports-3-routes`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Scope             | `src/modules/reports/application/routes.ts` (mount function), `src/composition/build-app-deps.ts` (deps wiring + noop subscribe), `src/composition/create-hono-app.ts` (mount call), `src/modules/reports/infrastructure/repositories/reports.repository.prisma.ts` (Prisma adapter), `src/modules/reports/infrastructure/subscribers/noop-transaction-recorded.subscriber.ts` (noop handler), `src/modules/reports/index.ts` (public barrel), `src/shared/domain-kernel/index.ts` (re-export port), `src/composition/build-app-deps.test.ts` (subscriber-count assertion) |
+| Files (new)       | `routes.ts`, `routes.test.ts`, `reports.repository.prisma.ts`, `reports.repository.prisma.test.ts`, `noop-transaction-recorded.subscriber.ts`, `noop-transaction-recorded.subscriber.test.ts`, `src/modules/reports/index.ts`                                                                                                                                                                                                                                                                                                                                              |
+| Files (modified)  | `src/composition/build-app-deps.ts`, `src/composition/create-hono-app.ts`, `src/shared/domain-kernel/index.ts`, `src/composition/build-app-deps.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| LoC low           | 160                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| LoC high          | 260                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Verification gate | `pnpm test src/modules/reports/application/routes.test.ts` exits 0; `pnpm test src/composition/build-app-deps.test.ts` asserts the subscriber count (REQ-RPT-7); manual `curl` smoke against `pnpm dev` with seeded data                                                                                                                                                                                                                                                                                                                                                   |
+| Rollback          | `git revert <merge-sha>`; the three routes are additive (no callers until slice 4); the noop subscribe is removable without callers until a future change                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Follow-up         | Slice 4 consumes the routes from `app/dashboard/page.tsx`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 **Commit plan**:
 
@@ -1494,16 +1513,16 @@ pattern):
 
 ### 10.4 Slice 4 — `dashboard-ui`
 
-| Field              | Value                                                            |
-| ------------------ | ---------------------------------------------------------------- |
-| Branch             | `feat/reports-4-dashboard-ui`                                    |
-| Scope              | `app/dashboard/page.tsx`, `app/_components/dashboard-*.tsx` (× 3), `app/_lib/report-types.ts`, co-located tests |
-| Files (new)        | `app/dashboard/page.tsx`, `app/_components/dashboard-monthly-summary.tsx`, `app/_components/dashboard-category-breakdown.tsx`, `app/_components/dashboard-account-flow.tsx`, `app/_lib/report-types.ts`, `app/dashboard/page.test.tsx`, `app/_components/dashboard-*.test.tsx` (× 3) |
-| LoC low            | 200                                                               |
-| LoC high           | 320                                                               |
-| Verification gate  | Manual `pnpm dev` smoke: sign in → visit `/dashboard` → see three cards. Vitest snapshot tests for the three presentational components + the dashboard page. |
-| Rollback           | `git revert <merge-sha>`; the dashboard route is additive (404s if visited when the slice is reverted; no other route references it) |
-| Follow-up          | Future `transactions-ui` adds design-system primitives and accessibility audits |
+| Field             | Value                                                                                                                                                                                                                                                                                |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Branch            | `feat/reports-4-dashboard-ui`                                                                                                                                                                                                                                                        |
+| Scope             | `app/dashboard/page.tsx`, `app/_components/dashboard-*.tsx` (× 3), `app/_lib/report-types.ts`, co-located tests                                                                                                                                                                      |
+| Files (new)       | `app/dashboard/page.tsx`, `app/_components/dashboard-monthly-summary.tsx`, `app/_components/dashboard-category-breakdown.tsx`, `app/_components/dashboard-account-flow.tsx`, `app/_lib/report-types.ts`, `app/dashboard/page.test.tsx`, `app/_components/dashboard-*.test.tsx` (× 3) |
+| LoC low           | 200                                                                                                                                                                                                                                                                                  |
+| LoC high          | 320                                                                                                                                                                                                                                                                                  |
+| Verification gate | Manual `pnpm dev` smoke: sign in → visit `/dashboard` → see three cards. Vitest snapshot tests for the three presentational components + the dashboard page.                                                                                                                         |
+| Rollback          | `git revert <merge-sha>`; the dashboard route is additive (404s if visited when the slice is reverted; no other route references it)                                                                                                                                                 |
+| Follow-up         | Future `transactions-ui` adds design-system primitives and accessibility audits                                                                                                                                                                                                      |
 
 **Commit plan**:
 
@@ -1546,17 +1565,33 @@ describe('createMonthlySummary', () => {
   it('groups by convertedCurrency and returns one row per currency', () => {
     // GIVEN: 3 ARS transactions + 2 USD transactions in 2026-06 (UTC)
     const rows: TransactionDTO[] = [
-      { id: 'a', userId: 'u1', accountId: 'a1', direction: 'INCOME',
-        amountMinor: 100000, currency: 'ARS', convertedAmountMinor: 100000,
-        convertedCurrency: 'ARS', transactionDate: new Date('2026-06-01T00:00:00Z'),
-        fxAsOfSnapshot: null, casaSnapshot: null, memo: null, category: null,
-        createdAt: new Date(), updatedAt: new Date() },
+      {
+        id: 'a',
+        userId: 'u1',
+        accountId: 'a1',
+        direction: 'INCOME',
+        amountMinor: 100000,
+        currency: 'ARS',
+        convertedAmountMinor: 100000,
+        convertedCurrency: 'ARS',
+        transactionDate: new Date('2026-06-01T00:00:00Z'),
+        fxAsOfSnapshot: null,
+        casaSnapshot: null,
+        memo: null,
+        category: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
       // ... 4 more rows
     ];
 
     // WHEN: factory is called with the rows + the system clock
     const summary = createMonthlySummary({
-      userId: 'u1', year: 2026, month: 6, rows, clock: systemClock,
+      userId: 'u1',
+      year: 2026,
+      month: 6,
+      rows,
+      clock: systemClock,
     });
 
     // THEN: two totals rows (one per convertedCurrency)
@@ -1612,7 +1647,13 @@ export function createMonthlySummary(input: CreateMonthlySummaryInput): MonthlyS
 
 ```typescript
 it('returns an empty totals array when there are no rows', () => {
-  const summary = createMonthlySummary({ userId: 'u1', year: 2026, month: 6, rows: [], clock: systemClock });
+  const summary = createMonthlySummary({
+    userId: 'u1',
+    year: 2026,
+    month: 6,
+    rows: [],
+    clock: systemClock,
+  });
   expect(summary.totals).toEqual([]);
   expect(summary.generatedAt).toBeInstanceOf(Date);
 });
@@ -1647,10 +1688,13 @@ describe('getMonthlySummaryAction', () => {
     const txRepo = new InMemoryTransactionRepository();
     txRepo.seed(/* seed 2 ARS rows */);
     const reportsRepo = new InMemoryReportsRepository(txRepo);
-    const deps = { reportsRepository: reportsRepo, /* ... */ } as any;
+    const deps = { reportsRepository: reportsRepo /* ... */ } as any;
 
     // WHEN: action is called with month=2026-06
-    const result = await getMonthlySummaryAction(deps, { userId: 'u1', rawQuery: { month: '2026-06' } });
+    const result = await getMonthlySummaryAction(deps, {
+      userId: 'u1',
+      rawQuery: { month: '2026-06' },
+    });
 
     // THEN: ok=true and totals has 1 ARS row
     expect(result.ok).toBe(true);
@@ -1687,13 +1731,22 @@ describe('createNoopHandler', () => {
     const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
     const handler = createNoopHandler(logger as any);
     const payload = {
-      userId: 'u1', transactionId: 't1', accountId: 'a1',
-      direction: 'INCOME' as const, amountMinor: 1000, currency: 'ARS' as const,
-      casa: null, convertedAmountMinor: 1000, convertedCurrency: 'ARS' as const,
+      userId: 'u1',
+      transactionId: 't1',
+      accountId: 'a1',
+      direction: 'INCOME' as const,
+      amountMinor: 1000,
+      currency: 'ARS' as const,
+      casa: null,
+      convertedAmountMinor: 1000,
+      convertedCurrency: 'ARS' as const,
       occurredAt: '2026-06-15T00:00:00.000Z',
     };
     await expect(handler(payload)).resolves.toBeUndefined();
-    expect(logger.debug).toHaveBeenCalledWith('reports.noop.transaction-recorded', expect.objectContaining({ userId: 'u1' }));
+    expect(logger.debug).toHaveBeenCalledWith(
+      'reports.noop.transaction-recorded',
+      expect.objectContaining({ userId: 'u1' }),
+    );
   });
 });
 ```
@@ -1937,7 +1990,7 @@ The orchestrator can run these binary checks after `sdd-apply`
 completes:
 
 1. `pnpm test src/modules/reports/` exits 0 (domain + application
-   + infrastructure).
+   - infrastructure).
 2. `pnpm test src/composition/build-app-deps.test.ts` exits 0
    with the subscriber-count assertion (REQ-RPT-7, BR-RPT-5).
 3. `pnpm typecheck` exits 0 (TypeScript strict mode, no `any`).
