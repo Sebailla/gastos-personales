@@ -1,6 +1,6 @@
 # Diseño — `reports`
 
-**Estado**: implementado · **Autor**: Sebastián Illa · **Creado**: 2026-06-26
+**Estado**: implementado · **Implementado**: 2026-06-27 (slices 1-4 mergeados en develop vía #76/#79/#80/#85 + fixes vía #81/#82) · **Autor**: Sebastián Illa · **Creado**: 2026-06-26
 **Cambio**: `reports`
 **Propuesta**: `openspec/changes/reports/proposal.md` (v1, 2026-06-26)
 **Especificación (delta)**: `openspec/changes/reports/specs/reports/spec.md` (REQ-RPT-1 a REQ-RPT-7)

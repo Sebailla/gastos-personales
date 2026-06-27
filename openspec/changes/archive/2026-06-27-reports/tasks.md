@@ -3,7 +3,7 @@
 **Author**: Sebastián Illa
 **Change**: `reports`
 **Capability**: `reports` (new — first write of the canonical spec + design); one additive delta on `transactions` (`TransactionRecorded` gains at least one subscriber); no behaviour change on `accounts`, `errors`, `events` (the dispatcher union already has `TransactionRecorded`)
-**Status**: slices 1, 2, 3 complete (T-RPT-001..210); slice 4 (dashboard-ui) pending · **Created**: 2026-06-26
+**Status**: implemented · **Implemented**: 2026-06-27 (4 slices merged on develop via #76/#79/#80/#85 — T-RPT-001..308; fixes via #81/#82; housekeeping via #88/#89) · **Created**: 2026-06-26
 **Stack**: v3 — Next.js 16 + Node 20 + Hono catch-all + Auth.js v5 (inherited from `auth-foundation`) + Prisma 6 + PostgreSQL (Neon) + Zod + Vitest + pnpm + Tailwind v4
 **Source artifacts**: `openspec/changes/reports/proposal.md` (v1) · `openspec/changes/reports/specs/reports/spec.md` (REQ-RPT-1..7) · `openspec/changes/reports/design.md` (1947 lines; 15 sections) — input for this phase
 **Preflight values**: interactive · `both` (OpenSpec + Engram) · `force-chained` · 400-line review budget

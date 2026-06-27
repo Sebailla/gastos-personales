@@ -1,6 +1,6 @@
 # Propuesta — `reports`
 
-**Estado**: implementado · **Autor**: Sebastián Illa
+**Estado**: implementado · **Implementado**: 2026-06-27 (slices 1-4 mergeados en develop vía #76/#79/#80/#85 + fixes vía #81/#82) · **Autor**: Sebastián Illa
 **Creado**: 2026-06-26 · **Slice objetivo**: MVP-3 (superficie de agregación)
 **Upstream**: `openspec/AGENTS.md` (ciclo de vida del proyecto) · `openspec/config.yaml` (slot de capability `reports` reservado; TDD estricto; auto-forecast, 400 líneas)
 **Upstream**: preflight SDD global (interactive, both, auto-forecast, 400 líneas; review budget 400)
