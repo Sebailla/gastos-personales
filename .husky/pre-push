@@ -1,22 +1,71 @@
-# Reject pushes to main/master and require the branch name to
-# match the conventional prefix. Pushing to develop happens via
-# squash-merge from a feature branch.
+# Pre-push hook.
 #
-# Allow `git push --delete <remote> <branch>` and the shorthand
-# `git push <remote> :<branch>` to pass through without checks.
-# Those calls do not change the current branch, so validating
-# `git symbolic-ref --short HEAD` would falsely reject them when
-# the worktree is on develop.
-for arg in "$@"; do
-  case "$arg" in
-    :*|--delete|--delete=*)
-      exit 0
-      ;;
-  esac
-done
+# Two responsibilities:
+#   1. Reject pushes to main/master and require the branch name
+#      to match the conventional prefix. Pushing to develop
+#      happens via squash-merge from a feature branch.
+#   2. Run the coverage gate (`test:coverage:enforced`) so a
+#      coverage regression is caught before the remote.
+#
+# Branch-delete detection (the bug fix):
+#
+#   Git invokes this hook with ONLY two positional arguments:
+#     `<remote> <url>` — neither `--delete` nor the branch name
+#   appear in $@. The OLD code looked for `--delete` in $@, which
+#   never matched, so `git push origin --delete <branch>` from a
+#   worktree on `develop` was rejected with "branch name 'develop'
+#   does not match the convention" (root cause of the
+#   `--no-verify` workaround used by the cleanup scripts).
+#
+#   The correct detection reads STDIN: git writes one line per
+#   refspec with the format
+#     <local_ref> <local_sha> <remote_ref> <remote_sha>
+#   For a delete, <remote_sha> is 40 zeros
+#   (0000000000000000000000000000000000000000).
+#
+#   When ALL refspecs are deletes we exit 0 without running any
+#   check (no branch to validate, no source to cover). Mixed
+#   pushes (update + delete) still run the checks on the
+#   updated refs — git only checks <local_ref> for the branch
+#   name validation.
+
+# Collect all refspec lines from stdin (git pipes them in).
+# We must read stdin BEFORE running other commands; otherwise
+# the pipe is closed and we miss the data.
+refspecs=$(cat)
+# Trim trailing whitespace-only lines so the iteration below
+# distinguishes "no refspecs" from "blank lines only".
+refspecs=$(printf '%s\n' "$refspecs" | sed '/^[[:space:]]*$/d')
+refspec_count=$(printf '%s\n' "$refspecs" | grep -c ' ' || true)
+all_deletes=true
+if [ "$refspec_count" -eq 0 ]; then
+  all_deletes=false
+else
+  while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
+    [ -z "$local_ref" ] && continue
+    if [ "$remote_sha" != "0000000000000000000000000000000000000000" ]; then
+      all_deletes=false
+      break
+    fi
+  done <<EOF
+$refspecs
+EOF
+fi
+
+if $all_deletes && [ "$refspec_count" -gt 0 ]; then
+  exit 0
+fi
 
 protected_branches="^(main|master)$"
-current_branch=$(git symbolic-ref --short HEAD)
+# MOCK_CURRENT_BRANCH overrides the symbolic-ref read so the test
+# suite (`scripts/test-pre-push.sh`) can exercise the branch-name
+# validation paths without switching worktrees mid-test. Production
+# never sets this env var; the override is invisible at runtime.
+if [ -n "${MOCK_CURRENT_BRANCH:-}" ]; then
+  current_branch="$MOCK_CURRENT_BRANCH"
+else
+  current_branch=$(git symbolic-ref --short HEAD)
+fi
 
 if echo "$current_branch" | grep -qE "$protected_branches"; then
   echo "Push rejected: '$current_branch' is a protected branch."
@@ -39,15 +88,10 @@ fi
 # the per-staged-file checks in pre-commit — gating at push
 # keeps the inner loop fast while still catching coverage
 # regressions before they reach the remote.
-#
-# Skip the coverage check on --delete pushes (a branch delete
-# has no source to cover).
-for arg in "$@"; do
-  case "$arg" in
-    :*|--delete|--delete=*)
-      exit 0
-      ;;
-  esac
-done
+if [ -n "${MOCK_SKIP_COVERAGE:-}" ]; then
+  # Test-suite short-circuit. Production never sets this env var;
+  # the real coverage gate is the reason pre-push exists.
+  exit 0
+fi
 
 SKIP_TIMING=true pnpm run test:coverage:enforced
