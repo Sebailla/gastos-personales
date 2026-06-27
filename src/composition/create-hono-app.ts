@@ -78,6 +78,7 @@ import type { MiddlewareHandler } from 'hono';
 import { mountAuthRoutes } from '@/modules/auth';
 import { mountAccountsRoutes } from '@/modules/accounts';
 import { mountTransactionsRoutes } from '@/modules/transactions/application';
+import { mountReportsRoutes } from '@/modules/reports';
 import { env } from '@/shared/env/env.schema';
 import type { AuthUser } from '@/modules/api/middlewares/variables';
 import type { HonoAppDeps } from '@/composition/build-app-deps';
@@ -97,9 +98,7 @@ export interface HonoContextVariables {
  * get isolated app instances; the production entry
  * point calls it once with the default deps.
  */
-export function createHonoApp(
-  deps: HonoAppDeps,
-): OpenAPIHono<{ Variables: HonoContextVariables }> {
+export function createHonoApp(deps: HonoAppDeps): OpenAPIHono<{ Variables: HonoContextVariables }> {
   const app = new OpenAPIHono<{ Variables: HonoContextVariables }>();
 
   app.use('*', requestIdMiddleware);
@@ -163,6 +162,14 @@ export function createHonoApp(
   // Mount the 6 transaction-domain routes (gated on
   // transactionDeps being supplied).
   mountTransactionsRoutes(protectedApp, { transactionDeps: deps.transactionDeps });
+
+  // Mount the 3 reports routes (slice 3, REQ-RPT-1..3):
+  //   GET /api/reports/monthly (REQ-RPT-1)
+  //   GET /api/reports/breakdown (REQ-RPT-2)
+  //   GET /api/reports/accounts/:accountId/flow (REQ-RPT-3, REQ-RPT-4)
+  // The factory is a no-op when `reportsDeps` is undefined
+  // (legacy accounts-only test setups).
+  mountReportsRoutes(protectedApp, { reportsDeps: deps.reportsDeps });
 
   // Mount the protected sub-app under the same path
   // prefix as before. The `requireSession` middleware
