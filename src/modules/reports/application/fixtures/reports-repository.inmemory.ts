@@ -66,15 +66,16 @@ export type TransactionListFn = (
 ) => Promise<ListTransactionsPage>;
 
 /**
- * Inclusive UTC date filter on `transactionDate`. The fixture
- * matches the kernel's `list(...)` semantics: rows whose
- * `transactionDate` falls in `[fromDate, toDate]` are
- * returned. Both bounds are inclusive (the in-memory fixture
- * does not paginate).
+ * Half-open UTC date filter on `transactionDate`. The
+ * fixture matches the kernel's bounded-window semantics:
+ * `fromDate` is INCLUSIVE and `toDate` is EXCLUSIVE. The
+ * upper bound matches the SQL `toDate < nextMonth` clamp the
+ * Prisma adapter uses (design §6.1) so the in-memory fixture
+ * and the production adapter agree on boundary rows.
  */
 function inRange(row: TransactionDTO, fromDate: Date, toDate: Date): boolean {
   const t = row.transactionDate.getTime();
-  return t >= fromDate.getTime() && t <= toDate.getTime();
+  return t >= fromDate.getTime() && t < toDate.getTime();
 }
 
 export class InMemoryReportsRepository implements ReportsRepositoryPort {
@@ -84,18 +85,12 @@ export class InMemoryReportsRepository implements ReportsRepositoryPort {
     userId: string,
     opts: ListForMonthlyOptions,
   ): Promise<readonly TransactionDTO[]> {
-    // UTC window: lower bound `year-month-01 00:00:00.000Z`,
-    // exclusive upper bound `year-(month+1)-01 00:00:00.000Z`
-    // (the SQL `toDate < nextMonth` clamp the Prisma adapter
-    // uses; design §6.1). Date.UTC rolls over month=12 to
-    // January of the next year automatically.
-    //
-    // The fixture's `inRange` filter is INCLUSIVE on both
-    // ends because the in-memory store never holds a row at
-    // the next-month-01 exact timestamp (the `createdAt` /
-    // `updatedAt` round-trip would otherwise leak a boundary
-    // row). For the kernel's bounded-window reads, the two
-    // semantics agree.
+    // UTC window: INCLUSIVE lower bound `year-month-01
+    // 00:00:00.000Z`, EXCLUSIVE upper bound
+    // `year-(month+1)-01 00:00:00.000Z` (the SQL `toDate <
+    // nextMonth` clamp the Prisma adapter uses; design
+    // §6.1). Date.UTC rolls over month=12 to January of the
+    // next year automatically.
     const fromDate = new Date(Date.UTC(opts.year, opts.month - 1, 1, 0, 0, 0, 0));
     const toDate = new Date(Date.UTC(opts.year, opts.month, 1, 0, 0, 0, 0));
     return this.fetchInWindow(userId, undefined, fromDate, toDate);
