@@ -1,6 +1,6 @@
 # Proposal — `reports`
 
-**Status**: draft · **Author**: Sebastián Illa
+**Status**: implemented · **Implemented**: 2026-06-27 (slices 1-4 merged on develop via #76/#79/#80/#85 + fixes via #81/#82) · **Author**: Sebastián Illa
 **Created**: 2026-06-26 · **Target slice**: MVP-3 (aggregation surface)
 **Upstream**: `openspec/AGENTS.md` (project lifecycle) · `openspec/config.yaml` (`reports` capability slot reserved; strict TDD; auto-forecast, 400 lines)
 **Upstream**: global SDD preflight (interactive, both, auto-forecast, 400 lines; review budget 400)
@@ -31,20 +31,20 @@ Three seam-level signals confirm the change is ready to ship now:
 1. **The events seam is begging for a consumer.** The
    `TransactionRecorded` union member was added in
    `transactions` (REQ-TX-13, BR-TX-11) with the explicit contract
-   that *"future `reports` and `snapshots` consumers can subscribe
-   without an interface change"* (`src/shared/events/event-dispatcher.ts:21-39`).
+   that _"future `reports` and `snapshots` consumers can subscribe
+   without an interface change"_ (`src/shared/events/event-dispatcher.ts:21-39`).
    The union membership is the contract — a `reports` module ships
    without touching the event-dispatcher file at all.
 2. **The read seam is stable.** The
    `TransactionRepositoryPort.list(userId, { cursor, limit,
-   accountId? })` (REQ-TX-8) is the only input reports needs.
+accountId? })` (REQ-TX-8) is the only input reports needs.
    Pagination + per-account filtering are already implemented; the
    `TransactionDTO` shape (`convertedAmountMinor`,
    `convertedCurrency`, `fxAsOfSnapshot`, `casaSnapshot`) is the
    deterministic totals source — BR-ACC-12 carried.
 3. **The product surface is the empty placeholder.** `app/page.tsx`
-   still renders *"Auth foundation ready. The application surface
-   ships in Slice B."* There is no `/dashboard` route. The user has
+   still renders _"Auth foundation ready. The application surface
+   ships in Slice B."_ There is no `/dashboard` route. The user has
    a recording tool with no consumption tool.
 
 The downstream consequences (deferred, named here for traceability):
@@ -64,22 +64,22 @@ targeting `develop` and gating on the prior slice merging:
   `src/modules/transactions/`:
   - `domain/entities/monthly-summary.ts` — aggregate:
     `{ userId, year, month, totalsByCurrency: { currency,
-    inflowMinor, outflowMinor, netMinor, txCount }[], generatedAt }`.
+inflowMinor, outflowMinor, netMinor, txCount }[], generatedAt }`.
     Pure factory + Zod input schema + invariants (no negative
     magnitudes; `currency` is one of the `AccountCurrency` enum).
   - `domain/entities/category-breakdown.ts` — aggregate:
     `{ userId, year, month, buckets: { category: string,
-    amountMinor: number, currency: AccountCurrency, txCount }[],
-    generatedAt }`. Category normalization is the factory's job:
+amountMinor: number, currency: AccountCurrency, txCount }[],
+generatedAt }`. Category normalization is the factory's job:
     lowercase + trim; null/empty → `"uncategorized"`.
   - `domain/entities/account-flow.ts` — aggregate:
     `{ userId, accountId, fromDate, toDate, points: { date,
-    inflowMinor, outflowMinor, netMinor, currency:
-    AccountCurrency }[], generatedAt }`. Daily granularity.
+inflowMinor, outflowMinor, netMinor, currency:
+AccountCurrency }[], generatedAt }`. Daily granularity.
   - `domain/services/` — pure aggregation functions:
     `computeMonthlySummary`, `computeCategoryBreakdown`,
     `computeAccountFlow`. Each takes `(rows: Transaction[],
-    filters: {...})` and returns the aggregate. Zero I/O; the
+filters: {...})` and returns the aggregate. Zero I/O; the
     service is a function, not a class.
   - `domain/interfaces/reports.repository.port.ts` — port
     declaring the read methods (`listForMonthly`,
@@ -125,9 +125,9 @@ targeting `develop` and gating on the prior slice merging:
     timestamps.
   - `validation/` — three Zod schemas:
     `monthly-summary-query.schema.ts` (`{ year: 2000-2100, month:
-    1-12 }`), `category-breakdown-query.schema.ts` (same shape),
+1-12 }`), `category-breakdown-query.schema.ts` (same shape),
     `account-flow-query.schema.ts` (`{ accountId: cuid,
-    fromDate: ISO date, toDate: ISO date, fromDate <= toDate }`).
+fromDate: ISO date, toDate: ISO date, fromDate <= toDate }`).
   - `fixtures/reports.repository.inmemory.ts` — InMemory port
     implementation backed by an injected `TransactionRepositoryPort`
     fixture (the **reports in-memory fixture composition reuses the
@@ -155,7 +155,7 @@ targeting `develop` and gating on the prior slice merging:
   exporting `mountReportsRoutes(protectedApp, deps)`. The
   composition root in `src/composition/create-hono-app.ts` adds
   one `mountReportsRoutes(protectedApp, { reportsDeps:
-  deps.reportsDeps })` call after the transactions mount, before
+deps.reportsDeps })` call after the transactions mount, before
   the sub-app is mounted on `/`.
 - **DI wiring** in `src/composition/build-app-deps.ts`:
   - New `ReportsActionDeps` interface (parallel to
@@ -167,7 +167,7 @@ targeting `develop` and gating on the prior slice merging:
   - `buildAppDeps()` returns `reportsDeps` in the bag.
 - **Event-driven seam wiring (v1 no-op)**:
   `buildReportsDeps` calls `dispatcher.subscribe('TransactionRecorded',
-  noopHandler)`. The `noopHandler` is a typed stub that logs at
+noopHandler)`. The `noopHandler` is a typed stub that logs at
   `debug` and returns. **The call exists to validate the seam at
   boot** — if the dispatcher signature changes, the composition
   root fails to compile. The handler becomes a real materializer
@@ -186,12 +186,12 @@ targeting `develop` and gating on the prior slice merging:
   resolves the session via `auth()`, calls the three reports
   endpoints in parallel, and renders the three presentational
   components below. Header comment `// smoke-minimal, not
-  production` (same convention as the transactions pages).
+production` (same convention as the transactions pages).
   Empty state renders three empty cards + a CTA to
   `/transactions/new`.
 - **Presentational components** at
   `app/_components/dashboard-{monthly-summary,category-breakdown,
-  account-flow}.tsx`. Each is a pure Server Component (no
+account-flow}.tsx`. Each is a pure Server Component (no
   client hooks, no `'use client'` directive). Tailwind v4 tokens
   via the project's existing class table; no new color or
   spacing tokens.
@@ -259,13 +259,13 @@ targeting `develop` and gating on the prior slice merging:
 
 ## Users and situations
 
-| User | Situation | Touchpoint |
-|---|---|---|
-| Authenticated user | Opens `/dashboard` to see this month's totals. Sees `MonthlySummaryCard` with inflow/outbreak/net per currency. | `app/dashboard/page.tsx` + `GET /api/reports/monthly` |
-| Authenticated user | Scrolls to the breakdown to find their top spending category. Sees `CategoryBreakdownTable` ordered by amount DESC. | `GET /api/reports/breakdown` |
-| Authenticated user | Picks a bank account on the dashboard to see daily flow. Navigates to `/accounts/:id` → sees `AccountFlowChart` for the last 30 days. | `GET /api/reports/accounts/:id/flow?fromDate&toDate` |
-| New user (no transactions) | Opens `/dashboard`. Sees three empty cards + a "Record your first transaction" CTA linking to `/transactions/new`. | Empty-state branch in `app/dashboard/page.tsx` |
-| Future `snapshots` author | Subscribes to `MonthlySummary`'s aggregate for net-worth-over-time. | `src/modules/reports/domain/entities/monthly-summary.ts` (stable input) |
+| User                       | Situation                                                                                                                             | Touchpoint                                                              |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Authenticated user         | Opens `/dashboard` to see this month's totals. Sees `MonthlySummaryCard` with inflow/outbreak/net per currency.                       | `app/dashboard/page.tsx` + `GET /api/reports/monthly`                   |
+| Authenticated user         | Scrolls to the breakdown to find their top spending category. Sees `CategoryBreakdownTable` ordered by amount DESC.                   | `GET /api/reports/breakdown`                                            |
+| Authenticated user         | Picks a bank account on the dashboard to see daily flow. Navigates to `/accounts/:id` → sees `AccountFlowChart` for the last 30 days. | `GET /api/reports/accounts/:id/flow?fromDate&toDate`                    |
+| New user (no transactions) | Opens `/dashboard`. Sees three empty cards + a "Record your first transaction" CTA linking to `/transactions/new`.                    | Empty-state branch in `app/dashboard/page.tsx`                          |
+| Future `snapshots` author  | Subscribes to `MonthlySummary`'s aggregate for net-worth-over-time.                                                                   | `src/modules/reports/domain/entities/monthly-summary.ts` (stable input) |
 
 ## Business rules
 
@@ -313,25 +313,25 @@ Scenarios.
 
 ## Affected areas
 
-| Area | Impact | Description |
-|---|---|---|
-| `src/modules/reports/` | New | New module mirroring `src/modules/transactions/` shape. Domain / application / infrastructure; ports & adapters; minimal public barrel. |
-| `src/composition/build-app-deps.ts` | Modified | Adds `ReportsActionDeps` interface + `buildReportsDeps()` factory + `reportsDeps` field in `HonoAppDeps`. Subscribes `noopHandler` to `TransactionRecorded`. |
-| `src/composition/create-hono-app.ts` | Modified | Mounts `mountReportsRoutes(protectedApp, { reportsDeps: deps.reportsDeps })` after the transactions mount. |
-| `src/shared/events/event-dispatcher.ts` | None | The `TransactionRecorded` union member already exists (REQ-TX-13). No file change. |
-| `prisma/schema.prisma` | None | No new model. Reads go through `TransactionRepositoryPort`. |
-| `app/dashboard/page.tsx` | New | Server Component shell; calls the three reports endpoints in parallel. |
-| `app/_components/dashboard-*.tsx` | New | Three presentational Server Components (pure render). |
-| `app/_lib/report-types.ts` | New | DTO mirrors for the three endpoints. |
-| `openspec/specs/reports/spec.md` | New (canonical) | Created by `sdd-archive` from the delta spec. Already reserved in `openspec/config.yaml:14`. |
-| `openspec/changes/reports/{specs,design,tasks,apply-progress,verify-report,sync-report}.md` | New (per phase) | Each SDD phase writes its artifact in the change folder. |
-| `Documents-es/openspec/changes/reports/proposal.md` | New | Spanish mirror of this file. Same commit per root `AGENTS.md` §13.3. |
+| Area                                                                                        | Impact          | Description                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/modules/reports/`                                                                      | New             | New module mirroring `src/modules/transactions/` shape. Domain / application / infrastructure; ports & adapters; minimal public barrel.                      |
+| `src/composition/build-app-deps.ts`                                                         | Modified        | Adds `ReportsActionDeps` interface + `buildReportsDeps()` factory + `reportsDeps` field in `HonoAppDeps`. Subscribes `noopHandler` to `TransactionRecorded`. |
+| `src/composition/create-hono-app.ts`                                                        | Modified        | Mounts `mountReportsRoutes(protectedApp, { reportsDeps: deps.reportsDeps })` after the transactions mount.                                                   |
+| `src/shared/events/event-dispatcher.ts`                                                     | None            | The `TransactionRecorded` union member already exists (REQ-TX-13). No file change.                                                                           |
+| `prisma/schema.prisma`                                                                      | None            | No new model. Reads go through `TransactionRepositoryPort`.                                                                                                  |
+| `app/dashboard/page.tsx`                                                                    | New             | Server Component shell; calls the three reports endpoints in parallel.                                                                                       |
+| `app/_components/dashboard-*.tsx`                                                           | New             | Three presentational Server Components (pure render).                                                                                                        |
+| `app/_lib/report-types.ts`                                                                  | New             | DTO mirrors for the three endpoints.                                                                                                                         |
+| `openspec/specs/reports/spec.md`                                                            | New (canonical) | Created by `sdd-archive` from the delta spec. Already reserved in `openspec/config.yaml:14`.                                                                 |
+| `openspec/changes/reports/{specs,design,tasks,apply-progress,verify-report,sync-report}.md` | New (per phase) | Each SDD phase writes its artifact in the change folder.                                                                                                     |
+| `Documents-es/openspec/changes/reports/proposal.md`                                         | New             | Spanish mirror of this file. Same commit per root `AGENTS.md` §13.3.                                                                                         |
 
 ## Acceptance (evidence the reviewer will see)
 
 1. `pnpm test` runs the new `reports` suite and exits 0 with **≥ 80%
    coverage on `src/modules/reports/**`** (domain + application
-   layers; mirrors the `transactions` bar).
+layers; mirrors the `transactions` bar).
 2. `pnpm dev` → sign in → visit `/dashboard` with 3 transactions in
    ARS + 2 in USD across 2 accounts. The summary card shows two
    rows (ARS primary, USD secondary). The breakdown table shows the
@@ -352,7 +352,7 @@ Scenarios.
    (> 366 days) returns `400 VALIDATION_ERROR`.
 8. The composition root subscribes a no-op handler to
    `TransactionRecorded`. `dispatcher.dispatch({ type:
-   'TransactionRecorded', payload: ... })` returns count = 1 (the
+'TransactionRecorded', payload: ... })` returns count = 1 (the
    no-op handler ran). The transaction row is unchanged.
 9. `openspec/specs/reports/spec.md` exists with at least 5
    Requirements and one Scenario each after `sdd-archive` runs.
@@ -368,27 +368,27 @@ Scenarios.
 
 ## Risks
 
-| Risk | Likelihood | Mitigation |
-|---|---|---|
-| Lazy compute-on-read becomes slow as `Transaction` rows grow. | Medium | The two indexes (`@@index([userId, transactionDate])` and `@@index([accountId, transactionDate])`) make the read O(rows-in-window). The window is at most one month for summary/breakdown and 366 days for flow. At the v1 row scale (low hundreds per user per month), the in-memory aggregate is sub-100ms. The event-driven migration path is documented for the future. |
-| Cross-user isolation regression in the reports port. | Low | The port contract test (`reports.repository.port.test.ts`) asserts `userId` is the first argument of every method. Action tests seed user A and user B rows and verify user A's queries never see user B's rows. |
-| UTC-vs-user-timezone bucketing surprises an Argentina-based user. | Medium | The spec codifies v1 as UTC. The UI surfaces the month label as `"June 2026 (UTC)"` so the user can correct manually. A `User.timezone` field is a future additive migration gated on user feedback. |
-| The no-op event handler silently masks a wiring bug. | Low | The composition-root test asserts exactly one subscriber for `TransactionRecorded` after `buildAppDeps` runs. A missing subscribe fails the test. |
-| The breakdown's case-fold normalization loses information the user wants. | Low | The normalization is the factory's responsibility; the spec documents the rule. The raw `category` string is preserved on the `Transaction` row — the breakdown is a derived view, never the source of truth. |
-| Spanish mirror drifts from the English original. | Medium | Apply §13.3 atomicity; the `reviewer` checks both files in the same commit. |
-| Strict TDD's RED step is skipped, failing the reviewer. | Medium | `sdd-tasks` owns task structure; `sdd-apply` enforces RED → GREEN → REFACTOR per task. |
+| Risk                                                                      | Likelihood | Mitigation                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lazy compute-on-read becomes slow as `Transaction` rows grow.             | Medium     | The two indexes (`@@index([userId, transactionDate])` and `@@index([accountId, transactionDate])`) make the read O(rows-in-window). The window is at most one month for summary/breakdown and 366 days for flow. At the v1 row scale (low hundreds per user per month), the in-memory aggregate is sub-100ms. The event-driven migration path is documented for the future. |
+| Cross-user isolation regression in the reports port.                      | Low        | The port contract test (`reports.repository.port.test.ts`) asserts `userId` is the first argument of every method. Action tests seed user A and user B rows and verify user A's queries never see user B's rows.                                                                                                                                                            |
+| UTC-vs-user-timezone bucketing surprises an Argentina-based user.         | Medium     | The spec codifies v1 as UTC. The UI surfaces the month label as `"June 2026 (UTC)"` so the user can correct manually. A `User.timezone` field is a future additive migration gated on user feedback.                                                                                                                                                                        |
+| The no-op event handler silently masks a wiring bug.                      | Low        | The composition-root test asserts exactly one subscriber for `TransactionRecorded` after `buildAppDeps` runs. A missing subscribe fails the test.                                                                                                                                                                                                                           |
+| The breakdown's case-fold normalization loses information the user wants. | Low        | The normalization is the factory's responsibility; the spec documents the rule. The raw `category` string is preserved on the `Transaction` row — the breakdown is a derived view, never the source of truth.                                                                                                                                                               |
+| Spanish mirror drifts from the English original.                          | Medium     | Apply §13.3 atomicity; the `reviewer` checks both files in the same commit.                                                                                                                                                                                                                                                                                                 |
+| Strict TDD's RED step is skipped, failing the reviewer.                   | Medium     | `sdd-tasks` owns task structure; `sdd-apply` enforces RED → GREEN → REFACTOR per task.                                                                                                                                                                                                                                                                                      |
 
 ## Snapshot strategy
 
 **Decision: lazy compute-on-read in v1; event-driven materialization
 is the future migration path, non-breaking.**
 
-| Path | v1 | Future migration |
-|---|---|---|
-| **Read path** | Aggregate on every request from the `TransactionRepositoryPort.list` page. | Read from a `MonthlySummary` / `CategoryBreakdown` / `AccountFlow` materialization table. |
-| **Write path** | None. `reports` never writes. | The materializer subscribes to `TransactionRecorded` and updates the rollup rows. |
-| **Consistency** | Always consistent (reads the source of truth). | Eventually consistent; the materializer must catch up after a restart. |
-| **Event subscription** | No-op handler at composition time (validates the seam). | The no-op becomes the materializer. |
+| Path                   | v1                                                                         | Future migration                                                                          |
+| ---------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| **Read path**          | Aggregate on every request from the `TransactionRepositoryPort.list` page. | Read from a `MonthlySummary` / `CategoryBreakdown` / `AccountFlow` materialization table. |
+| **Write path**         | None. `reports` never writes.                                              | The materializer subscribes to `TransactionRecorded` and updates the rollup rows.         |
+| **Consistency**        | Always consistent (reads the source of truth).                             | Eventually consistent; the materializer must catch up after a restart.                    |
+| **Event subscription** | No-op handler at composition time (validates the seam).                    | The no-op becomes the materializer.                                                       |
 
 Why lazy for v1:
 
@@ -476,13 +476,13 @@ slice MUST be a self-contained PR with clear start, finish,
 verification, and rollback. Forecast lines are **changed lines
 (additions + deletions)** per slice.
 
-| PR | Slice | LoC low | LoC high | Verification gate |
-|---|---|---|---|---|
-| #1 | `reports-domain` | 180 | 280 | `pnpm test src/modules/reports/domain` exits 0; port contract test asserts cross-user isolation. |
-| #2 | `reports-application` | 220 | 340 | `pnpm test src/modules/reports/application` exits 0; action tests cover empty state, multi-currency, cross-user. |
-| #3 | `reports-routes` | 160 | 260 | `pnpm test src/modules/reports/application/routes.test.ts` exits 0; `build-app-deps.test.ts` asserts the dispatcher subscription. |
-| #4 | `dashboard-ui` | 200 | 320 | Manual `pnpm dev` smoke: sign in → visit `/dashboard` → see three cards. Vitest snapshots for the three presentational components. |
-| **Total** | — | **760** | **1200** | All four PRs merged; `pnpm test` green; dashboard renders the user's data. |
+| PR        | Slice                 | LoC low | LoC high | Verification gate                                                                                                                  |
+| --------- | --------------------- | ------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| #1        | `reports-domain`      | 180     | 280      | `pnpm test src/modules/reports/domain` exits 0; port contract test asserts cross-user isolation.                                   |
+| #2        | `reports-application` | 220     | 340      | `pnpm test src/modules/reports/application` exits 0; action tests cover empty state, multi-currency, cross-user.                   |
+| #3        | `reports-routes`      | 160     | 260      | `pnpm test src/modules/reports/application/routes.test.ts` exits 0; `build-app-deps.test.ts` asserts the dispatcher subscription.  |
+| #4        | `dashboard-ui`        | 200     | 320      | Manual `pnpm dev` smoke: sign in → visit `/dashboard` → see three cards. Vitest snapshots for the three presentational components. |
+| **Total** | —                     | **760** | **1200** | All four PRs merged; `pnpm test` green; dashboard renders the user's data.                                                         |
 
 - Decision needed before apply: **No** (scope locked at pre-propose).
 - Chained PRs recommended: **Yes** (force-chained per orchestrator

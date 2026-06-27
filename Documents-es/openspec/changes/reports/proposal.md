@@ -1,6 +1,6 @@
 # Propuesta — `reports`
 
-**Estado**: borrador · **Autor**: Sebastián Illa
+**Estado**: implementado · **Implementado**: 2026-06-27 (slices 1-4 mergeados en develop vía #76/#79/#80/#85 + fixes vía #81/#82) · **Autor**: Sebastián Illa
 **Creado**: 2026-06-26 · **Slice objetivo**: MVP-3 (superficie de agregación)
 **Upstream**: `openspec/AGENTS.md` (ciclo de vida del proyecto) · `openspec/config.yaml` (slot de capability `reports` reservado; TDD estricto; auto-forecast, 400 líneas)
 **Upstream**: preflight SDD global (interactive, both, auto-forecast, 400 líneas; review budget 400)
@@ -34,22 +34,22 @@ enviarse ahora:
 
 1. **El seam de eventos está pidiendo un consumidor.** El miembro
    de la unión `TransactionRecorded` se agregó en `transactions`
-   (REQ-TX-13, BR-TX-11) con el contrato explícito de que *"futuros
+   (REQ-TX-13, BR-TX-11) con el contrato explícito de que _"futuros
    consumidores `reports` y `snapshots` pueden suscribirse sin un
-   cambio de interfaz"*
+   cambio de interfaz"_
    (`src/shared/events/event-dispatcher.ts:21-39`). La pertenencia
    a la unión es el contrato — un módulo `reports` se envía sin
    tocar el archivo del event-dispatcher en absoluto.
 2. **El seam de lectura es estable.** El
    `TransactionRepositoryPort.list(userId, { cursor, limit,
-   accountId? })` (REQ-TX-8) es el único input que `reports`
+accountId? })` (REQ-TX-8) es el único input que `reports`
    necesita. La paginación + filtrado por cuenta ya están
    implementados; la forma `TransactionDTO` (`convertedAmountMinor`,
    `convertedCurrency`, `fxAsOfSnapshot`, `casaSnapshot`) es la
    fuente determinística de totales — BR-ACC-12 heredada.
 3. **La superficie de producto es el placeholder vacío.**
-   `app/page.tsx` todavía renderiza *"Auth foundation ready. The
-   application surface ships in Slice B."* No existe la ruta
+   `app/page.tsx` todavía renderiza _"Auth foundation ready. The
+   application surface ships in Slice B."_ No existe la ruta
    `/dashboard`. El usuario tiene una herramienta de registro sin
    herramienta de consumo.
 
@@ -71,23 +71,23 @@ slice previo:
   espejando `src/modules/transactions/`:
   - `domain/entities/monthly-summary.ts` — agregado:
     `{ userId, year, month, totalsByCurrency: { currency,
-    inflowMinor, outflowMinor, netMinor, txCount }[], generatedAt }`.
+inflowMinor, outflowMinor, netMinor, txCount }[], generatedAt }`.
     Factory puro + esquema Zod de input + invariantes (sin
     magnitudes negativas; `currency` es uno del enum
     `AccountCurrency`).
   - `domain/entities/category-breakdown.ts` — agregado:
     `{ userId, year, month, buckets: { category: string,
-    amountMinor: number, currency: AccountCurrency, txCount }[],
-    generatedAt }`. La normalización de categoría es trabajo de la
+amountMinor: number, currency: AccountCurrency, txCount }[],
+generatedAt }`. La normalización de categoría es trabajo de la
     factory: lowercase + trim; null/empty → `"uncategorized"`.
   - `domain/entities/account-flow.ts` — agregado:
     `{ userId, accountId, fromDate, toDate, points: { date,
-    inflowMinor, outflowMinor, netMinor, currency:
-    AccountCurrency }[], generatedAt }`. Granularidad diaria.
+inflowMinor, outflowMinor, netMinor, currency:
+AccountCurrency }[], generatedAt }`. Granularidad diaria.
   - `domain/services/` — funciones puras de agregación:
     `computeMonthlySummary`, `computeCategoryBreakdown`,
     `computeAccountFlow`. Cada una toma `(rows: Transaction[],
-    filters: {...})` y devuelve el agregado. Zero I/O; el
+filters: {...})` y devuelve el agregado. Zero I/O; el
     servicio es una función, no una clase.
   - `domain/interfaces/reports.repository.port.ts` — port que
     declara los métodos de lectura (`listForMonthly`,
@@ -134,9 +134,9 @@ slice previo:
     timestamps ISO-8601.
   - `validation/` — tres esquemas Zod:
     `monthly-summary-query.schema.ts` (`{ year: 2000-2100, month:
-    1-12 }`), `category-breakdown-query.schema.ts` (misma forma),
+1-12 }`), `category-breakdown-query.schema.ts` (misma forma),
     `account-flow-query.schema.ts` (`{ accountId: cuid,
-    fromDate: ISO date, toDate: ISO date, fromDate <= toDate }`).
+fromDate: ISO date, toDate: ISO date, fromDate <= toDate }`).
   - `fixtures/reports.repository.inmemory.ts` — implementación
     InMemory del port respaldada por una fixture de
     `TransactionRepositoryPort` inyectada (**la composición de la
@@ -165,7 +165,7 @@ slice previo:
   exportando `mountReportsRoutes(protectedApp, deps)`. El
   composition root en `src/composition/create-hono-app.ts` agrega
   un llamado `mountReportsRoutes(protectedApp, { reportsDeps:
-  deps.reportsDeps })` después del mount de transactions, antes
+deps.reportsDeps })` después del mount de transactions, antes
   de que el sub-app se monte en `/`.
 - **Wiring de DI** en `src/composition/build-app-deps.ts`:
   - Nueva interfaz `ReportsActionDeps` (paralela a
@@ -177,7 +177,7 @@ slice previo:
   - `buildAppDeps()` devuelve `reportsDeps` en el bag.
 - **Wiring del seam dirigido por eventos (no-op v1)**:
   `buildReportsDeps` llama a `dispatcher.subscribe('TransactionRecorded',
-  noopHandler)`. El `noopHandler` es un stub tipado que loguea a
+noopHandler)`. El `noopHandler` es un stub tipado que loguea a
   `debug` y retorna. **El llamado existe para validar el seam en
   boot** — si la firma del dispatcher cambia, el composition root
   falla al compilar. El handler se vuelve un materializador real
@@ -201,7 +201,7 @@ slice previo:
   vacías + un CTA a `/transactions/new`.
 - **Componentes presentacionales** en
   `app/_components/dashboard-{monthly-summary,category-breakdown,
-  account-flow}.tsx`. Cada uno es un Server Component puro (sin
+account-flow}.tsx`. Cada uno es un Server Component puro (sin
   client hooks, sin directiva `'use client'`). Tokens de Tailwind
   v4 vía la tabla de clases existente del proyecto; sin tokens
   nuevos de color ni espaciado.
@@ -272,13 +272,13 @@ slice previo:
 
 ## Usuarios y situaciones
 
-| Usuario | Situación | Touchpoint |
-|---|---|---|
-| Usuario autenticado | Abre `/dashboard` para ver los totales de este mes. Ve la `MonthlySummaryCard` con inflow/outbreak/net por moneda. | `app/dashboard/page.tsx` + `GET /api/reports/monthly` |
-| Usuario autenticado | Scrollea hasta el breakdown para encontrar su categoría top de gasto. Ve la `CategoryBreakdownTable` ordenada por monto DESC. | `GET /api/reports/breakdown` |
-| Usuario autenticado | Elige una cuenta bancaria en el dashboard para ver el flujo diario. Navega a `/accounts/:id` → ve el `AccountFlowChart` de los últimos 30 días. | `GET /api/reports/accounts/:id/flow?fromDate&toDate` |
-| Usuario nuevo (sin transacciones) | Abre `/dashboard`. Ve tres cards vacías + un CTA "Registrar tu primera transacción" que linkea a `/transactions/new`. | Rama de estado vacío en `app/dashboard/page.tsx` |
-| Futuro autor de `snapshots` | Se suscribe al agregado `MonthlySummary` para patrimonio-en-el-tiempo. | `src/modules/reports/domain/entities/monthly-summary.ts` (input estable) |
+| Usuario                           | Situación                                                                                                                                       | Touchpoint                                                               |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Usuario autenticado               | Abre `/dashboard` para ver los totales de este mes. Ve la `MonthlySummaryCard` con inflow/outbreak/net por moneda.                              | `app/dashboard/page.tsx` + `GET /api/reports/monthly`                    |
+| Usuario autenticado               | Scrollea hasta el breakdown para encontrar su categoría top de gasto. Ve la `CategoryBreakdownTable` ordenada por monto DESC.                   | `GET /api/reports/breakdown`                                             |
+| Usuario autenticado               | Elige una cuenta bancaria en el dashboard para ver el flujo diario. Navega a `/accounts/:id` → ve el `AccountFlowChart` de los últimos 30 días. | `GET /api/reports/accounts/:id/flow?fromDate&toDate`                     |
+| Usuario nuevo (sin transacciones) | Abre `/dashboard`. Ve tres cards vacías + un CTA "Registrar tu primera transacción" que linkea a `/transactions/new`.                           | Rama de estado vacío en `app/dashboard/page.tsx`                         |
+| Futuro autor de `snapshots`       | Se suscribe al agregado `MonthlySummary` para patrimonio-en-el-tiempo.                                                                          | `src/modules/reports/domain/entities/monthly-summary.ts` (input estable) |
 
 ## Reglas de negocio
 
@@ -330,25 +330,25 @@ spec escribe los Scenarios completos.
 
 ## Áreas afectadas
 
-| Área | Impacto | Descripción |
-|---|---|---|
-| `src/modules/reports/` | Nuevo | Nuevo módulo espejando la forma de `src/modules/transactions/`. Domain / application / infrastructure; ports & adapters; barrel público mínimo. |
-| `src/composition/build-app-deps.ts` | Modificado | Agrega interfaz `ReportsActionDeps` + factory `buildReportsDeps()` + campo `reportsDeps` en `HonoAppDeps`. Suscribe `noopHandler` a `TransactionRecorded`. |
-| `src/composition/create-hono-app.ts` | Modificado | Monta `mountReportsRoutes(protectedApp, { reportsDeps: deps.reportsDeps })` después del mount de transactions. |
-| `src/shared/events/event-dispatcher.ts` | Ninguno | El miembro de la unión `TransactionRecorded` ya existe (REQ-TX-13). Sin cambio de archivo. |
-| `prisma/schema.prisma` | Ninguno | Sin modelo nuevo. Las lecturas van por `TransactionRepositoryPort`. |
-| `app/dashboard/page.tsx` | Nuevo | Shell de Server Component; llama los tres endpoints de reports en paralelo. |
-| `app/_components/dashboard-*.tsx` | Nuevo | Tres Server Components presentacionales (render puro). |
-| `app/_lib/report-types.ts` | Nuevo | Espejos de DTO para los tres endpoints. |
-| `openspec/specs/reports/spec.md` | Nuevo (canónico) | Creado por `sdd-archive` desde el delta spec. Ya reservado en `openspec/config.yaml:14`. |
-| `openspec/changes/reports/{specs,design,tasks,apply-progress,verify-report,sync-report}.md` | Nuevo (por fase) | Cada fase SDD escribe su artefacto en la carpeta del cambio. |
-| `Documents-es/openspec/changes/reports/proposal.md` | Nuevo | Espejo en español de este archivo. Mismo commit por root `AGENTS.md` §13.3. |
+| Área                                                                                        | Impacto          | Descripción                                                                                                                                                |
+| ------------------------------------------------------------------------------------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/modules/reports/`                                                                      | Nuevo            | Nuevo módulo espejando la forma de `src/modules/transactions/`. Domain / application / infrastructure; ports & adapters; barrel público mínimo.            |
+| `src/composition/build-app-deps.ts`                                                         | Modificado       | Agrega interfaz `ReportsActionDeps` + factory `buildReportsDeps()` + campo `reportsDeps` en `HonoAppDeps`. Suscribe `noopHandler` a `TransactionRecorded`. |
+| `src/composition/create-hono-app.ts`                                                        | Modificado       | Monta `mountReportsRoutes(protectedApp, { reportsDeps: deps.reportsDeps })` después del mount de transactions.                                             |
+| `src/shared/events/event-dispatcher.ts`                                                     | Ninguno          | El miembro de la unión `TransactionRecorded` ya existe (REQ-TX-13). Sin cambio de archivo.                                                                 |
+| `prisma/schema.prisma`                                                                      | Ninguno          | Sin modelo nuevo. Las lecturas van por `TransactionRepositoryPort`.                                                                                        |
+| `app/dashboard/page.tsx`                                                                    | Nuevo            | Shell de Server Component; llama los tres endpoints de reports en paralelo.                                                                                |
+| `app/_components/dashboard-*.tsx`                                                           | Nuevo            | Tres Server Components presentacionales (render puro).                                                                                                     |
+| `app/_lib/report-types.ts`                                                                  | Nuevo            | Espejos de DTO para los tres endpoints.                                                                                                                    |
+| `openspec/specs/reports/spec.md`                                                            | Nuevo (canónico) | Creado por `sdd-archive` desde el delta spec. Ya reservado en `openspec/config.yaml:14`.                                                                   |
+| `openspec/changes/reports/{specs,design,tasks,apply-progress,verify-report,sync-report}.md` | Nuevo (por fase) | Cada fase SDD escribe su artefacto en la carpeta del cambio.                                                                                               |
+| `Documents-es/openspec/changes/reports/proposal.md`                                         | Nuevo            | Espejo en español de este archivo. Mismo commit por root `AGENTS.md` §13.3.                                                                                |
 
 ## Acceptance (evidencia que verá el reviewer)
 
 1. `pnpm test` corre la nueva suite de `reports` y sale 0 con
    **≥ 80% de cobertura en `src/modules/reports/**`** (capas
-   domain + application; espeja la barra de `transactions`).
+domain + application; espeja la barra de `transactions`).
 2. `pnpm dev` → sign in → visitar `/dashboard` con 3
    transacciones en ARS + 2 en USD a través de 2 cuentas. La card
    de summary muestra dos filas (ARS primary, USD secondary). La
@@ -372,7 +372,7 @@ spec escribe los Scenarios completos.
    (> 366 días) devuelve `400 VALIDATION_ERROR`.
 8. El composition root suscribe un handler no-op a
    `TransactionRecorded`. `dispatcher.dispatch({ type:
-   'TransactionRecorded', payload: ... })` devuelve count = 1 (el
+'TransactionRecorded', payload: ... })` devuelve count = 1 (el
    handler no-op corrió). La fila de transacción queda sin
    cambios.
 9. `openspec/specs/reports/spec.md` existe con al menos 5
@@ -391,27 +391,27 @@ spec escribe los Scenarios completos.
 
 ## Riesgos
 
-| Riesgo | Likelihood | Mitigación |
-|---|---|---|
-| El cómputo on-read perezoso se vuelve lento a medida que crecen las filas de `Transaction`. | Medium | Los dos índices (`@@index([userId, transactionDate])` y `@@index([accountId, transactionDate])`) hacen que la lectura sea O(rows-in-window). La ventana es a lo sumo un mes para summary/breakdown y 366 días para flow. A la escala de filas de v1 (centenas bajas por usuario por mes), el agregado en memoria es sub-100ms. El path de migración dirigido por eventos está documentado para el futuro. |
-| Regresión de aislamiento cross-user en el port de reports. | Low | El test de contrato del port (`reports.repository.port.test.ts`) assertea que `userId` es el primer argumento de cada método. Los tests de actions seedean filas del usuario A y B y verifican que las queries del usuario A nunca vean filas del usuario B. |
-| El bucketing UTC vs timezone-del-usuario sorprende a un usuario basado en Argentina. | Medium | El spec codifica v1 como UTC. La UI muestra el label del mes como `"Junio 2026 (UTC)"` para que el usuario pueda corregir manualmente. Un campo `User.timezone` es una migración aditiva futura gateada en feedback del usuario. |
-| El handler de evento no-op enmascara silenciosamente un bug de wiring. | Low | El test del composition root assertea exactamente un suscriptor para `TransactionRecorded` después de que `buildAppDeps` corre. Un subscribe faltante falla el test. |
-| La normalización case-fold del breakdown pierde información que el usuario quiere. | Low | La normalización es responsabilidad de la factory; el spec documenta la regla. El string crudo `category` se preserva en la fila de `Transaction` — el breakdown es una vista derivada, nunca la fuente de verdad. |
-| El espejo en español driftea del original inglés. | Medium | Aplicar atomicidad de §13.3; el `reviewer` chequea ambos archivos en el mismo commit. |
-| El step RED del TDD estricto se saltea, fallando al reviewer. | Medium | `sdd-tasks` es dueña de la estructura de tareas; `sdd-apply` enforce RED → GREEN → REFACTOR por tarea. |
+| Riesgo                                                                                      | Likelihood | Mitigación                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| El cómputo on-read perezoso se vuelve lento a medida que crecen las filas de `Transaction`. | Medium     | Los dos índices (`@@index([userId, transactionDate])` y `@@index([accountId, transactionDate])`) hacen que la lectura sea O(rows-in-window). La ventana es a lo sumo un mes para summary/breakdown y 366 días para flow. A la escala de filas de v1 (centenas bajas por usuario por mes), el agregado en memoria es sub-100ms. El path de migración dirigido por eventos está documentado para el futuro. |
+| Regresión de aislamiento cross-user en el port de reports.                                  | Low        | El test de contrato del port (`reports.repository.port.test.ts`) assertea que `userId` es el primer argumento de cada método. Los tests de actions seedean filas del usuario A y B y verifican que las queries del usuario A nunca vean filas del usuario B.                                                                                                                                              |
+| El bucketing UTC vs timezone-del-usuario sorprende a un usuario basado en Argentina.        | Medium     | El spec codifica v1 como UTC. La UI muestra el label del mes como `"Junio 2026 (UTC)"` para que el usuario pueda corregir manualmente. Un campo `User.timezone` es una migración aditiva futura gateada en feedback del usuario.                                                                                                                                                                          |
+| El handler de evento no-op enmascara silenciosamente un bug de wiring.                      | Low        | El test del composition root assertea exactamente un suscriptor para `TransactionRecorded` después de que `buildAppDeps` corre. Un subscribe faltante falla el test.                                                                                                                                                                                                                                      |
+| La normalización case-fold del breakdown pierde información que el usuario quiere.          | Low        | La normalización es responsabilidad de la factory; el spec documenta la regla. El string crudo `category` se preserva en la fila de `Transaction` — el breakdown es una vista derivada, nunca la fuente de verdad.                                                                                                                                                                                        |
+| El espejo en español driftea del original inglés.                                           | Medium     | Aplicar atomicidad de §13.3; el `reviewer` chequea ambos archivos en el mismo commit.                                                                                                                                                                                                                                                                                                                     |
+| El step RED del TDD estricto se saltea, fallando al reviewer.                               | Medium     | `sdd-tasks` es dueña de la estructura de tareas; `sdd-apply` enforce RED → GREEN → REFACTOR por tarea.                                                                                                                                                                                                                                                                                                    |
 
 ## Estrategia de snapshot
 
 **Decisión: cómputo on-read perezoso en v1; materialización dirigida
 por eventos es el path de migración futuro, no rompedor.**
 
-| Path | v1 | Migración futura |
-|---|---|---|
-| **Path de lectura** | Agrega en cada request desde la página `TransactionRepositoryPort.list`. | Lee de una tabla de materialización `MonthlySummary` / `CategoryBreakdown` / `AccountFlow`. |
-| **Path de escritura** | Ninguno. `reports` nunca escribe. | El materializador se suscribe a `TransactionRecorded` y actualiza las filas del rollup. |
-| **Consistencia** | Siempre consistente (lee la fuente de verdad). | Eventualmente consistente; el materializador tiene que catch-up después de un restart. |
-| **Suscripción al evento** | Handler no-op en composition time (valida el seam). | El no-op se vuelve el materializador. |
+| Path                      | v1                                                                       | Migración futura                                                                            |
+| ------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| **Path de lectura**       | Agrega en cada request desde la página `TransactionRepositoryPort.list`. | Lee de una tabla de materialización `MonthlySummary` / `CategoryBreakdown` / `AccountFlow`. |
+| **Path de escritura**     | Ninguno. `reports` nunca escribe.                                        | El materializador se suscribe a `TransactionRecorded` y actualiza las filas del rollup.     |
+| **Consistencia**          | Siempre consistente (lee la fuente de verdad).                           | Eventualmente consistente; el materializador tiene que catch-up después de un restart.      |
+| **Suscripción al evento** | Handler no-op en composition time (valida el seam).                      | El no-op se vuelve el materializador.                                                       |
 
 Por qué perezoso para v1:
 
@@ -505,13 +505,13 @@ cada slice DEBE ser un PR auto-contenido con start, finish,
 verificación y rollback claros. Las líneas de forecast son
 **líneas cambiadas (additions + deletions)** por slice.
 
-| PR | Slice | LoC low | LoC high | Gate de verificación |
-|---|---|---|---|---|
-| #1 | `reports-domain` | 180 | 280 | `pnpm test src/modules/reports/domain` sale 0; el test de contrato del port assertea aislamiento cross-user. |
-| #2 | `reports-application` | 220 | 340 | `pnpm test src/modules/reports/application` sale 0; tests de actions cubren estado vacío, multi-moneda, cross-user. |
-| #3 | `reports-routes` | 160 | 260 | `pnpm test src/modules/reports/application/routes.test.ts` sale 0; `build-app-deps.test.ts` assertea la suscripción al dispatcher. |
-| #4 | `dashboard-ui` | 200 | 320 | Smoke manual con `pnpm dev`: sign in → visitar `/dashboard` → ver tres cards. Snapshots de Vitest para los tres componentes presentacionales. |
-| **Total** | — | **760** | **1200** | Los cuatro PRs mergeados; `pnpm test` verde; el dashboard renderiza los datos del usuario. |
+| PR        | Slice                 | LoC low | LoC high | Gate de verificación                                                                                                                          |
+| --------- | --------------------- | ------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| #1        | `reports-domain`      | 180     | 280      | `pnpm test src/modules/reports/domain` sale 0; el test de contrato del port assertea aislamiento cross-user.                                  |
+| #2        | `reports-application` | 220     | 340      | `pnpm test src/modules/reports/application` sale 0; tests de actions cubren estado vacío, multi-moneda, cross-user.                           |
+| #3        | `reports-routes`      | 160     | 260      | `pnpm test src/modules/reports/application/routes.test.ts` sale 0; `build-app-deps.test.ts` assertea la suscripción al dispatcher.            |
+| #4        | `dashboard-ui`        | 200     | 320      | Smoke manual con `pnpm dev`: sign in → visitar `/dashboard` → ver tres cards. Snapshots de Vitest para los tres componentes presentacionales. |
+| **Total** | —                     | **760** | **1200** | Los cuatro PRs mergeados; `pnpm test` verde; el dashboard renderiza los datos del usuario.                                                    |
 
 - Decisión necesaria antes de apply: **No** (scope lockeado en
   pre-propose).
