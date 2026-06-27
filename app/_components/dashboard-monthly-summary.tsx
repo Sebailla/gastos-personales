@@ -15,10 +15,10 @@
  * The `(UTC)` label + the `YYYY-MM` month string explain the
  * bucketing decision: every totals row groups transactions by
  * `convertedCurrency` within a calendar month anchored at UTC
- * midnight (BR-RPT-3). Surfacing the marker on the card means
- * the user can reason about "the June column" without
- * timezone ambiguity — the same UTC day boundary is used by
- * the month value object (`src/modules/reports/domain/value-objects/month.ts`)
+ * midnight (BR-RPT-3, design §3.6). Surfacing the marker on
+ * the card means the user can reason about "the June column"
+ * without timezone ambiguity — the same UTC day boundary is
+ * used by the month value object (`src/modules/reports/domain/value-objects/month.ts`)
  * and the Prisma adapter (`src/modules/reports/infrastructure/repositories/reports.repository.prisma.ts`).
  *
  * No `'use client'` directive. The component is a pure render

@@ -17,9 +17,12 @@
  * The `(UTC)` label + the `YYYY-MM` month string explain the
  * bucketing decision: every bucket groups transactions by
  * `(categoryNormalized, convertedCurrency)` within a calendar
- * month anchored at UTC midnight (BR-RPT-3). The smoke UI
- * surfaces the marker so the user can reason about which
- * month the breakdown is for without timezone ambiguity.
+ * month anchored at UTC midnight (BR-RPT-3, design §3.6). The
+ * smoke UI surfaces the marker so the user can reason about
+ * which month the breakdown is for without timezone
+ * ambiguity — the same UTC day boundary is used by the
+ * month value object and the Prisma adapter (see
+ * dashboard-monthly-summary.tsx for the cross-card note).
  *
  * No `'use client'` directive. The component is a pure render
  * Server Component that takes the pre-fetched DTO as a prop;

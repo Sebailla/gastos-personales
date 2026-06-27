@@ -166,6 +166,11 @@ export default async function DashboardPage() {
       </header>
 
       {isEmpty ? (
+        // Empty-state CTA: nudge the user toward their first
+        // transaction. Per design section 9.2 the CTA links to
+        // /transactions/new (the create form), not /transactions
+        // (the list); the copy mirrors the form's submit intent
+        // ("Registrar primera transacción").
         <div className="mb-4 rounded border border-blue-300 bg-blue-50 p-4">
           <p className="mb-2 text-sm text-blue-900">Aún no tenés transacciones registradas.</p>
           <a

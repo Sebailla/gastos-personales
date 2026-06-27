@@ -10,10 +10,12 @@
  *
  * The `(UTC)` label + the `YYYY-MM` month string explain the
  * bucketing decision: per-day rows carry `YYYY-MM-DD` UTC keys
- * (BR-RPT-3) and the day window spans the calendar month
- * anchored at UTC midnight. Surfacing the marker on the card
- * means the user can reason about "the June window" without
- * timezone ambiguity.
+ * (BR-RPT-3, design §3.6) and the day window spans the calendar
+ * month anchored at UTC midnight. Surfacing the marker on the
+ * card means the user can reason about "the June window"
+ * without timezone ambiguity — the same UTC day boundary is
+ * used by the month value object and the Prisma adapter (see
+ * dashboard-monthly-summary.tsx for the cross-card note).
  *
  * No `'use client'` directive. The component is a pure render
  * Server Component; the dashboard page owns the data fetch
