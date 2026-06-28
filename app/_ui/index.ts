@@ -40,6 +40,8 @@ export type { FieldErrorProps } from './primitives/field-error';
 // Primitives — surface components.
 export { Card, CardHeader, CardBody, CardFooter } from './primitives/card';
 export type { CardProps, CardHeaderProps, CardBodyProps, CardFooterProps } from './primitives/card';
+export { Table, TableHeader, TableBody, TableRow, TableCell } from './primitives/table';
+export type { TableProps, TableHeaderProps, TableColumn } from './primitives/table';
 export { Badge, directionVariant } from './primitives/badge';
 export type { BadgeProps, BadgeVariant, Direction } from './primitives/badge';
 export { EmptyState } from './primitives/empty-state';

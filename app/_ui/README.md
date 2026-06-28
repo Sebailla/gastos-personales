@@ -26,25 +26,26 @@ sets `data-theme="dark"` on the document root.
 
 ## Primitive catalog
 
-| Primitive               | Type              | Notes                                                                |
-| ----------------------- | ----------------- | -------------------------------------------------------------------- | ---------------- |
-| `Button`                | Server            | `variant`, `isLoading` (Spinner + disabled + aria-busy per REQ-UI-7) |
-| `Input` / `Textarea`    | Server            | `id` required; aria pass-through                                     |
-| `Select`                | Server            | Native `<select>`; aria pass-through                                 |
-| `Checkbox`              | Server            | Native `<input type=checkbox>`                                       |
-| `RadioGroup`            | Server            | `<fieldset>` + `<legend>` + items                                    |
-| `Combobox`              | **Client**        | `<select>` + `<input type=search>`; no new dep                       |
-| `FormField`             | Server            | composes label + child + FieldError; clones a11y attrs into child    |
-| `FieldError`            | Server            | `role=alert` + `aria-live=polite`                                    |
-| `Card` + sub-components | Server (compound) | `<article>` + `<header>` + `<div>` + `<footer>`                      |
-| `Badge`                 | Server            | `directionVariant(INCOME                                             | EXPENSE)` helper |
-| `EmptyState`            | Server            | `role=status`; CTA is first focusable                                |
-| `Spinner`               | Server            | `role=status` + `aria-label`                                         |
-| `Skeleton`              | Server            | `aria-hidden=true`; CSS-only animation                               |
-| `Pagination`            | Server            | `<nav aria-label=Pagination>` + `<Link>`s                            |
-| `Dialog`                | **Client**        | focus trap + Escape close + backdrop click                           |
-| `Breadcrumb`            | Server            | `<nav aria-label=Breadcrumb>` + `<ol>` + `<Link>`s                   |
-| `Link`                  | Server            | Next.js `Link` wrapper; focus-visible ring (REQ-UI-4)                |
+| Primitive                | Type              | Notes                                                                |
+| ------------------------ | ----------------- | -------------------------------------------------------------------- | ---------------- |
+| `Button`                 | Server            | `variant`, `isLoading` (Spinner + disabled + aria-busy per REQ-UI-7) |
+| `Input` / `Textarea`     | Server            | `id` required; aria pass-through                                     |
+| `Select`                 | Server            | Native `<select>`; aria pass-through                                 |
+| `Checkbox`               | Server            | Native `<input type=checkbox>`                                       |
+| `RadioGroup`             | Server            | `<fieldset>` + `<legend>` + items                                    |
+| `Combobox`               | **Client**        | `<select>` + `<input type=search>`; no new dep                       |
+| `FormField`              | Server            | composes label + child + FieldError; clones a11y attrs into child    |
+| `FieldError`             | Server            | `role=alert` + `aria-live=polite`                                    |
+| `Card` + sub-components  | Server (compound) | `<article>` + `<header>` + `<div>` + `<footer>`                      |
+| `Table` + sub-components | Server (compound) | `<caption>` + `<th scope=col>` + `aria-sort` (REQ-UI-8)              |
+| `Badge`                  | Server            | `directionVariant(INCOME                                             | EXPENSE)` helper |
+| `EmptyState`             | Server            | `role=status`; CTA is first focusable                                |
+| `Spinner`                | Server            | `role=status` + `aria-label`                                         |
+| `Skeleton`               | Server            | `aria-hidden=true`; CSS-only animation                               |
+| `Pagination`             | Server            | `<nav aria-label=Pagination>` + `<Link>`s                            |
+| `Dialog`                 | **Client**        | focus trap + Escape close + backdrop click                           |
+| `Breadcrumb`             | Server            | `<nav aria-label=Breadcrumb>` + `<ol>` + `<Link>`s                   |
+| `Link`                   | Server            | Next.js `Link` wrapper; focus-visible ring (REQ-UI-4)                |
 
 ## Layout shell
 
