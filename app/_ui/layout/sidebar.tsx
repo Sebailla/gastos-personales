@@ -11,7 +11,5 @@ export interface SidebarProps {
 }
 
 export function Sidebar({ children, className }: SidebarProps): React.JSX.Element {
-  return (
-    <aside className={cx('flex flex-col gap-ui-space-4', className)}>{children}</aside>
-  );
+  return <aside className={cx('flex flex-col gap-ui-space-4', className)}>{children}</aside>;
 }

@@ -30,14 +30,7 @@ describe('PageContainer', () => {
 
 describe('BreadcrumbBar', () => {
   it('renders a Breadcrumb primitive from the items prop', () => {
-    render(
-      <BreadcrumbBar
-        items={[
-          { label: 'Home', href: '/' },
-          { label: 'Accounts' },
-        ]}
-      />,
-    );
+    render(<BreadcrumbBar items={[{ label: 'Home', href: '/' }, { label: 'Accounts' }]} />);
     expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toBeInTheDocument();
   });
 });

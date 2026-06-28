@@ -41,6 +41,12 @@ export interface FinancialAccountWire {
   walletAddress: string | null;
   createdAt: string;
   updatedAt: string;
+  // Slice 2 BR-UI-1: present ONLY when the API was called
+  // with `?include=lastActivity`. The field is OPTIONAL on the
+  // wire (the flag is additive; without it, this field is
+  // undefined). The `AccountsListTable` consumer passes
+  // `lastActivityIncluded={true}` to opt the column in.
+  lastActivityAt?: string | null;
 }
 
 export interface FinancialAccountBalanceWire {

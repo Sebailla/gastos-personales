@@ -28,9 +28,7 @@ export function PageHeader({
     >
       <div>
         <h1 className="text-ui-text-3xl font-ui-font-bold text-ui-fg">{title}</h1>
-        {description && (
-          <p className="mt-1 text-ui-text-sm text-ui-fg-muted">{description}</p>
-        )}
+        {description && <p className="mt-1 text-ui-text-sm text-ui-fg-muted">{description}</p>}
       </div>
       {actions && <div className="flex items-center gap-ui-space-2">{actions}</div>}
     </header>

@@ -35,9 +35,7 @@ export function EmptyState({
     >
       {illustration}
       <h3 className="text-ui-text-lg font-ui-font-semibold text-ui-fg">{title}</h3>
-      {description && (
-        <p className="max-w-md text-ui-text-sm text-ui-fg-muted">{description}</p>
-      )}
+      {description && <p className="max-w-md text-ui-text-sm text-ui-fg-muted">{description}</p>}
       {cta}
     </div>
   );

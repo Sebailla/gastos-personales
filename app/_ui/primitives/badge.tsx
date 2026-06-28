@@ -26,11 +26,7 @@ const variantClass: Record<BadgeVariant, string> = {
   danger: 'bg-ui-danger text-ui-danger-fg',
 };
 
-export function Badge({
-  variant = 'neutral',
-  className,
-  children,
-}: BadgeProps): React.JSX.Element {
+export function Badge({ variant = 'neutral', className, children }: BadgeProps): React.JSX.Element {
   return (
     <span
       className={cx(

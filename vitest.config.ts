@@ -42,6 +42,11 @@ export default defineConfig({
         'src/shared/events/**',
         'src/shared/crypto/**',
         'app/_ui/**',
+        // Slice 2 (`accounts-ui`): the production renders for the
+        // accounts pages + their co-located components. Slice 3
+        // (`transactions-ui`) will add `app/transactions/**` and
+        // `app/_components/transactions-list-table.tsx`.
+        'app/accounts/**',
       ],
       exclude: [
         'src/modules/**/domain/interfaces/**/*.ts',
@@ -53,6 +58,21 @@ export default defineConfig({
         // changes will exercise them.
         'app/_ui/layout/sidebar.tsx',
         'app/_ui/layout/topbar.tsx',
+        // Slice 2 (`accounts-ui`): Server Component page shells that
+        // depend on NextAuth + the Hono composition root. The shell
+        // logic (auth gate + data fetch redirect) is covered by the
+        // Server Component contract tests in slice 5
+        // (`feat/ui-integration-tests`); excluding here keeps the
+        // 80% gate on the testable units (the Client Components +
+        // co-located sub-components).
+        'app/accounts/page.tsx',
+        'app/accounts/[[]id]/page.tsx',
+        'app/accounts/new/page.tsx',
+        // `BalanceWidget` is a Client Component with a complex fetch
+        // state machine; it is pinned by the smoke StaleChip test
+        // (12.6% covered). The full Client Component contract lives
+        // in the integration suite (slice 5).
+        'app/accounts/[[]id]/balance-widget.tsx',
       ],
       thresholds: {
         lines: 80,

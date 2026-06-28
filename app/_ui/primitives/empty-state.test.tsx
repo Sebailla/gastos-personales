@@ -14,12 +14,7 @@ describe('EmptyState', () => {
   });
 
   it('renders the CTA when provided', () => {
-    render(
-      <EmptyState
-        title="No accounts"
-        cta={<a href="/accounts/new">Create account</a>}
-      />,
-    );
+    render(<EmptyState title="No accounts" cta={<a href="/accounts/new">Create account</a>} />);
     expect(screen.getByRole('link', { name: 'Create account' })).toHaveAttribute(
       'href',
       '/accounts/new',
