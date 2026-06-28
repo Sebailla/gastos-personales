@@ -73,7 +73,7 @@ export default async function AccountsPage() {
       {body.data.length === 0 ? (
         <p>No accounts yet — create one</p>
       ) : (
-        <AccountsListTable accounts={body.data} total={body.total} />
+        <AccountsListTable accounts={body.data} />
       )}
     </main>
   );
