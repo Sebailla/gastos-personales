@@ -17,11 +17,7 @@ export interface CardProps extends React.HTMLAttributes<HTMLElement> {
   'aria-labelledby'?: string;
 }
 
-export function Card({
-  className,
-  children,
-  ...rest
-}: CardProps): React.JSX.Element {
+export function Card({ className, children, ...rest }: CardProps): React.JSX.Element {
   return (
     <article
       className={cx(
@@ -65,19 +61,15 @@ export function CardHeader({
   );
 }
 
-export function CardBody({
-  className,
-  children,
-}: React.HTMLAttributes<HTMLElement>): React.JSX.Element {
-  return (
-    <div className={cx('px-ui-space-4 py-ui-space-4', className)}>{children}</div>
-  );
+export type CardBodyProps = React.HTMLAttributes<HTMLElement>;
+
+export function CardBody({ className, children }: CardBodyProps): React.JSX.Element {
+  return <div className={cx('px-ui-space-4 py-ui-space-4', className)}>{children}</div>;
 }
 
-export function CardFooter({
-  className,
-  children,
-}: React.HTMLAttributes<HTMLElement>): React.JSX.Element {
+export type CardFooterProps = React.HTMLAttributes<HTMLElement>;
+
+export function CardFooter({ className, children }: CardFooterProps): React.JSX.Element {
   return (
     <footer
       className={cx(

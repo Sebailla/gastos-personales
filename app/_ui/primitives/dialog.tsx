@@ -51,7 +51,7 @@ export function Dialog({
     const dialog = dialogRef.current;
     const focusables = dialog?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
     if (focusables && focusables.length > 0) {
-      focusables[0].focus();
+      focusables[0]?.focus();
     } else {
       dialog?.focus();
     }
@@ -65,8 +65,8 @@ export function Dialog({
       if (e.key === 'Tab' && dialog) {
         const list = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
         if (list.length === 0) return;
-        const first = list[0];
-        const last = list[list.length - 1];
+        const first = list[0]!;
+        const last = list[list.length - 1]!;
         if (e.shiftKey && document.activeElement === first) {
           e.preventDefault();
           last.focus();
