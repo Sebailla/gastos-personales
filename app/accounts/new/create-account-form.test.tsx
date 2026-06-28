@@ -85,7 +85,7 @@ describe('CreateAccountForm — production inline validation + loading (slice 2)
     const user = userEvent.setup();
     render(<CreateAccountForm />);
     // Fill required fields so the submit button enables.
-    await user.type(screen.getByLabelText(/^name$/i), 'My new account');
+    await user.type(screen.getByLabelText(/^name\b/i), 'My new account');
     // Pick BANK bankName so the conditional required field is filled.
     await user.type(screen.getByLabelText(/bank name/i), 'Test bank');
     const submit = screen.getByRole('button', { name: /create account/i });
@@ -116,7 +116,7 @@ describe('CreateAccountForm — production inline validation + loading (slice 2)
     );
     const user = userEvent.setup();
     render(<CreateAccountForm />);
-    await user.type(screen.getByLabelText(/^name$/i), 'My new account');
+    await user.type(screen.getByLabelText(/^name\b/i), 'My new account');
     await user.type(screen.getByLabelText(/bank name/i), 'Test bank');
     await user.click(screen.getByRole('button', { name: /create account/i }));
     // The error is surfaced via mapApiErrorToFieldError: INVALID_AMOUNT -> amountMinor.
@@ -139,10 +139,10 @@ describe('CreateAccountForm — a11y contract (REQ-UI-5/6)', () => {
     // name, currency, casa, openingBalanceMinor, plus the
     // type-specific BANK bankName + accountKind + openingBalanceMode radios.
     const requiredLabels = [
-      /^name$/i,
+      /^name\b/i,
       /^currency$/i,
       /fx casa/i,
-      /opening balance/i,
+      /amount \(minor units/i,
       /bank name/i,
       /account kind/i,
     ];

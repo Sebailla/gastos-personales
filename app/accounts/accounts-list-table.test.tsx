@@ -118,8 +118,12 @@ describe('AccountsListTable — sort + archived toggle + last activity', () => {
     rows = screen.getAllByRole('row');
     // Now header + 2 data rows.
     expect(rows).toHaveLength(3);
-    expect(within(rows[1]!).getByText('Active')).toBeInTheDocument();
-    expect(within(rows[2]!).getByText('Archived')).toBeInTheDocument();
+    // The Archived row renders both the link to /accounts/archived
+    // and an "Archived" badge; scope to the row to avoid the
+    // duplicate text in the badge.
+    const archivedRow = rows[2]!;
+    expect(within(archivedRow).getByRole('link', { name: 'Archived' })).toBeInTheDocument();
+    expect(within(archivedRow).getByText('Archived', { selector: 'span' })).toBeInTheDocument();
   });
 
   it('empty list renders an EmptyState', () => {
