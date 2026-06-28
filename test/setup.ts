@@ -2,6 +2,8 @@
 // and wires any global mocks (e.g. a fake Prisma client for
 // unit tests that don't need a real database).
 
+import '@testing-library/jest-dom/vitest';
+
 // Provide deterministic env vars so the Zod env schema can
 // parse in unit tests. Integration tests that need a real
 // database override these via testcontainers.
