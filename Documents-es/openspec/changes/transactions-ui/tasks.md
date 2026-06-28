@@ -3,7 +3,7 @@
 **Autor**: Sebastián Illa
 **Change**: `transactions-ui`
 **Capabilities**: `ui` (nueva — primera escritura de la spec canónica); un delta en `transactions` (REQ-TX-15 REEMPLAZADO por la referencia REQ-UI-1..11); sin cambio de spec en `accounts` (dos flags aditivos de query aterrizan en los GET endpoints existentes — ver BR-UI-1, BR-UI-2); sin cambio de spec en `reports`, `auth`, `fx`, `errors`
-**Status**: implemented · **Implementado**: n/a (sdd-apply pendiente) · **Creado**: 2026-06-27
+**Status**: slice 1 implementado (sdd-apply para `feat/ui-primitives`) · **Implementado**: 2026-06-28 (slice 1: tokens + 18 primitives + 5 primitives de layout + helpers + tests + README + barrel) · **Creado**: 2026-06-27
 **Stack**: v3 — Next.js 16 + Node 20 + React 19 + Hono catch-all + Auth.js v5 (heredado de `auth-foundation`) + Prisma 6 + PostgreSQL (Neon) + Zod + Vitest + Testing Library + pnpm + Tailwind v4
 **Artefactos fuente**: `openspec/changes/transactions-ui/proposal.md` (v1, 704 LoC) · `openspec/changes/transactions-ui/specs/ui/spec.md` (REQ-UI-1..11) · `openspec/changes/transactions-ui/specs/transactions/spec.md` (REQ-TX-15 REPLACED) · `openspec/changes/transactions-ui/design.md` (3,188 LoC; 20 secciones) — input para esta fase
 **Preflight**: interactive · `both` (Engram + OpenSpec) · `force-chained` (cache `auto-forecast`) · budget de review 400 líneas
@@ -623,18 +623,15 @@ accountName')`.
     `Combobox`, `Button`, `Input`, `Select`, `Textarea`,
     `FieldError`. Los archivos de snapshot viven en
     `tests/visual/__snapshots__/`.
-  - **E2E happy paths** en `tests/e2e/` — tres flujos:
-    1. Sign in → record a USD expense against an ARS casa
-       → verify the dashboard reflects the converted
-       amount.
-    2. Sign in → archive an account → verify it disappears
-       from the active list and appears behind the `Show
-archived` toggle.
-    3. Sign in → navigate to `/accounts/X` → verify the
-       balance widget renders the casa-converted amount.
-       Si hay un Playwright runner instalado, el suite es
-       Playwright; si no, los flujos permanecen como Vitest +
-       Testing Library smoke tests.
+  - **E2E happy paths** en `tests/e2e/` — tres flujos: 1. Sign in → record a USD expense against an ARS casa
+    → verify the dashboard reflects the converted
+    amount. 2. Sign in → archive an account → verify it disappears
+    from the active list and appears behind the `Show
+archived` toggle. 3. Sign in → navigate to `/accounts/X` → verify the
+    balance widget renders the casa-converted amount.
+    Si hay un Playwright runner instalado, el suite es
+    Playwright; si no, los flujos permanecen como Vitest +
+    Testing Library smoke tests.
   - **No production code changes.** Este slice es sólo de
     tests.
 - **Scope (out)**: doc de referencia del design system,

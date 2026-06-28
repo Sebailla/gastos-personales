@@ -7,8 +7,9 @@ export default defineConfig({
   },
   test: {
     globals: true,
+    // Node environment for non-component tests (src/modules, test/, proxy).
     environment: 'node',
-    setupFiles: ['./test/setup.ts'],
+    setupFiles: ['./test/setup.ts', './test/axe-setup.ts'],
     include: [
       'src/**/*.{test,spec}.ts',
       'test/**/*.{test,spec}.ts',
@@ -16,6 +17,15 @@ export default defineConfig({
       'proxy.{test,spec}.ts',
     ],
     exclude: ['node_modules', 'dist', '.next'],
+    // App-router React component tests need a DOM. Configure per-file
+    // with `// @vitest-environment jsdom` so non-component tests stay
+    // on the Node environment (faster, no jsdom bootstrap).
+    environmentMatchGlobs: [
+      ['app/_ui/**/*.{test,spec}.tsx', 'jsdom'],
+      ['app/accounts/**/*.{test,spec}.tsx', 'jsdom'],
+      ['app/transactions/**/*.{test,spec}.tsx', 'jsdom'],
+      ['app/dashboard/**/*.{test,spec}.tsx', 'jsdom'],
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'json'],
@@ -31,14 +41,18 @@ export default defineConfig({
         'src/shared/errors/**',
         'src/shared/events/**',
         'src/shared/crypto/**',
+        'app/_ui/**',
       ],
       exclude: [
-        // Pure type interfaces (ports): contracts, no executable code.
         'src/modules/**/domain/interfaces/**/*.ts',
-        // Barrel re-exports: pure imports + exports, no logic.
         'src/**/index.ts',
-        // Event type definitions: pure state, dispatched by infrastructure.
         'src/shared/events/user-events.ts',
+        'app/_ui/index.ts',
+        'app/_ui/**/*.css',
+        // Forward-declared per design §2.1; NOT used in v1. Follow-up
+        // changes will exercise them.
+        'app/_ui/layout/sidebar.tsx',
+        'app/_ui/layout/topbar.tsx',
       ],
       thresholds: {
         lines: 80,
