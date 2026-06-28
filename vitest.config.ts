@@ -49,6 +49,10 @@ export default defineConfig({
         'src/shared/events/user-events.ts',
         'app/_ui/index.ts',
         'app/_ui/**/*.css',
+        // Forward-declared per design §2.1; NOT used in v1. Follow-up
+        // changes will exercise them.
+        'app/_ui/layout/sidebar.tsx',
+        'app/_ui/layout/topbar.tsx',
       ],
       thresholds: {
         lines: 80,
