@@ -1,7 +1,5 @@
-'use client';
-
 /**
- * DashboardAccountPicker — Client Component.
+ * DashboardAccountPicker — Server Component (FIX 3 — 4R review).
  *
  * Renders a `<nav>` of `<Link>`s, one per account. Picking an
  * account navigates to `/dashboard?accountId=<id>` so the
@@ -20,11 +18,15 @@
  * - Focus ring on every interactive element (`focus-visible`
  *   per the design system primitives).
  *
- * The component is a Client Component because `next/link`
- * inside the App Router can render inside a Server Component
- * shell BUT the search-param-aware navigation lives behind
- * the App Router's client boundary; the Server Component page
- * still owns the data fetch and passes the accounts list down.
+ * FIX 3 — removed the `'use client'` directive. The component
+ * is a pure `<Link>` wrapper with no `useState`, `useEffect`,
+ * event handlers, or browser-only APIs. `next/link` is RSC-
+ * compatible; removing the directive ships ~3 KB less JS to
+ * the dashboard. The previous Client-Component declaration
+ * was a defensive legacy from the slice 4 implementation and
+ * was not technically required.
+ *
+ * No `'use client'` directive. Pure render Server Component.
  */
 
 import NextLink from 'next/link';
