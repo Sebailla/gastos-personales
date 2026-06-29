@@ -36,6 +36,12 @@ export interface TransactionWire {
   casaSnapshot: string | null;
   createdAt: string;
   updatedAt: string;
+  // Slice 3 BR-UI-2: present ONLY when the API was called
+  // with `?include=accountName`. The field is OPTIONAL on the
+  // wire (the flag is additive; without it, this field is
+  // undefined). The `TransactionsListTable` consumer passes
+  // `accountNameIncluded={true}` to opt the column in.
+  accountName?: string;
 }
 
 export interface TransactionsListResponse {

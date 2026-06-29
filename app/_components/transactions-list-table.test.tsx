@@ -52,22 +52,25 @@ function makeTx(overrides: Partial<TransactionWire> = {}): TransactionWire {
 describe('TransactionsListTable — sort', () => {
   it('renders one row per transaction sorted by transactionDate DESC by default', () => {
     const txs = [
-      makeTx({ id: 'old', transactionDate: '2026-01-01T00:00:00.000Z' }),
-      makeTx({ id: 'new', transactionDate: '2026-06-15T00:00:00.000Z' }),
+      makeTx({ id: 'old', transactionDate: '2026-01-01T00:00:00.000Z', fxAsOfSnapshot: null }),
+      makeTx({ id: 'new', transactionDate: '2026-06-15T00:00:00.000Z', fxAsOfSnapshot: null }),
     ];
     render(<TransactionsListTable transactions={txs} nextCursor={null} />);
     const rows = screen.getAllByRole('row');
     // header row + 2 data rows.
     expect(rows).toHaveLength(3);
-    // Newest first: 'new' before 'old'.
-    expect(within(rows[1]!).getByText('new')).toBeInTheDocument();
-    expect(within(rows[2]!).getByText('old')).toBeInTheDocument();
+    // Date column renders transactionDate.slice(0, 10); assert by
+    // the Date cell content of each row (the Rate-as-of column
+    // renders `—` when fxAsOfSnapshot is null, so the Date string
+    // is unique within the row).
+    expect(within(rows[1]!).getByText('2026-06-15')).toBeInTheDocument();
+    expect(within(rows[2]!).getByText('2026-01-01')).toBeInTheDocument();
   });
 
   it('clicking the Date sort header reverses the sort', async () => {
     const txs = [
-      makeTx({ id: 'old', transactionDate: '2026-01-01T00:00:00.000Z' }),
-      makeTx({ id: 'new', transactionDate: '2026-06-15T00:00:00.000Z' }),
+      makeTx({ id: 'old', transactionDate: '2026-01-01T00:00:00.000Z', fxAsOfSnapshot: null }),
+      makeTx({ id: 'new', transactionDate: '2026-06-15T00:00:00.000Z', fxAsOfSnapshot: null }),
     ];
     const user = userEvent.setup();
     render(<TransactionsListTable transactions={txs} nextCursor={null} />);
@@ -75,25 +78,27 @@ describe('TransactionsListTable — sort', () => {
     await user.click(dateHeader);
     const rows = screen.getAllByRole('row');
     // After click, sort flips to ASC: old before new.
-    expect(within(rows[1]!).getByText('old')).toBeInTheDocument();
-    expect(within(rows[2]!).getByText('new')).toBeInTheDocument();
+    expect(within(rows[1]!).getByText('2026-01-01')).toBeInTheDocument();
+    expect(within(rows[2]!).getByText('2026-06-15')).toBeInTheDocument();
   });
 
   it('clicking the Native amount sort header sorts numerically', async () => {
     const txs = [
-      makeTx({ id: 'a', amountMinor: 50000, transactionDate: '2026-06-10T00:00:00.000Z' }),
-      makeTx({ id: 'b', amountMinor: 1000, transactionDate: '2026-06-11T00:00:00.000Z' }),
-      makeTx({ id: 'c', amountMinor: 9999, transactionDate: '2026-06-12T00:00:00.000Z' }),
+      makeTx({ id: 'a', amountMinor: 50000, currency: 'ARS', transactionDate: '2026-06-10T00:00:00.000Z', fxAsOfSnapshot: null }),
+      makeTx({ id: 'b', amountMinor: 1000, currency: 'ARS', transactionDate: '2026-06-11T00:00:00.000Z', fxAsOfSnapshot: null }),
+      makeTx({ id: 'c', amountMinor: 9999, currency: 'ARS', transactionDate: '2026-06-12T00:00:00.000Z', fxAsOfSnapshot: null }),
     ];
     const user = userEvent.setup();
     render(<TransactionsListTable transactions={txs} nextCursor={null} />);
     const amountHeader = screen.getByRole('button', { name: /native amount/i });
     await user.click(amountHeader);
     const rows = screen.getAllByRole('row');
-    // After click, sort flips to ASC by amountMinor: b (1000) then c (9999) then a (50000).
-    expect(within(rows[1]!).getByText('b')).toBeInTheDocument();
-    expect(within(rows[2]!).getByText('c')).toBeInTheDocument();
-    expect(within(rows[3]!).getByText('a')).toBeInTheDocument();
+    // After click, sort flips to ASC by amountMinor. Use the Date
+    // cell to assert row order (the Date column is unique within
+    // each row because fxAsOfSnapshot is null).
+    expect(within(rows[1]!).getByText('2026-06-11')).toBeInTheDocument();
+    expect(within(rows[2]!).getByText('2026-06-12')).toBeInTheDocument();
+    expect(within(rows[3]!).getByText('2026-06-10')).toBeInTheDocument();
   });
 });
 
@@ -161,7 +166,10 @@ describe('TransactionsListTable — pagination', () => {
     expect(nav).toBeInTheDocument();
     const nextLink = within(nav).getByRole('link', { name: /next page/i });
     expect(nextLink).toBeInTheDocument();
-    expect(nextLink.getAttribute('href')).toBe('?cursor=cursor-1');
+    // The Pagination primitive appends `?page=<n>` to the
+    // base URL; the base URL carries the next-cursor query so
+    // the page Server Component re-fetches the next page.
+    expect(nextLink.getAttribute('href')).toContain('cursor=cursor-1');
   });
 
   it('does not render the Pagination navigation when nextCursor is null', () => {

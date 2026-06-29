@@ -64,7 +64,7 @@ export default async function TransactionsPage() {
       {body.data.length === 0 ? (
         <p>No transactions yet — record one</p>
       ) : (
-        <TransactionsListTable transactions={body.data} hasMore={body.nextCursor !== null} />
+        <TransactionsListTable transactions={body.data} nextCursor={body.nextCursor} />
       )}
     </main>
   );
