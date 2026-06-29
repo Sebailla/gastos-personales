@@ -1,3 +1,6 @@
+/* eslint-disable no-console -- intentional: the orchestrator wants the
+ * moderate/minor violation summary logged at the end of each test run
+ * so the audit triage happens in the same report as the gate. */
 /**
  * Vitest setup for the axe-core a11y integration suite — slice 5
  * (`feat/ui-integration-tests`, design §13.4).
@@ -87,9 +90,9 @@ export function expectNoCriticalOrSerious(
   const blocking = filterByImpact(results, ['critical', 'serious']);
   const informational = filterByImpact(results, ['moderate', 'minor']);
   if (informational.length > 0) {
-    // eslint-disable-next-line no-console -- intentional: the
-    // orchestrator (and CI) want to see the non-blocking
-    // violation summary at the end of the run.
+    // Intentional: the orchestrator (and CI) want to see the
+    // non-blocking violation summary at the end of the run so
+    // moderate/minor issues are triaged in the same report.
     console.info(
       `axe-core informational (moderate + minor, ${informational.length} items):`,
       informational
