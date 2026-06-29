@@ -38,7 +38,7 @@ vi.mock('next/navigation', () => ({
   }),
 }));
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CreateAccountForm } from './create-account-form';
 
@@ -133,22 +133,125 @@ describe('CreateAccountForm — production inline validation + loading (slice 2)
 });
 
 describe('CreateAccountForm — a11y contract (REQ-UI-5/6)', () => {
-  it('every visible form control has a paired <label htmlFor>', () => {
+  // The form has these labelled controls (per the design):
+  // name, currency, casa, openingBalanceMinor, plus the
+  // type-specific BANK bankName + accountKind. Each label
+  // pattern is asserted in its own `it` so a missing label
+  // produces a clearly-named failure (no `for` loops in
+  // tests, root AGENTS.md §10.5).
+  const requiredLabels: ReadonlyArray<RegExp> = [
+    /^name\b/i,
+    /^currency$/i,
+    /fx casa/i,
+    /amount \(minor units/i,
+    /bank name/i,
+    /account kind/i,
+  ];
+  it.each(requiredLabels)('pairs a <label htmlFor> with the input matching %s', (pattern) => {
     render(<CreateAccountForm />);
-    // The form has these labelled controls (per the design):
-    // name, currency, casa, openingBalanceMinor, plus the
-    // type-specific BANK bankName + accountKind + openingBalanceMode radios.
-    const requiredLabels = [
-      /^name\b/i,
-      /^currency$/i,
-      /fx casa/i,
-      /amount \(minor units/i,
-      /bank name/i,
-      /account kind/i,
-    ];
-    for (const pattern of requiredLabels) {
-      expect(screen.getByLabelText(pattern)).toBeInTheDocument();
-    }
+    expect(screen.getByLabelText(pattern)).toBeInTheDocument();
+  });
+});
+
+/**
+ * Type-guard end-to-end (FIX 1 — 4R review).
+ *
+ * The form's `onChange` handlers now feed `e.target.value`
+ * through type guards before committing to state. The guards
+ * cover the only channels where the DOM delivers an arbitrary
+ * string: a noisy browser extension, a programmatic dispatch,
+ * or a malformed value cached in the rendered `<option>`. This
+ * describe block pins the contract that NO invalid string can
+ * poison the form state (defense-in-depth, root AGENTS.md
+ * §10.5 — "No `as`").
+ *
+ * The unit-level guards live in `type-guards.test.ts`; these
+ * tests confirm the form's `<Select>` `onChange` actually
+ * invokes them and that the resulting state stays coherent.
+ */
+describe('CreateAccountForm — type guards (FIX 1, 4R review)', () => {
+  beforeEach(() => {
+    vi.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ data: { id: 'acc-new' } }), {
+        status: 201,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+  });
+
+  it('a programmatic onChange with an unknown currency value keeps the prior selection', () => {
+    render(<CreateAccountForm />);
+    const currencySelect = screen.getByLabelText(/^currency$/i) as HTMLSelectElement;
+    // Initial state is 'USD' (the form's default).
+    expect(currencySelect.value).toBe('USD');
+    // Simulate a noisy onChange where the DOM delivers a value
+    // not in CURRENCIES (e.g. a browser extension or a stale
+    // value from a previous schema).
+    fireEvent.change(currencySelect, { target: { value: 'XYZ' } });
+    // The guard fell back to the previous ('USD') value because
+    // the new value failed `isAccountCurrency`.
+    expect(currencySelect.value).toBe('USD');
+  });
+
+  it('a programmatic onChange with the empty casa sentinel resolves to null (Default inheritance)', async () => {
+    const user = userEvent.setup();
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockClear();
+    render(<CreateAccountForm />);
+    const casaSelect = screen.getByLabelText(/fx casa/i) as HTMLSelectElement;
+    // Pick a casa first so we know the form transitions back to null.
+    await user.selectOptions(casaSelect, 'BLUE');
+    // Empty is the "Default (oficial)" sentinel — the form
+    // MUST commit null (REQ-FX-9: inherit the global default),
+    // NOT the empty string. We verify this by submitting the
+    // form and inspecting the fetch payload: a `null` casa
+    // means the `casa` key is OMITTED from the body.
+    fireEvent.change(casaSelect, { target: { value: '' } });
+    await user.type(screen.getByLabelText(/^name\b/i), 'My new account');
+    await user.type(screen.getByLabelText(/bank name/i), 'Test bank');
+    await user.click(screen.getByRole('button', { name: /create account/i }));
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+    });
+    const body = JSON.parse(fetchMock.mock.calls[0]![1]!.body as string);
+    expect(body).not.toHaveProperty('casa');
+  });
+
+  it('a programmatic onChange with an unknown casa value resolves to null (defense-in-depth)', async () => {
+    const user = userEvent.setup();
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockClear();
+    render(<CreateAccountForm />);
+    const casaSelect = screen.getByLabelText(/fx casa/i) as HTMLSelectElement;
+    // Dispatch a value the Select's <option> set does NOT contain
+    // (a malformed URL/path injection attempt). React commits
+    // the DOM update but the type guard's `parseCasaOrNull` MUST
+    // return null because the value fails `isCasa`.
+    fireEvent.change(casaSelect, { target: { value: '../../etc/passwd' } });
+    // Submit and inspect the wire payload. A null casa means
+    // the `casa` key is OMITTED — this is the only way to
+    // prove the React state, not the DOM value, is null.
+    await user.type(screen.getByLabelText(/^name\b/i), 'My new account');
+    await user.type(screen.getByLabelText(/bank name/i), 'Test bank');
+    await user.click(screen.getByRole('button', { name: /create account/i }));
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+    });
+    const body = JSON.parse(fetchMock.mock.calls[0]![1]!.body as string);
+    expect(body).not.toHaveProperty('casa');
+  });
+
+  it('a programmatic onChange with an unknown investmentType keeps the prior selection', async () => {
+    const user = userEvent.setup();
+    render(<CreateAccountForm />);
+    const typeSelect = screen.getByLabelText(/^type$/i) as HTMLSelectElement;
+    await user.selectOptions(typeSelect, 'INVESTMENT');
+    const investmentTypeSelect = screen.getByLabelText(/investment type/i) as HTMLSelectElement;
+    expect(investmentTypeSelect.value).toBe('STOCKS');
+    fireEvent.change(investmentTypeSelect, { target: { value: 'CRYPTO' } });
+    // CRYPTO is not in INVESTMENT_TYPES — the guard falls back
+    // to the previous value.
+    expect(investmentTypeSelect.value).toBe('STOCKS');
   });
 });
 
