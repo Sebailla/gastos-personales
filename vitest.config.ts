@@ -46,10 +46,19 @@ export default defineConfig({
         // Slice 2 (`accounts-ui`): the production renders for the
         // accounts pages + their co-located components. Slice 3
         // (`transactions-ui`) adds `app/transactions/**` and
-        // `app/_components/transactions-list-table.tsx`.
+        // `app/_components/transactions-list-table.tsx`. Slice 4
+        // (`dashboard-ui-refactor`) adds `app/dashboard/**` (the
+        // Client Components + co-located sub-components) + the
+        // two new dashboard Client Components in `app/_components`.
         'app/accounts/**',
         'app/transactions/**',
+        'app/dashboard/**',
         'app/_components/transactions-list-table.tsx',
+        'app/_components/dashboard-account-picker.tsx',
+        'app/_components/dashboard-month-switcher.tsx',
+        'app/_components/dashboard-monthly-summary.tsx',
+        'app/_components/dashboard-category-breakdown.tsx',
+        'app/_components/dashboard-account-flow.tsx',
       ],
       exclude: [
         'src/modules/**/domain/interfaces/**/*.ts',
@@ -83,6 +92,14 @@ export default defineConfig({
         'app/transactions/page.tsx',
         'app/transactions/[[]id]/page.tsx',
         'app/transactions/new/page.tsx',
+        // Slice 4 (`dashboard-ui-refactor`): the Server Component
+        // page shell (`app/dashboard/page.tsx`) is covered by the
+        // Server Component contract tests (the 5 tests in
+        // `page.test.tsx` + `page.seeded.test.tsx`); the shell
+        // depends on NextAuth + the Hono composition root +
+        // parallel Promise.all over optional flow fetch. The
+        // exclude pattern matches the slice 2/3 precedent.
+        'app/dashboard/page.tsx',
       ],
       thresholds: {
         lines: 80,

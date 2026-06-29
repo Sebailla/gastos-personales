@@ -1,31 +1,37 @@
 /**
  * Tests for `app/dashboard/page.tsx` — dashboard-ui slice 4
- * (T-RPT-306).
+ * (T-UI-309 + T-UI-310).
  *
- * Two snapshot cases:
+ * Three cases pinned in this file (the empty + the deep-link
+ * branches). The seeded happy path is in
+ * `page.seeded.test.tsx`.
  *
- *   1. Empty user (zero transactions): three "Sin datos" cards
- *      + the CTA linking to `/transactions/new`.
- *   2. Seeded user (transactions present): three populated
- *      cards — MonthlySummary + CategoryBreakdown with rows,
- *      AccountFlowCard still in its v1 empty state (the
- *      dashboard does NOT call the flow endpoint in v1, per
- *      design §9.2).
+ *   1. Empty user + no searchParams: three Card compounds
+ *      render; the MonthlySummaryCard + CategoryBreakdownCard
+ *      surface EmptyState with the CTA to `/transactions/new`;
+ *      the AccountFlowCard surfaces the EmptyState nudging
+ *      the user to pick an account.
+ *   2. ?accountId=<id>: the flow endpoint IS called and the
+ *      AccountFlowCard renders its Table primitive.
+ *   3. ?month=YYYY-MM: the page reads the search param and
+ *      passes it to BOTH the monthly + breakdown endpoint
+ *      URLs.
  *
  * The page is an async Server Component. We mock
  * `@/modules/auth/nextauth` (so `auth()` returns a fixed
- * session) and `@/lib/server-hono` (so the in-process Hono
- * call returns our pre-seeded DTOs without booting Prisma).
+ * session), `@/lib/server-hono` (so the in-process Hono call
+ * returns our pre-seeded DTOs without booting Prisma), and
+ * the accounts list endpoint (`/api/accounts?archivedAt=null`)
+ * so the DashboardAccountPicker has accounts to render.
+ *
  * `next/navigation`'s `redirect` is mocked to throw, matching
  * the signin page test pattern, so a missing-session
  * assertion can catch the redirect path.
  *
  * The mock factory is split into two test files: this one
- * pins the empty-state contract; `page.seeded.test.tsx` pins
- * the populated contract. Splitting avoids a shared mutable
- * `currentFixture` selector inside this file (the test body
- * becomes pure assertions + declarative mocks — no `if`/`else`
- * in setup, per root AGENTS.md §10.5).
+ * pins the empty + deep-link contract; `page.seeded.test.tsx`
+ * pins the populated happy path. Splitting avoids a shared
+ * mutable `currentFixture` selector inside a single file.
  *
  * No logic in tests (root AGENTS.md §10.5): the mock is
  * declared declaratively (no `if`/`else` in setup), the
@@ -45,7 +51,11 @@ vi.mock('next/navigation', () => ({
   },
 }));
 
-import type { MonthlySummaryDTO, CategoryBreakdownDTO } from '../_lib/report-types';
+import type {
+  MonthlySummaryDTO,
+  CategoryBreakdownDTO,
+  AccountFlowDTO,
+} from '../_lib/report-types';
 
 const EMPTY_MONTHLY: MonthlySummaryDTO = {
   totals: [],
@@ -55,13 +65,84 @@ const EMPTY_BREAKDOWN: CategoryBreakdownDTO = {
   buckets: [],
   generatedAt: '2026-06-27T12:00:00.000Z',
 };
+const POPULATED_FLOW: AccountFlowDTO = {
+  fromDate: '2026-06-01',
+  toDate: '2026-06-30',
+  days: [
+    {
+      date: '2026-06-01',
+      netMinor: 12000,
+      runningBalanceMinor: 12000,
+      count: 2,
+      convertedCurrency: 'ARS',
+    },
+  ],
+  generatedAt: '2026-06-30T23:59:59.000Z',
+};
 
-// The flow endpoint is NOT called in v1; the lookup table
-// below intentionally omits it so an accidental call throws
-// here, catching the drift before production.
+// The /api/accounts endpoint is called by the page to populate
+// the picker. The wire shape mirrors the full FinancialAccountWire
+// (the picker only reads id + name, but the Zod schema in the
+// page validates the entire wire shape because the response is
+// typed for downstream consumers too).
+const ACCOUNTS_RESPONSE = {
+  data: [
+    {
+      id: 'a1',
+      userId: 'u1',
+      type: 'BANK',
+      name: 'Main ARS',
+      currency: 'ARS',
+      openingBalanceMinor: 0,
+      openingBalanceMode: 'CURRENT',
+      openingBalanceDate: null,
+      archivedAt: null,
+      bankName: 'Banco Galicia',
+      accountKind: null,
+      issuer: null,
+      creditLimitMinor: null,
+      statementDay: null,
+      paymentDueDay: null,
+      broker: null,
+      investmentType: null,
+      walletAddress: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    },
+    {
+      id: 'a2',
+      userId: 'u1',
+      type: 'BANK',
+      name: 'Main USD',
+      currency: 'USD',
+      openingBalanceMinor: 0,
+      openingBalanceMode: 'CURRENT',
+      openingBalanceDate: null,
+      archivedAt: null,
+      bankName: 'Banco Galicia',
+      accountKind: null,
+      issuer: null,
+      creditLimitMinor: null,
+      statementDay: null,
+      paymentDueDay: null,
+      broker: null,
+      investmentType: null,
+      walletAddress: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    },
+  ],
+  nextCursor: null,
+  total: 2,
+};
+
+// Path-prefix keyed lookup. The lookup table dispatches between
+// the four endpoints the page may call.
 const FIXTURES_BY_PREFIX: ReadonlyArray<readonly [string, () => Response]> = [
+  ['/api/accounts', () => new Response(JSON.stringify(ACCOUNTS_RESPONSE), { status: 200 })],
   ['/api/reports/monthly', () => new Response(JSON.stringify(EMPTY_MONTHLY), { status: 200 })],
   ['/api/reports/breakdown', () => new Response(JSON.stringify(EMPTY_BREAKDOWN), { status: 200 })],
+  ['/api/reports/accounts/', () => new Response(JSON.stringify(POPULATED_FLOW), { status: 200 })],
 ];
 const mockServerHonoRequest = vi.fn(async (path: string, _init: RequestInit = {}) => {
   const match = FIXTURES_BY_PREFIX.find(([prefix]) => path.startsWith(prefix));
@@ -75,19 +156,77 @@ vi.mock('@/lib/server-hono', () => ({
 // Import AFTER the mocks are registered.
 import DashboardPage from './page';
 
-describe('DashboardPage — empty user (dashboard-ui T-RPT-306)', () => {
-  it('renders three "Sin datos" cards + CTA linking to /transactions/new', async () => {
-    const jsx = await DashboardPage();
+describe('DashboardPage — empty user (slice 4 T-UI-309)', () => {
+  it('renders three Card compounds with empty states + the MonthSwitcher', async () => {
+    const jsx = await DashboardPage({ searchParams: Promise.resolve({}) });
     const html = renderToStaticMarkup(jsx);
-    // Three cards render with their empty-state messages.
+    // PageContainer + PageHeader.
+    expect(html).toContain('Dashboard');
+    // MonthSwitcher surfaces.
+    expect(html).toContain('aria-label="Month switcher"');
+    // MonthSwitcher current month label (defaults to the
+    // current UTC month).
+    const nowMonth = `${new Date().getUTCFullYear()}-${String(new Date().getUTCMonth() + 1).padStart(2, '0')}`;
+    expect(html).toContain(nowMonth);
+    // Three cards render with their CardHeader titles.
     expect(html).toContain('Resumen mensual');
     expect(html).toContain('Por categoría');
     expect(html).toContain('Flujo por cuenta');
-    expect(html.match(/Sin datos/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
-    // CTA links to /transactions/new per design §9.2.
+    // MonthlySummaryCard carries the CTA to /transactions/new
+    // (because both monthly.totals + breakdown.buckets are
+    // empty in the seed fixtures).
     expect(html).toContain('/transactions/new');
-    // The flow endpoint is NEVER called in v1.
-    const flowCalls = mockServerHonoRequest.mock.calls.filter(([p]) => String(p).includes('/flow'));
+    // AccountFlowCard surfaces the EmptyState (no accountId
+    // in searchParams, so the picker is selected against null).
+    expect(html).toContain('aria-label="Account picker"');
+    expect(html).toContain('Elegí una cuenta');
+    // The flow endpoint is NEVER called when no ?accountId=
+    // is present.
+    const flowCalls = mockServerHonoRequest.mock.calls.filter(([p]) =>
+      String(p).includes('/flow'),
+    );
     expect(flowCalls).toHaveLength(0);
   });
 });
+
+describe('DashboardPage — ?accountId= deep-link (slice 4 T-UI-309)', () => {
+  it('calls the flow endpoint when ?accountId=<id> is present + renders the picker with aria-current', async () => {
+    const jsx = await DashboardPage({
+      searchParams: Promise.resolve({ accountId: 'a2' }),
+    });
+    const html = renderToStaticMarkup(jsx);
+    // The flow endpoint IS called with the deep-linked account.
+    const flowCalls = mockServerHonoRequest.mock.calls.filter(([p]) =>
+      String(p).includes('/api/reports/accounts/a2/flow'),
+    );
+    expect(flowCalls).toHaveLength(1);
+    // The AccountFlowCard picks the deep-linked account.
+    // (The picker renders the link with aria-current="page";
+    // the smoke seed has a2 selected.)
+    expect(html).toContain('aria-current="page"');
+    // The Table primitive renders the day rows from the flow DTO.
+    expect(html).toContain('2026-06-01');
+  });
+});
+
+describe('DashboardPage — ?month= searchParam (slice 4 T-UI-309)', () => {
+  it('passes ?month= to the monthly + breakdown endpoint URLs', async () => {
+    mockServerHonoRequest.mockClear();
+    const jsx = await DashboardPage({
+      searchParams: Promise.resolve({ month: '2025-12' }),
+    });
+    // Render to trigger the calls.
+    renderToStaticMarkup(jsx);
+    // Monthly endpoint gets month=2025-12.
+    const monthlyCalls = mockServerHonoRequest.mock.calls
+      .map(([p]) => String(p))
+      .filter((p) => p.startsWith('/api/reports/monthly'));
+    expect(monthlyCalls.some((p) => p.includes('month=2025-12'))).toBe(true);
+    // Breakdown endpoint gets month=2025-12.
+    const breakdownCalls = mockServerHonoRequest.mock.calls
+      .map(([p]) => String(p))
+      .filter((p) => p.startsWith('/api/reports/breakdown'));
+    expect(breakdownCalls.some((p) => p.includes('month=2025-12'))).toBe(true);
+  });
+});
+
