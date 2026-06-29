@@ -44,9 +44,16 @@ export default defineConfig({
     // `tests/visual/__snapshots__/` folder separate from the
     // existing per-file snapshot files (Vitest default would
     // co-locate them; the design §13.5 contract asks for the
-    // separate `__snapshots__/` folder).
-    resolveSnapshotPath: (testPath) => {
-      return testPath.replace(/\.test\.tsx$/, '__snapshots__/') + '.snap';
+    // separate shared `__snapshots__/` folder).
+    resolveSnapshotPath: (testPath, snapshotExtension) => {
+      const visualDir = path.resolve(__dirname, 'tests/visual');
+      const testAbs = path.resolve(testPath);
+      if (testAbs.startsWith(visualDir + path.sep)) {
+        const basename = path.basename(testAbs);
+        return path.join(visualDir, '__snapshots__', `${basename}${snapshotExtension}`);
+      }
+      // Other tests fall back to the Vitest default (co-located).
+      return testAbs + snapshotExtension;
     },
     coverage: {
       provider: 'v8',
