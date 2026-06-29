@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-29
+
 ### Added
 
-- **`ui` capability end-to-end** (#98 #99 #100 #101 #102, slice 6 of
+- **`ui` capability end-to-end** (#98 #99 #100 #101 #102 #103, slice 6 of
   `transactions-ui`): the new design-system reference + production
   render layer. The capability is hand-built on Tailwind v4 + React
   19 with **zero new top-level dependencies** (`pnpm-lock.yaml`
@@ -50,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (renders `<Link>`s for previous / current / next month).
   - **axe-core integration test suite** at `tests/a11y/`: one
     `vitest-axe` test per production page asserting zero `critical`
-    + `serious` violations (WCAG 2.2 AA floor).
+    or `serious` violations (WCAG 2.2 AA floor).
   - **Visual snapshot test suite** at `tests/visual/`: golden-file
     snapshots for the static presentational primitives (`Card`,
     `Badge`, `EmptyState`, `Skeleton`, `Breadcrumb`).
@@ -88,6 +90,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   preserved verbatim. The replacement is non-breaking: no BR
   changes, no Hono route changes, no data model changes, no new
   top-level dependencies.
+- **4R cleanup landed in this release** (#104): the top-5 findings
+  from the post-merge 4R review of `transactions-ui` were fixed in
+  a single PR — removal of `as` casts, `Suspense` boundary
+  addition, `'use client'` directive correction, UUID format
+  switch, and `docs/architecture/ui.md` primitive count alignment
+  with the source.
 
 ### Notes
 
@@ -99,11 +107,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pre-existing project convention (Spanish dashboard copy, English
   component-level UI text). The follow-up `ui-i18n` change
   introduces a message catalog.
-- Lighthouse CLI sweep + manual QA sign-off are **user-owned
-  manual tasks** (T-UI-505 + T-UI-506). The JSON summaries in
-  `docs/perf/transactions-ui.md` and the sign-off section in
-  `docs/qa/transactions-ui.md` are pending until the user runs
-  them post-merge.
+- **User-owned post-release follow-ups** (T-UI-505 Lighthouse
+  p95 < 2s sweep on `/`, `/dashboard`, `/transactions`; T-UI-506
+  manual QA sign-off per `docs/qa/transactions-ui.md`) are
+  intentionally **deferred to after the v0.4.0 tag is cut**. The
+  JSON summaries in `docs/perf/transactions-ui.md` and the
+  sign-off section in `docs/qa/transactions-ui.md` are pending
+  until the user runs them post-release. Neither is a release
+  blocker — both are observability + sign-off artifacts the
+  maintainer can execute at any time against the v0.4.0 tag.
 
 ## [0.2.1] - 2026-06-25
 
@@ -161,3 +173,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.2.0]: https://github.com/Sebailla/gastos-personales/releases/tag/v0.2.0
 [0.2.1]: https://github.com/Sebailla/gastos-personales/releases/tag/v0.2.1
 [0.3.0]: https://github.com/Sebailla/gastos-personales/releases/tag/v0.3.0
+[0.4.0]: https://github.com/Sebailla/gastos-personales/releases/tag/v0.4.0
