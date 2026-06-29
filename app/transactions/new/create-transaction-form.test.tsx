@@ -43,12 +43,6 @@ vi.mock('next/navigation', () => ({
 
 import { CreateTransactionForm } from './create-transaction-form';
 
-interface AccountOption {
-  id: string;
-  name: string;
-  currency: string;
-}
-
 const ACCOUNT_USD = {
   id: 'acc-usd-1',
   name: 'Brokerage USD',
@@ -79,9 +73,7 @@ describe('CreateTransactionForm — Combobox accounts population', () => {
     const accountInput = screen.getByRole('searchbox', { name: /account/i });
     expect(accountInput).toBeInTheDocument();
     // The empty-state helper text is also rendered.
-    expect(
-      screen.getByText(/no accounts yet/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/no accounts yet/i)).toBeInTheDocument();
   });
 
   it('renders one <option> per account option in the account Combobox <select>', () => {
@@ -97,17 +89,13 @@ describe('CreateTransactionForm — Combobox accounts population', () => {
     expect(select!.options).toHaveLength(2);
     // Each account renders as `<name> (<currency>)`.
     const labels = Array.from(select!.options).map((o) => o.text);
-    expect(labels).toEqual(
-      expect.arrayContaining(['Main ARS (ARS)', 'Brokerage USD (USD)']),
-    );
+    expect(labels).toEqual(expect.arrayContaining(['Main ARS (ARS)', 'Brokerage USD (USD)']));
   });
 });
 
 describe('CreateTransactionForm — INCOME direction (BR-UI-2 type branches, slice 2 lesson)', () => {
   beforeEach(() => {
-    vi.spyOn(global, 'fetch').mockResolvedValue(
-      mockJsonResponse({ data: { id: 'tx-new' } }),
-    );
+    vi.spyOn(global, 'fetch').mockResolvedValue(mockJsonResponse({ data: { id: 'tx-new' } }));
   });
 
   it('submits an INCOME transaction with the correct payload shape', async () => {
@@ -158,9 +146,7 @@ describe('CreateTransactionForm — INCOME direction (BR-UI-2 type branches, sli
 
 describe('CreateTransactionForm — EXPENSE direction (BR-UI-2 type branches, slice 2 lesson)', () => {
   beforeEach(() => {
-    vi.spyOn(global, 'fetch').mockResolvedValue(
-      mockJsonResponse({ data: { id: 'tx-new' } }),
-    );
+    vi.spyOn(global, 'fetch').mockResolvedValue(mockJsonResponse({ data: { id: 'tx-new' } }));
   });
 
   it('submits an EXPENSE transaction with the correct payload shape', async () => {
@@ -202,16 +188,17 @@ describe('CreateTransactionForm — EXPENSE direction (BR-UI-2 type branches, sl
 
 describe('CreateTransactionForm — inline validation', () => {
   beforeEach(() => {
-    vi.spyOn(global, 'fetch').mockResolvedValue(
-      mockJsonResponse({ data: { id: 'tx-new' } }),
-    );
+    vi.spyOn(global, 'fetch').mockResolvedValue(mockJsonResponse({ data: { id: 'tx-new' } }));
   });
 
   it('surfaces an inline FieldError on amountMinor when the API returns INVALID_AMOUNT', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-      mockJsonResponse({
-        error: { code: 'INVALID_AMOUNT', message: 'Amount must be > 0' },
-      }, 400),
+      mockJsonResponse(
+        {
+          error: { code: 'INVALID_AMOUNT', message: 'Amount must be > 0' },
+        },
+        400,
+      ),
     );
     const user = userEvent.setup();
     render(<CreateTransactionForm accounts={[ACCOUNT_ARS]} />);
@@ -237,17 +224,18 @@ describe('CreateTransactionForm — inline validation', () => {
     // FormField; we assert by id to avoid matching the global
     // errorBanner's role="alert" too.
     await waitFor(() => {
-      expect(
-        document.getElementById('amountMinor-error'),
-      ).toHaveTextContent(/amount must be > 0/i);
+      expect(document.getElementById('amountMinor-error')).toHaveTextContent(/amount must be > 0/i);
     });
   });
 
   it('surfaces an inline FieldError on transactionDate when the API returns FUTURE_DATE_NOT_ALLOWED', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-      mockJsonResponse({
-        error: { code: 'FUTURE_DATE_NOT_ALLOWED', message: 'Date cannot be in the future' },
-      }, 400),
+      mockJsonResponse(
+        {
+          error: { code: 'FUTURE_DATE_NOT_ALLOWED', message: 'Date cannot be in the future' },
+        },
+        400,
+      ),
     );
     const user = userEvent.setup();
     render(<CreateTransactionForm accounts={[ACCOUNT_ARS]} />);
@@ -267,17 +255,20 @@ describe('CreateTransactionForm — inline validation', () => {
     await user.click(screen.getByRole('button', { name: /create transaction/i }));
 
     await waitFor(() => {
-      expect(
-        document.getElementById('transactionDate-error'),
-      ).toHaveTextContent(/cannot be in the future/i);
+      expect(document.getElementById('transactionDate-error')).toHaveTextContent(
+        /cannot be in the future/i,
+      );
     });
   });
 
   it('surfaces an inline FieldError on accountId when the API returns ACCOUNT_ARCHIVED', async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
-      mockJsonResponse({
-        error: { code: 'ACCOUNT_ARCHIVED', message: 'Account is archived' },
-      }, 400),
+      mockJsonResponse(
+        {
+          error: { code: 'ACCOUNT_ARCHIVED', message: 'Account is archived' },
+        },
+        400,
+      ),
     );
     const user = userEvent.setup();
     render(<CreateTransactionForm accounts={[ACCOUNT_ARS]} />);
@@ -299,9 +290,9 @@ describe('CreateTransactionForm — inline validation', () => {
     // The account FormField has id="account-search"; the
     // FormField's FieldError shares that scope (id = `account-search-error`).
     await waitFor(() => {
-      expect(
-        document.getElementById('account-search-error'),
-      ).toHaveTextContent(/account is archived/i);
+      expect(document.getElementById('account-search-error')).toHaveTextContent(
+        /account is archived/i,
+      );
     });
   });
 });
@@ -309,11 +300,12 @@ describe('CreateTransactionForm — inline validation', () => {
 describe('CreateTransactionForm — loading state (REQ-UI-7)', () => {
   it('renders Spinner + disabled + aria-busy on the submit button while in flight', async () => {
     let resolveFetch!: (r: Response) => void;
-    const fetchSpy = vi
-      .spyOn(global, 'fetch')
-      .mockImplementationOnce(
-        () => new Promise<Response>((resolve) => { resolveFetch = resolve; }),
-      );
+    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveFetch = resolve;
+        }),
+    );
     const user = userEvent.setup();
     render(<CreateTransactionForm accounts={[ACCOUNT_ARS]} />);
     const accountSelect = document.querySelector(

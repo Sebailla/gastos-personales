@@ -41,7 +41,6 @@ import { TransactionDetailForms } from './transaction-detail-forms';
 import type { TransactionWire } from '../../_lib/transaction-types';
 
 const UPDATE_PATH = '/_actions/transactions-server-actions/updateTransactionServerAction';
-const DELETE_PATH = '/_actions/transactions-server-actions/deleteTransactionServerAction';
 
 // Smoke stub of the Server Action module so the import doesn't
 // trigger Next.js' Server Action runtime during the test.
@@ -121,9 +120,8 @@ describe('TransactionDetailForms — edit form', () => {
     // mock's call args (the actual wire payload) instead of the
     // DOM value.
     expect(updateTransactionServerAction).toHaveBeenCalledTimes(1);
-    const [callId, callFormData] = (
-      updateTransactionServerAction as ReturnType<typeof vi.fn>
-    ).mock.calls[0]!;
+    const [callId, callFormData] = (updateTransactionServerAction as ReturnType<typeof vi.fn>).mock
+      .calls[0]!;
     expect(callId).toBe('tx-1');
     expect(callFormData).toBeInstanceOf(FormData);
     expect((callFormData as FormData).get('memo')).toBe('Updated memo');
