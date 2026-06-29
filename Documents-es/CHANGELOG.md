@@ -14,7 +14,7 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.
 - **Capacidad `ui` de extremo a extremo** (#98 #99 #100 #101 #102 #103, slice 6 de
   `transactions-ui`): la nueva referencia del sistema de diseño - capa de
   render de producción. La capacidad está construida a mano sobre Tailwind v4
-  - React 19 con **cero nuevas dependencias top-level** (`pnpm-lock.yaml`
+  - React 19 con **cero nuevas dependencias de producción** (`pnpm-lock.yaml`
   - sin cambios desde v0.3.0). Alcance:
   * **18 primitivas del sistema de diseño** en `app/_ui/primitives/`:
     `Button`, `Input`, `Textarea`, `Select`, `Checkbox`, `RadioGroup`,
@@ -119,6 +119,15 @@ y este proyecto se adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.
   es un blocker del release — ambos son artefactos de
   observabilidad + sign-off que el maintainer puede ejecutar en
   cualquier momento contra el tag v0.4.0.
+- **3 nuevas devDependencies** se agregaron en los slices 1-5 de
+  `transactions-ui`
+  (`@testing-library/jest-dom@^6.9.1`, `@testing-library/react@^16.3.2`,
+  `@testing-library/user-event@^14.6.1`). Sólo para tests; no
+  afectan el bundle de producción. La afirmación de "cero nuevas
+  dependencias" de arriba se refiere a dependencias **de
+  producción** (la sección `dependencies` de `package.json`) —
+  el lockfile queda sin cambios desde v0.3.0 porque estos tres
+  paquetes van en `devDependencies`.
 
 [0.2.0]: https://github.com/Sebailla/gastos-personales/releases/tag/v0.2.0
 [0.2.1]: https://github.com/Sebailla/gastos-personales/releases/tag/v0.2.1
