@@ -96,7 +96,7 @@ const POPULATED_FLOW: AccountFlowDTO = {
 const ACCOUNTS_RESPONSE = {
   data: [
     {
-      id: 'a1',
+      id: '00000000-0000-4000-8000-000000000001',
       userId: 'u1',
       type: 'BANK',
       name: 'Main ARS',
@@ -185,7 +185,7 @@ describe('DashboardPage — per-card <Suspense> isolation (FIX 2, design §16.5)
       }
     ).__fixtures = fixturesWithFailureAt('/api/reports/monthly');
     const jsx = await DashboardPage({
-      searchParams: Promise.resolve({ accountId: 'a1' }),
+      searchParams: Promise.resolve({ accountId: '00000000-0000-4000-8000-000000000001' }),
     });
     const html = await renderServerTree(jsx);
     // MonthlySummaryCard caught its error and rendered an
@@ -211,7 +211,7 @@ describe('DashboardPage — per-card <Suspense> isolation (FIX 2, design §16.5)
       }
     ).__fixtures = fixturesWithFailureAt('/api/reports/breakdown');
     const jsx = await DashboardPage({
-      searchParams: Promise.resolve({ accountId: 'a1' }),
+      searchParams: Promise.resolve({ accountId: '00000000-0000-4000-8000-000000000001' }),
     });
     const html = await renderServerTree(jsx);
     expect(html).toContain('Por categoría');
@@ -231,7 +231,7 @@ describe('DashboardPage — per-card <Suspense> isolation (FIX 2, design §16.5)
       }
     ).__fixtures = fixturesWithFailureAt('/api/reports/accounts/');
     const jsx = await DashboardPage({
-      searchParams: Promise.resolve({ accountId: 'a1' }),
+      searchParams: Promise.resolve({ accountId: '00000000-0000-4000-8000-000000000001' }),
     });
     const html = await renderServerTree(jsx);
     expect(html).toContain('Flujo por cuenta');

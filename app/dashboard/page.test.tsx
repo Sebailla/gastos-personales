@@ -92,7 +92,7 @@ const POPULATED_FLOW: AccountFlowDTO = {
 const ACCOUNTS_RESPONSE = {
   data: [
     {
-      id: 'a1',
+      id: '00000000-0000-4000-8000-000000000001',
       userId: 'u1',
       type: 'BANK',
       name: 'Main ARS',
@@ -114,7 +114,7 @@ const ACCOUNTS_RESPONSE = {
       updatedAt: '2026-01-01T00:00:00.000Z',
     },
     {
-      id: 'a2',
+      id: '00000000-0000-4000-8000-000000000002',
       userId: 'u1',
       type: 'BANK',
       name: 'Main USD',
@@ -193,13 +193,16 @@ describe('DashboardPage — empty user (slice 4 T-UI-309)', () => {
 
 describe('DashboardPage — ?accountId= deep-link (slice 4 T-UI-309)', () => {
   it('calls the flow endpoint when ?accountId=<id> is present + renders the picker with aria-current', async () => {
+    // FIX 4a — the deep-link accountId MUST be UUID-format
+    // (the page now sanitizes malformed values to null).
+    const accountId = '00000000-0000-4000-8000-000000000002';
     const jsx = await DashboardPage({
-      searchParams: Promise.resolve({ accountId: 'a2' }),
+      searchParams: Promise.resolve({ accountId }),
     });
     const html = await renderServerTree(jsx);
     // The flow endpoint IS called with the deep-linked account.
     const flowCalls = mockServerHonoRequest.mock.calls.filter(([p]) =>
-      String(p).includes('/api/reports/accounts/a2/flow'),
+      String(p).includes(`/api/reports/accounts/${accountId}/flow`),
     );
     expect(flowCalls).toHaveLength(1);
     // The AccountFlowCard picks the deep-linked account.
@@ -208,6 +211,51 @@ describe('DashboardPage — ?accountId= deep-link (slice 4 T-UI-309)', () => {
     expect(html).toContain('aria-current="page"');
     // The Table primitive renders the day rows from the flow DTO.
     expect(html).toContain('2026-06-01');
+  });
+});
+
+describe('DashboardPage — ?accountId= UUID-format validation (FIX 4a)', () => {
+  it('sanitizes a path-injection attempt to null — the flow fetch is never invoked', async () => {
+    mockServerHonoRequest.mockClear();
+    const jsx = await DashboardPage({
+      searchParams: Promise.resolve({ accountId: '../../etc/passwd' }),
+    });
+    await renderServerTree(jsx);
+    // No flow endpoint call — the malformed accountId was
+    // sanitized to null BEFORE reaching AccountFlowCard.
+    const flowCalls = mockServerHonoRequest.mock.calls.filter(([p]) => String(p).includes('/flow'));
+    expect(flowCalls).toHaveLength(0);
+    // And no URL anywhere in the rendered HTML mentions the
+    // injection payload.
+    const html = await renderServerTree(
+      await DashboardPage({
+        searchParams: Promise.resolve({ accountId: '../../etc/passwd' }),
+      }),
+    );
+    expect(html).not.toContain('../../etc/passwd');
+  });
+
+  it('accepts a canonical UUID', async () => {
+    const accountId = '11111111-2222-4333-8444-555555555555';
+    mockServerHonoRequest.mockClear();
+    const jsx = await DashboardPage({
+      searchParams: Promise.resolve({ accountId }),
+    });
+    await renderServerTree(jsx);
+    const flowCalls = mockServerHonoRequest.mock.calls.filter(([p]) =>
+      String(p).includes(`/api/reports/accounts/${accountId}/flow`),
+    );
+    expect(flowCalls).toHaveLength(1);
+  });
+
+  it('rejects a near-UUID with the wrong character set', async () => {
+    mockServerHonoRequest.mockClear();
+    const jsx = await DashboardPage({
+      searchParams: Promise.resolve({ accountId: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx' }),
+    });
+    await renderServerTree(jsx);
+    const flowCalls = mockServerHonoRequest.mock.calls.filter(([p]) => String(p).includes('/flow'));
+    expect(flowCalls).toHaveLength(0);
   });
 });
 

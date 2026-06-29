@@ -1,5 +1,5 @@
 /**
- * Dashboard page — Server Component (slice 4 T-UI-310 + FIX 2).
+ * Dashboard page — Server Component (slice 4 T-UI-310 + FIX 2 + FIX 4a).
  *
  * Per design §7.3 + §9.2 + §9.3 + §16.5 + §17:
  * - The page owns ONLY `auth()` + `redirect()` + searchParams.
@@ -22,6 +22,15 @@
  * UTC `YYYY-MM` for "now". `?month=` overrides when it matches
  * `/^\d{4}-\d{2}$/`; otherwise the page defaults to the current
  * UTC month.
+ *
+ * FIX 4a — defense-in-depth UUID validation for `?accountId=`.
+ * A malformed value is sanitized to `null` BEFORE reaching the
+ * `AccountFlowCard` (which would otherwise concatenate it into
+ * `/api/reports/accounts/<id>/flow?month=<month>`). The regex
+ * matches the canonical UUID format (8-4-4-4-12 hex). Blast
+ * radius today is small (the API returns 404 on bad IDs), but
+ * the regex gates the format at the edge so a path-injection
+ * attempt cannot leak into the URL.
  *
  * Layout: PageContainer + PageHeader + DashboardMonthSwitcher
  * + the three cards in a 1+2 grid (`lg:grid-cols-3`).
@@ -52,6 +61,15 @@ function currentUtcMonth(now: Date = new Date()): string {
   return `${year}-${month}`;
 }
 
+// FIX 4a — canonical UUID v4-ish regex. 8-4-4-4-12 hex. Case-
+// insensitive so the test fixtures can use uppercase. We do
+// NOT use the full RFC 4122 variant+version check (it would
+// reject some legitimate IDs in the seed fixtures that have
+// "u1" + random hex in the variant nibbles); the goal here
+// is structural validation at the URL boundary, not full
+// UUID semantics.
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 interface DashboardPageProps {
   // Next.js 15+ types searchParams as a Promise. The compat
   // shim accepts both shapes (see app/auth/signin/page.tsx for
@@ -71,7 +89,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   }
 
   const params = searchParams instanceof Promise ? await searchParams : searchParams;
-  const requestedAccountId = typeof params.accountId === 'string' ? params.accountId : null;
+  // FIX 4a — sanitize `?accountId=` to a UUID-format string or
+  // null. A non-UUID value (path injection, garbage, etc.) MUST
+  // NOT reach `AccountFlowCard`'s URL builder.
+  const requestedAccountId =
+    typeof params.accountId === 'string' && UUID_REGEX.test(params.accountId)
+      ? params.accountId
+      : null;
   // `?month=` is OPTIONAL; default to the current UTC month
   // (per design §9.3 + tasks.md §Slice 4 §Files touched).
   const month =

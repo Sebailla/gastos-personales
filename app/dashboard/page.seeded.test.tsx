@@ -68,7 +68,7 @@ const SEEDED_BREAKDOWN: CategoryBreakdownDTO = {
 const ACCOUNTS_RESPONSE = {
   data: [
     {
-      id: 'a1',
+      id: '00000000-0000-4000-8000-000000000001',
       userId: 'u1',
       type: 'BANK',
       name: 'Main ARS',
@@ -90,7 +90,7 @@ const ACCOUNTS_RESPONSE = {
       updatedAt: '2026-01-01T00:00:00.000Z',
     },
     {
-      id: 'a2',
+      id: '00000000-0000-4000-8000-000000000002',
       userId: 'u1',
       type: 'BANK',
       name: 'Main USD',
@@ -152,8 +152,8 @@ describe('DashboardPage — seeded user (slice 4 T-UI-309 / T-UI-310)', () => {
     // two accounts; currentAccountId is null so no aria-current.
     expect(html).toContain('Flujo por cuenta');
     expect(html).toContain('aria-label="Account picker"');
-    expect(html).toContain('href="/dashboard?accountId=a1"');
-    expect(html).toContain('href="/dashboard?accountId=a2"');
+    expect(html).toContain('href="/dashboard?accountId=00000000-0000-4000-8000-000000000001"');
+    expect(html).toContain('href="/dashboard?accountId=00000000-0000-4000-8000-000000000002"');
     expect(html).not.toContain('aria-current="page"');
     // The flow endpoint is NEVER called when no ?accountId=
     // is passed.
