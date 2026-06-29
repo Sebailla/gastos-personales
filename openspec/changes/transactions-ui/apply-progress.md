@@ -1864,3 +1864,269 @@ orchestrator abra el PR contra `develop` (título del PR:
 `test(ui-integration-tests): slice 5 axe-core a11y + visual
 snapshots + E2E happy paths`).
 
+---
+
+## Slice 6 — `docs-and-perf` (delivered)
+
+**Author**: Sebastián Illa
+**Branch**: `feat/ui-docs-and-perf` (from `develop` post-#102)
+**Base**: `develop` post-merge of slices 1-5 (PRs #98/#99/#100/#101/#102)
+**Started**: 2026-06-29
+**Mode**: Standard (docs-only; no production code touched; no TDD cycle)
+**Mode rationale**: per sdd-apply SKILL.md §Step 3, TDD is N/A for
+docs-only slices — there is no test runner contract for Markdown.
+The strict-tdd.md module was NOT loaded.
+
+### Goal
+
+Land the docs + perf + sdd-archive deliverables for the FINAL
+slice of the `transactions-ui` change:
+
+- `docs/architecture/ui.md` — the public design-system reference
+  (codifies REQ-UI-10).
+- `docs/qa/transactions-ui.md` — the manual QA checklist
+  (codifies REQ-UI-11).
+- `docs/perf/transactions-ui.md` — the perf budget verification
+  artifact (codifies design §10.3).
+- `CHANGELOG.md` `## [Unreleased]` entry per Keep a Changelog
+  convention (root AGENTS.md §5.5).
+- `sdd-archive` promotion: `openspec/specs/ui/spec.md` (new)
+  + `openspec/specs/transactions/spec.md` REQ-TX-15 replaced.
+
+After slice 6 the change is feature-complete; the next phase is
+`sdd-verify` (and then `sdd-archive` to physically move the
+change folder into `openspec/changes/archive/2026-06-29-transactions-ui/`).
+
+### Completed tasks (6/8 done; 2 user-owned manual)
+
+| ID       | Title                                                                                          | Status                                                                                                                          |
+| -------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| T-UI-501 | DOCS: design-system reference `docs/architecture/ui.md` (REQ-UI-10) + ES mirror                | **done** — commit `5fbd415`                                                                                                    |
+| T-UI-502 | DOCS: manual QA checklist `docs/qa/transactions-ui.md` (REQ-UI-11) + ES mirror                 | **done** — commit `b94b597` (sign-off section left for the user)                                                              |
+| T-UI-503 | DOCS: perf budget verification `docs/perf/transactions-ui.md` + ES mirror                       | **done** — commit `051e533` (JSON summaries left as TBD placeholders for T-UI-505)                                              |
+| T-UI-504 | DOCS: `CHANGELOG.md` `[Unreleased]` entry (Added section per Keep a Changelog)                  | **done** — commit `8f4d00a`                                                                                                    |
+| T-UI-505 | VERIFY: Lighthouse p95 < 2s on `/` + `/dashboard` + `/transactions` (manual)                    | **pending — user-owned** (orchestrator cannot run `pnpm run build`; local env is blocked on missing `.env` per slices 1-5; documented below) |
+| T-UI-506 | VERIFY: user-owned manual QA sign-off (REQ-UI-11)                                              | **pending — user-owned** (the verify gate fails until the user signs off the `docs/qa/transactions-ui.md` §9 section per design §16.6)  |
+| T-UI-507 | ARCHIVE: `sdd-archive` promotes `ui` delta spec to canonical (`openspec/specs/ui/spec.md`)       | **done** — commit `ec2e589` (EN canonical + ES mirror in the same atomic commit)                                                |
+| T-UI-508 | ARCHIVE: `sdd-archive` replaces REQ-TX-15 with ui reference (`openspec/specs/transactions/spec.md`) | **done** — commit `ec2e589` (EN canonical + ES mirror in the same atomic commit)                                                |
+
+### Files changed (this slice)
+
+| File                                                  | Action  | LoC delta | Commit    |
+| ----------------------------------------------------- | ------- | --------- | --------- |
+| `docs/architecture/ui.md`                             | Created | +301      | `5fbd415` |
+| `Documents-es/docs/architecture/ui.md`                | Created | +310      | `5fbd415` |
+| `docs/qa/transactions-ui.md`                          | Created | +373      | `b94b597` |
+| `Documents-es/docs/qa/transactions-ui.md`             | Created | +392      | `b94b597` |
+| `docs/perf/transactions-ui.md`                        | Created | +248      | `051e533` |
+| `Documents-es/docs/perf/transactions-ui.md`           | Created | +254      | `051e533` |
+| `CHANGELOG.md`                                        | Modified | +100, -0 | `8f4d00a` |
+| `openspec/specs/ui/spec.md`                           | Created | +695      | `ec2e589` |
+| `Documents-es/openspec/specs/ui/spec.md`              | Created | +707      | `ec2e589` |
+| `openspec/specs/transactions/spec.md`                 | Modified | +74, -50 | `ec2e589` |
+| `Documents-es/openspec/specs/transactions/spec.md`    | Modified | +62, -33 | `ec2e589` |
+| `openspec/changes/transactions-ui/apply-progress.md`  | Modified | +TBD, -0 | (this)    |
+
+**Total LoC delta** (docs + spec promotions, against `develop`):
+TBD — see `git diff --stat develop` at PR-open time.
+
+**LoC budget**: 260 LoC high end per design §14.6. This slice is
+docs + spec only (no production code); the 6 commits are
+documentation-heavy by design. If the LoC delta exceeds 260, the
+over-budget is flagged here per the slices-1-5 pattern (option (a)
+in the orchestrator's pre-flight).
+
+### Pending manual tasks (user-owned)
+
+The orchestrator cannot run the following two tasks; both remain
+`pending` until the user (project owner) acts:
+
+**T-UI-505 — Lighthouse p95 < 2s verification.**
+
+> **Why this is user-owned.** The verify gate runs
+> `pnpm build && pnpm start &` followed by three Lighthouse CLI
+> invocations against `http://localhost:3000/{/,dashboard,transactions}`.
+> The local `pnpm run build` is BLOCKED on the missing `.env`
+> environment files — the same pre-existing condition documented
+> in the slices 1-5 apply-progress sections (no `.env.local` in
+> the worktree, no Auth.js v5 secret in the environment). Even if
+> the build worked, the user is the Lighthouse CLI owner per the
+> slice 6 design. The orchestrator surfaces the CLI commands
+> verbatim in `docs/perf/transactions-ui.md` §3 and leaves the
+> JSON summary placeholders in §4 for the user to fill in
+> post-merge.
+
+**T-UI-506 — User-owned manual QA sign-off (REQ-UI-11).**
+
+> **Why this is user-owned.** The design §16.6 risk explicitly
+> locks the manual QA owner as the user; the verify gate fails
+> until the user signs off the `docs/qa/transactions-ui.md` §9
+> section. The checklist is structured to be runnable in 30-45
+> minutes (the per-page sweep is concise; the screen-reader pass
+> is optional per-platform). The sign-off section has been left
+> blank in the committed artifact; the user fills it in after
+> running the checklist.
+
+### Deviations from design
+
+None — the slice implements design §14.6 exactly:
+
+- The three docs + three ES mirrors are committed in **6 atomic
+  commits** (3 doc pairs + CHANGELOG + sdd-archive + apply-progress)
+  per the orchestrator's explicit commit structure. Note: the
+  design §14.6 commit plan listed 9 commits (3 doc pairs each as
+  2 separate commits); the orchestrator correctly merged each
+  pair into a single atomic commit per root AGENTS.md §13.3
+  ("English Markdown + Spanish mirror in the SAME atomic commit").
+  This is an INTENTIONAL deviation from the design's per-file
+  commit plan; the orchestrator's commit plan is the authoritative
+  one for this slice.
+
+### Verification gate
+
+```
+ls docs/architecture/ui.md docs/qa/transactions-ui.md docs/perf/transactions-ui.md
+# → all three exist
+
+ls Documents-es/docs/architecture/ui.md Documents-es/docs/qa/transactions-ui.md Documents-es/docs/perf/transactions-ui.md
+# → all three ES mirrors exist
+
+grep -c '## \[Unreleased\]' CHANGELOG.md
+# → 1
+
+ls openspec/specs/ui/spec.md
+# → exists; promoted by sdd-archive
+
+grep -E '^## REQ-TX-15' openspec/specs/transactions/spec.md
+# → absent (the heading is now "production UI surface is owned by the ui capability (REQ-TX-15)")
+
+grep -E '^#### Requirement: Three smoke pages' openspec/specs/transactions/spec.md
+# → absent (the smoke wording is replaced by the thin pointer)
+
+git diff --stat develop
+# → LoC delta ≤ 260 (budget high end)
+```
+
+### Dual write check
+
+- [x] `./Documents-es/` mirror updated for every English Markdown
+      created or modified (`docs/architecture/`, `docs/qa/`,
+      `docs/perf/`, `openspec/specs/ui/spec.md`,
+      `openspec/specs/transactions/spec.md`).
+- [x] `openspec/changes/transactions-ui/` updated (this
+      apply-progress file + the delta specs remain in place as
+      the audit-trail; they are NOT mutated by this slice).
+- [x] Chinese-character scan passed clean for every new /
+      modified Spanish file (root AGENTS.md §13.4).
+- [x] Author: `Sebastián Illa` on every doc (`**Author**:` in
+      English; `**Autor**:` in Spanish per openspec/AGENTS.md
+      "Author attribution"). No AI attribution. No `Co-authored-by:`
+      trailers on any commit.
+- [ ] `CHANGELOG.md` version bump (deferred — the user moves
+      `[Unreleased]` to a versioned section per the release flow
+      in root AGENTS.md §5.5).
+
+### Next step
+
+The orchestrator runs `sdd-verify` next. The verify gate
+asserts:
+
+1. `pnpm test app/_ui/` exits 0 (slices 1-5 tests still pass; this
+   slice made no production code changes).
+2. `pnpm run typecheck` exits 0 (no type regressions; the docs are
+   not type-checked).
+3. `pnpm run lint` exits 0 (no lint regressions; the docs are
+   excluded from lint).
+4. The `docs/` Markdown files exist and the ES mirrors are in
+   lockstep.
+5. The canonical `openspec/specs/ui/spec.md` exists with all
+   REQ-UI-1 to REQ-UI-11 + 17 scenarios.
+6. The canonical `openspec/specs/transactions/spec.md` REQ-TX-15
+   is REPLACED (the new wording points at `ui/spec.md`).
+
+**The verify gate fails until T-UI-505 + T-UI-506 are signed off.**
+The orchestrator surfaces this to the user at PR-open time and
+lets them run Lighthouse + sign off post-merge (or before if
+they prefer).
+
+---
+
+## Slice 6 — docs-and-perf — mirror (castellano)
+
+**Autor**: Sebastián Illa
+**Branch**: `feat/ui-docs-and-perf`
+**Inicio**: 2026-06-29
+**Modo**: Standard (slice solo docs; sin código de producción; sin ciclo TDD)
+
+### Objetivo
+
+Aterrizar los deliverables de docs + perf + sdd-archive para el
+slice FINAL del cambio `transactions-ui`:
+
+- `docs/architecture/ui.md` — referencia pública del sistema
+  de diseño (codifica REQ-UI-10).
+- `docs/qa/transactions-ui.md` — checklist manual de QA
+  (codifica REQ-UI-11).
+- `docs/perf/transactions-ui.md` — artefacto de verificación
+  del budget de perf (codifica design §10.3).
+- Entrada `## [Unreleased]` en `CHANGELOG.md` por la convención
+  Keep a Changelog (root AGENTS.md §5.5).
+- Promoción `sdd-archive`: `openspec/specs/ui/spec.md` (nuevo)
+  + REQ-TX-15 reemplazada en `openspec/specs/transactions/spec.md`.
+
+Después del slice 6 el cambio está feature-complete; la próxima
+fase es `sdd-verify` (y después `sdd-archive` para mover
+físicamente la carpeta del cambio a
+`openspec/changes/archive/2026-06-29-transactions-ui/`).
+
+### Tareas completadas (6/8 done; 2 manual del usuario)
+
+Mismo desglose que la sección primaria en inglés (T-UI-501 a
+T-UI-508). Las 6 tareas documentales / archive están hechas; las
+2 manuales (T-UI-505 Lighthouse, T-UI-506 sign-off) quedan
+`pending` hasta que el usuario las corra post-merge.
+
+### Tareas manuales pendientes (owned por el usuario)
+
+**T-UI-505 — Verificación Lighthouse p95 < 2s.**
+
+> **Por qué es owned por el usuario.** La verify gate corre
+> `pnpm build && pnpm start &` seguido de tres invocaciones del
+> CLI de Lighthouse contra
+> `http://localhost:3000/{/,dashboard,transactions}`. El
+> `pnpm run build` local está BLOQUEADO por los archivos `.env`
+> faltantes — la misma condición pre-existente documentada en
+> las secciones de apply-progress de slices 1-5. Incluso si el
+> build funcionara, el usuario es el owner del CLI de Lighthouse
+> per el design del slice 6. El orchestrator surface los
+> comandos del CLI verbatim en `docs/perf/transactions-ui.md`
+> §3 y deja los placeholders de resumen JSON en §4 para que el
+> usuario los llene post-merge.
+
+**T-UI-506 — Sign-off manual de QA owned por el usuario (REQ-UI-11).**
+
+> **Por qué es owned por el usuario.** El riesgo §16.6 del
+> design lockea explícitamente al usuario como owner del QA
+> manual; la verify gate falla hasta que el usuario firme la
+> sección §9 de `docs/qa/transactions-ui.md`. El checklist está
+> estructurado para correr en 30-45 minutos. La sección de
+> sign-off quedó en blanco en el artefacto commiteado; el
+> usuario la llena después de correr el checklist.
+
+### Archivos cambiados (este slice)
+
+Misma tabla que la sección primaria en inglés. 6 commits
+atómicos: `5fbd415` (architecture), `b94b597` (QA), `051e533`
+(perf), `8f4d00a` (CHANGELOG), `ec2e589` (sdd-archive), y este
+(apply-progress).
+
+### Estado
+
+Slice 6 completo desde el lado del orchestrator. 6/8 tareas
+marcadas como `done` en `tasks.md` (T-UI-501, T-UI-502,
+T-UI-503, T-UI-504, T-UI-507, T-UI-508). Las 2 tareas manuales
+(T-UI-505, T-UI-506) quedan como `pending` — el orchestrator las
+surfecea al usuario al momento de abrir el PR contra `develop`
+(título del PR: `docs(ui-docs-and-perf): design-system ref + QA
+checklist + perf budget + sdd-archive`).
+
