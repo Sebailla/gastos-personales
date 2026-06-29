@@ -99,35 +99,35 @@ the build is expected to succeed in CI where env vars are injected.
 
 ## Commits (11 atomic commits)
 
-| SHA       | Conventional title                                                            |
-| --------- | ----------------------------------------------------------------------------- |
-| `9e4c6bb` | `feat(ui-accounts): error boundary + test`                                   |
-| `ca9f4bb` | `test(ui-accounts): AccountsListTable sort + archived toggle + empty state`  |
-| `6e8b4f1` | `feat(ui-accounts): AccountsListTable production render (Client Component)`  |
-| `9b8be36` | `feat(ui-accounts): AccountDetail Card layout + test`                        |
-| `3ad1d93` | `test(ui-accounts): CreateAccountForm inline validation + loading + a11y`    |
-| `b0b0eb5` | `feat(ui-accounts): CreateAccountForm production form`                       |
-| `bc0def0` | `feat(ui-accounts): accounts/page.tsx production render`                     |
-| `b81147f` | `feat(ui-accounts): accounts/[id]/page.tsx production render`                |
-| `6c76699` | `feat(ui-accounts): accounts/new/page.tsx production render`                  |
-| `12577e1` | `chore(test): axe-core contract for accounts pages`                          |
-| `16fdfed` | `chore(test): tighten slice 2 test selectors + add app/accounts coverage`    |
+| SHA       | Conventional title                                                          |
+| --------- | --------------------------------------------------------------------------- |
+| `9e4c6bb` | `feat(ui-accounts): error boundary + test`                                  |
+| `ca9f4bb` | `test(ui-accounts): AccountsListTable sort + archived toggle + empty state` |
+| `6e8b4f1` | `feat(ui-accounts): AccountsListTable production render (Client Component)` |
+| `9b8be36` | `feat(ui-accounts): AccountDetail Card layout + test`                       |
+| `3ad1d93` | `test(ui-accounts): CreateAccountForm inline validation + loading + a11y`   |
+| `b0b0eb5` | `feat(ui-accounts): CreateAccountForm production form`                      |
+| `bc0def0` | `feat(ui-accounts): accounts/page.tsx production render`                    |
+| `b81147f` | `feat(ui-accounts): accounts/[id]/page.tsx production render`               |
+| `6c76699` | `feat(ui-accounts): accounts/new/page.tsx production render`                |
+| `12577e1` | `chore(test): axe-core contract for accounts pages`                         |
+| `16fdfed` | `chore(test): tighten slice 2 test selectors + add app/accounts coverage`   |
 
 ## TDD cycle evidence
 
-| Task    | Test file                                | Layer     | Safety net | RED        | GREEN       | TRIANGULATE              | REFACTOR                       |
-| ------- | ---------------------------------------- | --------- | ---------- | ---------- | ----------- | ------------------------ | ------------------------------ |
-| T-UI-101| `error.test.tsx`                         | Unit (RTL)| n/a (new)  | ✅ Written  | ✅ Passed   | ✅ 3 cases               | ✅ Clean                       |
-| T-UI-102| `accounts-list-table.test.tsx` (RED)     | Unit (RTL)| n/a (new)  | ✅ Written  | ➖ next task | ➖ Single-phase (RED)     | ✅ Clean                       |
-| T-UI-103| `accounts-list-table.test.tsx` (GREEN)   | Unit (RTL)| 6/6 fail   | ➖ prev task| ✅ Passed   | ✅ 6 cases                | ✅ Clean                       |
-| T-UI-104| `[id]/account-detail.test.tsx`           | Unit (RTL)| n/a (new)  | ✅ Written  | ✅ Passed   | ✅ 5 cases                | ✅ Clean                       |
-| T-UI-105| `create-account-form.test.tsx` (RED)     | Unit (RTL)| 2/2 pass   | ✅ Written  | ➖ next task | ➖ Single-phase (RED)     | ✅ Clean                       |
-| T-UI-106| `create-account-form.test.tsx` (GREEN)   | Unit (RTL)| 2/2 pass   | ➖ prev task| ✅ Passed   | ✅ 5 cases                | ✅ Clean                       |
-| T-UI-107| (no new test; consumes slice-1 tests)    | n/a       | n/a        | ➖          | ✅ Page OK  | ➖ n/a                    | ✅ PageHeader + table           |
-| T-UI-108| (no new test; consumes slice-1 tests)    | n/a       | n/a        | ➖          | ✅ Page OK  | ➖ n/a                    | ✅ PageHeader + back link      |
-| T-UI-109| (no new test; consumes slice-1 tests)    | n/a       | n/a        | ➖          | ✅ Page OK  | ➖ n/a                    | ✅ Card + CardBody wrapping     |
-| T-UI-110| `create-account-form.test.tsx` (a11y)    | Unit (RTL)| 5/5 pass   | ✅ Written  | ✅ Passed   | ✅ 1 case                 | ✅ Clean                       |
-| chore   | `__tests__/accessibility.test.tsx`       | A11y      | n/a (new)  | ✅ Written  | ✅ Passed   | ✅ 3 components           | ✅ Clean                       |
+| Task     | Test file                              | Layer      | Safety net | RED          | GREEN        | TRIANGULATE           | REFACTOR                    |
+| -------- | -------------------------------------- | ---------- | ---------- | ------------ | ------------ | --------------------- | --------------------------- |
+| T-UI-101 | `error.test.tsx`                       | Unit (RTL) | n/a (new)  | ✅ Written   | ✅ Passed    | ✅ 3 cases            | ✅ Clean                    |
+| T-UI-102 | `accounts-list-table.test.tsx` (RED)   | Unit (RTL) | n/a (new)  | ✅ Written   | ➖ next task | ➖ Single-phase (RED) | ✅ Clean                    |
+| T-UI-103 | `accounts-list-table.test.tsx` (GREEN) | Unit (RTL) | 6/6 fail   | ➖ prev task | ✅ Passed    | ✅ 6 cases            | ✅ Clean                    |
+| T-UI-104 | `[id]/account-detail.test.tsx`         | Unit (RTL) | n/a (new)  | ✅ Written   | ✅ Passed    | ✅ 5 cases            | ✅ Clean                    |
+| T-UI-105 | `create-account-form.test.tsx` (RED)   | Unit (RTL) | 2/2 pass   | ✅ Written   | ➖ next task | ➖ Single-phase (RED) | ✅ Clean                    |
+| T-UI-106 | `create-account-form.test.tsx` (GREEN) | Unit (RTL) | 2/2 pass   | ➖ prev task | ✅ Passed    | ✅ 5 cases            | ✅ Clean                    |
+| T-UI-107 | (no new test; consumes slice-1 tests)  | n/a        | n/a        | ➖           | ✅ Page OK   | ➖ n/a                | ✅ PageHeader + table       |
+| T-UI-108 | (no new test; consumes slice-1 tests)  | n/a        | n/a        | ➖           | ✅ Page OK   | ➖ n/a                | ✅ PageHeader + back link   |
+| T-UI-109 | (no new test; consumes slice-1 tests)  | n/a        | n/a        | ➖           | ✅ Page OK   | ➖ n/a                | ✅ Card + CardBody wrapping |
+| T-UI-110 | `create-account-form.test.tsx` (a11y)  | Unit (RTL) | 5/5 pass   | ✅ Written   | ✅ Passed    | ✅ 1 case             | ✅ Clean                    |
+| chore    | `__tests__/accessibility.test.tsx`     | A11y       | n/a (new)  | ✅ Written   | ✅ Passed    | ✅ 3 components       | ✅ Clean                    |
 
 ## Test summary
 
@@ -136,7 +136,7 @@ the build is expected to succeed in CI where env vars are injected.
 - **Total tests passing (full suite)**: 860 (unchanged from slice
   1 baseline; slice 2 is additive).
 - **Test files**: 5 (3 production-render tests + 1 form-a11y test
-  + 1 axe-core contract test).
+  - 1 axe-core contract test).
 - **Pure functions**: 0 (the slice is presentation-only; logic
   lives in the design-system primitives from slice 1).
 - **Mocks**: 1 (`vi.mock('next/navigation')` for `useRouter` in
@@ -234,10 +234,10 @@ that the apply worker documented in code comments and commits:
   `app/accounts/**` + `app/_lib/account-types.ts` +
   `vitest.config.ts`). The slice-2 forecast was 240-360 LoC of
   production render; the actual production LoC is ~360 (4 pages
-  + 2 components + form + boundary). Tests + coverage config add
-  the remaining ~700 LoC. The 400-line PR-review budget is
-  exceeded IF tests are included; excluding tests, the
-  production-render diff fits within the budget.
+  - 2 components + form + boundary). Tests + coverage config add
+    the remaining ~700 LoC. The 400-line PR-review budget is
+    exceeded IF tests are included; excluding tests, the
+    production-render diff fits within the budget.
 - Reviewer-friendly: the 11 commits map 1:1 to the task IDs in
   `tasks.md`; the reviewer can step through the slice task by
   task.
@@ -255,11 +255,12 @@ to open the PR against `develop` (PR title:
 **Completed**: slice 3 deliverable. The branch `feat/ui-transactions`
 carries 13 atomic commits implementing the 10 tasks T-UI-201..T-UI-210
 plus 3 supporting commits (wire type extension + smoke page adaptation
-+ vitest.config coverage scope update). The full vitest suite
-**passes 911 tests | 1 file skipped (915)** with the global
-`test:coverage:enforced` gate (≥ 80% lines / branches / functions /
-statements) exiting 0 — `**All files**: 96.9 / 90.04 / 83.4 / 96.9 %`.
-Typecheck exits 0.
+
+- vitest.config coverage scope update). The full vitest suite
+  **passes 911 tests | 1 file skipped (915)** with the global
+  `test:coverage:enforced` gate (≥ 80% lines / branches / functions /
+  statements) exiting 0 — `**All files**: 96.9 / 90.04 / 83.4 / 96.9 %`.
+  Typecheck exits 0.
 
 Coverage on the slice 3 deliverables is well above the 80% gate:
 
@@ -344,8 +345,8 @@ note).
 - `app/transactions/page.tsx` (modified, +52 / -26) — list
   page production render. Passes `?include=accountName` per
   BR-UI-2; renders `PageContainer + PageHeader +
-  TransactionsListTable + EmptyState + Pagination +
-  EphemeralToast`. Auth gate + 401/404 redirect unchanged.
+TransactionsListTable + EmptyState + Pagination +
+EphemeralToast`. Auth gate + 401/404 redirect unchanged.
 - `app/transactions/[id]/page.tsx` (modified, +21 / -66) —
   detail page production render. PageContainer +
   PageHeader + TransactionDetailForms. Auth gate + 401/404
@@ -378,31 +379,31 @@ note).
 ### Config changes
 
 - `vitest.config.ts` (+13 lines) — adds `app/transactions/**`
-  + `app/_components/transactions-list-table.tsx` to
-  `coverage.include`; adds the three Server Component shells
-  (`page.tsx` / `[id]/page.tsx` / `new/page.tsx`) to
-  `coverage.exclude` (mirror of the slice-2 exclusion
-  pattern — the shells depend on NextAuth + the Hono
-  composition root, covered at the integration layer in
-  slice 5). Also adds `app/_components/**` to
-  `environmentMatchGlobs` so future dashboard tests don't
-  need a per-file jsdom directive.
+  - `app/_components/transactions-list-table.tsx` to
+    `coverage.include`; adds the three Server Component shells
+    (`page.tsx` / `[id]/page.tsx` / `new/page.tsx`) to
+    `coverage.exclude` (mirror of the slice-2 exclusion
+    pattern — the shells depend on NextAuth + the Hono
+    composition root, covered at the integration layer in
+    slice 5). Also adds `app/_components/**` to
+    `environmentMatchGlobs` so future dashboard tests don't
+    need a per-file jsdom directive.
 
 ## Commits (13 atomic commits)
 
-| SHA       | Conventional title                                                            |
-| --------- | ----------------------------------------------------------------------------- |
-| `d0537cb` | `feat(ui-transactions): error boundary + test`                               |
-| `b764654` | `test(ui-transactions): TransactionsListTable sort + direction badges + accountName` |
-| `a877355` | `feat(ui-transactions): TransactionsListTable production render (Client Component)` |
-| `2cee4e2` | `test(ui-transactions): TransactionDetailForms Card layout + Dialog + FX snapshot` |
-| `005dec5` | `feat(ui-transactions): TransactionDetailForms production render (Card + Dialog)` |
+| SHA       | Conventional title                                                                      |
+| --------- | --------------------------------------------------------------------------------------- |
+| `d0537cb` | `feat(ui-transactions): error boundary + test`                                          |
+| `b764654` | `test(ui-transactions): TransactionsListTable sort + direction badges + accountName`    |
+| `a877355` | `feat(ui-transactions): TransactionsListTable production render (Client Component)`     |
+| `2cee4e2` | `test(ui-transactions): TransactionDetailForms Card layout + Dialog + FX snapshot`      |
+| `005dec5` | `feat(ui-transactions): TransactionDetailForms production render (Card + Dialog)`       |
 | `cbb0264` | `test(ui-transactions): CreateTransactionForm Combobox + INCOME + EXPENSE + validation` |
-| `1aaf782` | `feat(ui-transactions): CreateTransactionForm production form (Combobox + 7 fields)` |
-| `684064e` | `feat(ui-transactions): transactions/page.tsx production render`              |
-| `28c9475` | `feat(ui-transactions): transactions/[id]/page.tsx production render`         |
-| `97e6e8f` | `feat(ui-transactions): transactions/new/page.tsx production render`          |
-| `6783931` | `chore(test): axe-core contract for transactions pages + coverage scope`     |
+| `1aaf782` | `feat(ui-transactions): CreateTransactionForm production form (Combobox + 7 fields)`    |
+| `684064e` | `feat(ui-transactions): transactions/page.tsx production render`                        |
+| `28c9475` | `feat(ui-transactions): transactions/[id]/page.tsx production render`                   |
+| `97e6e8f` | `feat(ui-transactions): transactions/new/page.tsx production render`                    |
+| `6783931` | `chore(test): axe-core contract for transactions pages + coverage scope`                |
 
 (The wire type extension + the smoke page API adaptation
 landed inside the `a877355` GREEN commit; the vitest.config
@@ -412,25 +413,25 @@ supporting commits = 13 commits.)
 
 ## TDD cycle evidence
 
-| Task    | Test file                                                | Layer          | Safety net  | RED       | GREEN     | TRIANGULATE                    | REFACTOR                |
-| ------- | -------------------------------------------------------- | -------------- | ----------- | --------- | --------- | ------------------------------ | ----------------------- |
-| T-UI-201| `error.test.tsx`                                         | Unit (RTL)     | n/a (new)   | ✅ Written| ✅ Passed | ✅ 3 cases                     | ✅ Clean                 |
-| T-UI-202| `transactions-list-table.test.tsx` (RED)                | Unit (RTL)     | 10/10 fail  | ✅ Written| ➖ next   | ➖ Single-phase                 | ✅ Clean                 |
-| T-UI-203| `transactions-list-table.test.tsx` (GREEN)              | Unit (RTL)     | 10/10 fail  | ➖ prev   | ✅ Passed | ✅ 10 cases (incl. INCOME+EXPENSE direction tests) | ✅ Clean    |
-| T-UI-204| `transaction-detail-forms.test.tsx` (RED)               | Unit (RTL)     | 6/6 fail    | ✅ Written| ➖ next   | ➖ Single-phase                 | ✅ Clean                 |
-| T-UI-205| `transaction-detail-forms.test.tsx` (GREEN)             | Unit (RTL)     | 6/6 fail    | ➖ prev   | ✅ Passed | ✅ 6 cases                      | ✅ Clean                 |
-| T-UI-206| `create-transaction-form.test.tsx` (RED)                | Unit (RTL)     | 8/8 fail    | ✅ Written| ➖ next   | ➖ Single-phase (RED)          | ✅ Clean                 |
-| T-UI-207| `create-transaction-form.test.tsx` (GREEN)              | Unit (RTL)     | 8/8 fail    | ➖ prev   | ✅ Passed | ✅ 8 cases (BOTH INCOME + EXPENSE tested) | ✅ Clean       |
-| T-UI-208| (no new test; existing slice-2 tests pass)               | n/a            | n/a         | ➖         | ✅ Page OK | ➖ n/a                         | ✅ PageHeader + table   |
-| T-UI-209| (no new test; existing slice-2 tests pass)               | n/a            | n/a         | ➖         | ✅ Page OK | ➖ n/a                         | ✅ PageHeader + back link|
-| T-UI-210| (no new test; existing slice-2 tests pass)               | n/a            | n/a         | ➖         | ✅ Page OK | ➖ n/a                         | ✅ Card + form mount    |
-| chore   | `__tests__/accessibility.test.tsx`                      | A11y           | n/a (new)   | ✅ Written| ✅ Passed | ✅ 1 case (TransactionsListTable) | ✅ Clean              |
+| Task     | Test file                                   | Layer      | Safety net | RED        | GREEN      | TRIANGULATE                                        | REFACTOR                  |
+| -------- | ------------------------------------------- | ---------- | ---------- | ---------- | ---------- | -------------------------------------------------- | ------------------------- |
+| T-UI-201 | `error.test.tsx`                            | Unit (RTL) | n/a (new)  | ✅ Written | ✅ Passed  | ✅ 3 cases                                         | ✅ Clean                  |
+| T-UI-202 | `transactions-list-table.test.tsx` (RED)    | Unit (RTL) | 10/10 fail | ✅ Written | ➖ next    | ➖ Single-phase                                    | ✅ Clean                  |
+| T-UI-203 | `transactions-list-table.test.tsx` (GREEN)  | Unit (RTL) | 10/10 fail | ➖ prev    | ✅ Passed  | ✅ 10 cases (incl. INCOME+EXPENSE direction tests) | ✅ Clean                  |
+| T-UI-204 | `transaction-detail-forms.test.tsx` (RED)   | Unit (RTL) | 6/6 fail   | ✅ Written | ➖ next    | ➖ Single-phase                                    | ✅ Clean                  |
+| T-UI-205 | `transaction-detail-forms.test.tsx` (GREEN) | Unit (RTL) | 6/6 fail   | ➖ prev    | ✅ Passed  | ✅ 6 cases                                         | ✅ Clean                  |
+| T-UI-206 | `create-transaction-form.test.tsx` (RED)    | Unit (RTL) | 8/8 fail   | ✅ Written | ➖ next    | ➖ Single-phase (RED)                              | ✅ Clean                  |
+| T-UI-207 | `create-transaction-form.test.tsx` (GREEN)  | Unit (RTL) | 8/8 fail   | ➖ prev    | ✅ Passed  | ✅ 8 cases (BOTH INCOME + EXPENSE tested)          | ✅ Clean                  |
+| T-UI-208 | (no new test; existing slice-2 tests pass)  | n/a        | n/a        | ➖         | ✅ Page OK | ➖ n/a                                             | ✅ PageHeader + table     |
+| T-UI-209 | (no new test; existing slice-2 tests pass)  | n/a        | n/a        | ➖         | ✅ Page OK | ➖ n/a                                             | ✅ PageHeader + back link |
+| T-UI-210 | (no new test; existing slice-2 tests pass)  | n/a        | n/a        | ➖         | ✅ Page OK | ➖ n/a                                             | ✅ Card + form mount      |
+| chore    | `__tests__/accessibility.test.tsx`          | A11y       | n/a (new)  | ✅ Written | ✅ Passed  | ✅ 1 case (TransactionsListTable)                  | ✅ Clean                  |
 
 ## Test summary
 
 - **Total tests added in slice 3**: 32 (3 error + 10 list-table
-  + 6 detail-forms + 8 create-form + 1 a11y + 4 pre-existing
-  smoke tests still passing).
+  - 6 detail-forms + 8 create-form + 1 a11y + 4 pre-existing
+    smoke tests still passing).
 - **Total tests passing (full suite)**: 911 (up from the
   slice-1 + slice-2 baseline of ~860; the slice-3 suite
   extends the baseline).
@@ -479,7 +480,7 @@ comments:
 1. **BR-UI-2 (`include=accountName`) is NOT yet implemented
    on the API side.** Searched `src/modules/transactions/`
    for `include` references — `application/actions/list-
-   transactions.action.ts` does NOT honor the flag, and the
+transactions.action.ts` does NOT honor the flag, and the
    transaction.repository.prisma has no `accountName` SELECT
    branch. The slice-3 page consumes the flag (passes
    `?include=accountName` in the URL) and the production
@@ -538,8 +539,8 @@ comments:
 - Diff stat vs `origin/develop`: 12 git commits totaling
   **+1602 / -323** (gross LoC) on 13 files inside
   `app/transactions/**` + `app/_components/transactions-
-  list-table.tsx` + `app/_lib/transaction-types.ts`
-  + `vitest.config.ts`.
+list-table.tsx` + `app/_lib/transaction-types.ts`
+  - `vitest.config.ts`.
 - **Slice-3 LoC delta vs merge-base (`dde2a59`, slice 2
   PR #99)**: **+1602 / -323** (~1925 LoC gross, ~1280 LoC net).
   This is **above** the orchestrator's pre-flight budget
@@ -630,7 +631,7 @@ there.
   the dashboard segment's locale.
 - `app/dashboard/error.test.tsx` (61 lines, 3 tests) —
   error boundary contract (Spanish title + error message
-  + Reintentar triggers `reset`).
+  - Reintentar triggers `reset`).
 - `app/_components/dashboard-account-picker.tsx` (65 lines)
   — Client Component (`'use client'`) per design §15.4.
   Renders `<nav aria-label="Account picker">` with one
@@ -653,9 +654,9 @@ there.
   page-level searchParams read uses).
 - `app/_components/dashboard-month-switcher.test.tsx`
   (146 lines, 8 tests) — 4 pure helper tests (Dec→Jan + Jan→Dec
-  + mid-year) + 4 render tests (Dec→Jan forward rollover +
-  Jan→Dec back rollover + preserving `?accountId=` + fallback
-  to current UTC month).
+  - mid-year) + 4 render tests (Dec→Jan forward rollover +
+    Jan→Dec back rollover + preserving `?accountId=` + fallback
+    to current UTC month).
 
 ### Replaced / extended (6 files)
 
@@ -696,15 +697,15 @@ there.
   CardHeader + CardBody + CardFooter). CardHeader `actions`
   slot mounts the DashboardAccountPicker. Three branches:
   1. `currentAccountId === null` → picker renders with no
-  `aria-current`; body renders EmptyState ("Elegí una
-  cuenta") nudging the user to pick. 2. account set + flow
-  has rows → picker renders with `aria-current="page"` on
-  the selected account; body renders Table primitive
-  (Fecha / Movimientos / Neto del día / Saldo acumulado);
-  footer renders a Spanish legend explaining the day
-  count. 3. account set + flow empty → picker still
-  renders; body renders EmptyState ("Sin datos",
-  explaining the account had no movement this month).
+     `aria-current`; body renders EmptyState ("Elegí una
+     cuenta") nudging the user to pick. 2. account set + flow
+     has rows → picker renders with `aria-current="page"` on
+     the selected account; body renders Table primitive
+     (Fecha / Movimientos / Neto del día / Saldo acumulado);
+     footer renders a Spanish legend explaining the day
+     count. 3. account set + flow empty → picker still
+     renders; body renders EmptyState ("Sin datos",
+     explaining the account had no movement this month).
 - `app/_components/dashboard-account-flow.test.tsx`
   (modified, +155 / -14) — three behavioral cases + a
   strict Zod schema assertion that the DTO must round-trip
@@ -714,22 +715,22 @@ there.
   Reads `?accountId` and `?month` from searchParams (with
   the Next.js 15+ compat shim for the `Promise<...>`
   signature). Calls `/api/accounts?limit=50&archivedAt=null`
-  + `/api/reports/monthly?month=...` +
-  `/api/reports/breakdown?month=...` + (when `?accountId=`
-  is set) `/api/reports/accounts/:id/flow?month=...` in
-  parallel via `Promise.all` (the flow Promise is
-  conditionally created so the no-deep-link path doesn't
-  add latency). The flow 404 degrades silently to branch
-  1 (picker-with-no-selection EmptyState) per design §9.3
-  ("the dashboard does NOT deep-link unless the user
-  explicitly picked an account"). Renders PageContainer +
-  PageHeader (with the DashboardMonthSwitcher in the
-  `actions` slot + a Spanish description carrying the
-  month label) + a 1+2 grid on `lg` viewports (MonthlySummary
-  spans 1 col, CategoryBreakdown + AccountFlow span 2 cols
-  as a nested 2-col grid) + stacked on smaller viewports.
-  Auth gate (`auth()` + `redirect()`) + parallel fetch +
-  Zod response validation unchanged.
+  - `/api/reports/monthly?month=...` +
+    `/api/reports/breakdown?month=...` + (when `?accountId=`
+    is set) `/api/reports/accounts/:id/flow?month=...` in
+    parallel via `Promise.all` (the flow Promise is
+    conditionally created so the no-deep-link path doesn't
+    add latency). The flow 404 degrades silently to branch
+    1 (picker-with-no-selection EmptyState) per design §9.3
+    ("the dashboard does NOT deep-link unless the user
+    explicitly picked an account"). Renders PageContainer +
+    PageHeader (with the DashboardMonthSwitcher in the
+    `actions` slot + a Spanish description carrying the
+    month label) + a 1+2 grid on `lg` viewports (MonthlySummary
+    spans 1 col, CategoryBreakdown + AccountFlow span 2 cols
+    as a nested 2-col grid) + stacked on smaller viewports.
+    Auth gate (`auth()` + `redirect()`) + parallel fetch +
+    Zod response validation unchanged.
 - `app/dashboard/page.test.tsx` (modified, +180 / -28) —
   three behavioral cases (empty user + deep-link +
   month-switch) replace the original T-RPT-306 single
@@ -763,14 +764,14 @@ mismatch).
 
 ## Commits (7 atomic commits)
 
-| SHA       | Conventional title                                                            |
-| --------- | ----------------------------------------------------------------------------- |
-| `950ea9b` | `feat(ui-dashboard-refactor): error boundary + test`                           |
-| `57ace55` | `feat(ui-dashboard-refactor): DashboardAccountPicker Client Component`       |
-| `7b737e6` | `feat(ui-dashboard-refactor): DashboardMonthSwitcher Client Component`       |
-| `9525dc2` | `feat(ui-dashboard-refactor): MonthlySummaryCard Card render`                |
-| `41dd144` | `feat(ui-dashboard-refactor): CategoryBreakdownCard Card render`             |
-| `1d2dd97` | `feat(ui-dashboard-refactor): AccountFlowCard Card render (picker slot)`     |
+| SHA       | Conventional title                                                                     |
+| --------- | -------------------------------------------------------------------------------------- |
+| `950ea9b` | `feat(ui-dashboard-refactor): error boundary + test`                                   |
+| `57ace55` | `feat(ui-dashboard-refactor): DashboardAccountPicker Client Component`                 |
+| `7b737e6` | `feat(ui-dashboard-refactor): DashboardMonthSwitcher Client Component`                 |
+| `9525dc2` | `feat(ui-dashboard-refactor): MonthlySummaryCard Card render`                          |
+| `41dd144` | `feat(ui-dashboard-refactor): CategoryBreakdownCard Card render`                       |
+| `1d2dd97` | `feat(ui-dashboard-refactor): AccountFlowCard Card render (picker slot)`               |
 | `9fb4d22` | `feat(ui-dashboard-refactor): dashboard/page.tsx RSC (1+2 grid + ?accountId + ?month)` |
 
 The 7-commit order maps 1:1 to the TDD cycles: (T-UI-301),
@@ -780,18 +781,18 @@ can step through the slice task by task.
 
 ## TDD cycle evidence
 
-| Task    | Test file                                          | Layer      | Safety net  | RED       | GREEN     | TRIANGULATE              | REFACTOR                   |
-| ------- | -------------------------------------------------- | ---------- | ----------- | --------- | --------- | ------------------------ | -------------------------- |
-| T-UI-301| `error.test.tsx`                                   | Unit (RTL) | n/a (new)   | ✅ Written | ✅ Passed | ✅ 3 cases               | ✅ Clean                   |
-| T-UI-302| `dashboard-account-picker.test.tsx` (RED)          | Unit (RTL) | n/a (new)   | ✅ Written | ➖ next   | ➖ Single-phase (RED)     | ✅ Clean                   |
-| T-UI-303| `dashboard-account-picker.test.tsx` (GREEN)        | Unit (RTL) | n/a (new)   | ➖ prev   | ✅ Passed | ✅ 4 cases                | ✅ Clean                   |
-| T-UI-304| `dashboard-month-switcher.test.tsx` (RED)         | Unit (RTL) | n/a (new)   | ✅ Written | ➖ next   | ➖ Single-phase (RED)     | ✅ Clean                   |
-| T-UI-305| `dashboard-month-switcher.test.tsx` (GREEN)       | Unit (RTL) | 8/8 fail    | ➖ prev   | ✅ Passed | ✅ 8 cases (Dec→Jan + Jan→Dec + mid-year + 4 renders) | ✅ Clean     |
-| T-UI-306| `dashboard-monthly-summary.test.tsx`              | Unit (RTL) | 2/2 fail    | ✅ Written | ✅ Passed | ✅ 2 cases (empty + populated) | ✅ Clean              |
-| T-UI-307| `dashboard-category-breakdown.test.tsx`           | Unit (RTL) | 2/2 fail    | ✅ Written | ✅ Passed | ✅ 2 cases + sort-order assertion | ✅ Clean           |
-| T-UI-308| `dashboard-account-flow.test.tsx`                 | Unit (RTL) | 1/1 fail    | ✅ Written | ✅ Passed | ✅ 3 cases (no account / populated / empty) | ✅ Clean   |
-| T-UI-309| `page.test.tsx` (RED — 3 cases)                   | Unit (RTL) | 1/1 pass    | ✅ Written | ➖ next   | ➖ Single-phase (RED)     | ✅ Clean                   |
-| T-UI-310| `page.test.tsx` (GREEN) + `page.seeded.test.tsx`  | Unit (RTL) | 1/1 pass    | ➖ prev   | ✅ Passed | ✅ 4 cases (empty + deep-link + month + seeded) | ✅ Clean |
+| Task     | Test file                                        | Layer      | Safety net | RED        | GREEN     | TRIANGULATE                                           | REFACTOR |
+| -------- | ------------------------------------------------ | ---------- | ---------- | ---------- | --------- | ----------------------------------------------------- | -------- |
+| T-UI-301 | `error.test.tsx`                                 | Unit (RTL) | n/a (new)  | ✅ Written | ✅ Passed | ✅ 3 cases                                            | ✅ Clean |
+| T-UI-302 | `dashboard-account-picker.test.tsx` (RED)        | Unit (RTL) | n/a (new)  | ✅ Written | ➖ next   | ➖ Single-phase (RED)                                 | ✅ Clean |
+| T-UI-303 | `dashboard-account-picker.test.tsx` (GREEN)      | Unit (RTL) | n/a (new)  | ➖ prev    | ✅ Passed | ✅ 4 cases                                            | ✅ Clean |
+| T-UI-304 | `dashboard-month-switcher.test.tsx` (RED)        | Unit (RTL) | n/a (new)  | ✅ Written | ➖ next   | ➖ Single-phase (RED)                                 | ✅ Clean |
+| T-UI-305 | `dashboard-month-switcher.test.tsx` (GREEN)      | Unit (RTL) | 8/8 fail   | ➖ prev    | ✅ Passed | ✅ 8 cases (Dec→Jan + Jan→Dec + mid-year + 4 renders) | ✅ Clean |
+| T-UI-306 | `dashboard-monthly-summary.test.tsx`             | Unit (RTL) | 2/2 fail   | ✅ Written | ✅ Passed | ✅ 2 cases (empty + populated)                        | ✅ Clean |
+| T-UI-307 | `dashboard-category-breakdown.test.tsx`          | Unit (RTL) | 2/2 fail   | ✅ Written | ✅ Passed | ✅ 2 cases + sort-order assertion                     | ✅ Clean |
+| T-UI-308 | `dashboard-account-flow.test.tsx`                | Unit (RTL) | 1/1 fail   | ✅ Written | ✅ Passed | ✅ 3 cases (no account / populated / empty)           | ✅ Clean |
+| T-UI-309 | `page.test.tsx` (RED — 3 cases)                  | Unit (RTL) | 1/1 pass   | ✅ Written | ➖ next   | ➖ Single-phase (RED)                                 | ✅ Clean |
+| T-UI-310 | `page.test.tsx` (GREEN) + `page.seeded.test.tsx` | Unit (RTL) | 1/1 pass   | ➖ prev    | ✅ Passed | ✅ 4 cases (empty + deep-link + month + seeded)       | ✅ Clean |
 
 ## Test summary
 
@@ -801,13 +802,13 @@ can step through the slice task by task.
   4 page test cases — 3 in `page.test.tsx` + 1 in
   `page.seeded.test.tsx`). One task here is the green-phase
   companion to the red-phase test (T-UI-302 + T-UI-303, T-UI-304
-  + T-UI-305, T-UI-309 + T-UI-310), so the task table shows
-  10 commits but the "new tests added" accounting reports
-  distinct it blocks.
-- **Total tests passing (slice-1+2+3+4 baseline on `app/dashboard
-  + app/_components + app/_ui + app/accounts + app/transactions`)**:
-  135 (was 99 at the slice-3 baseline; +36 tests added by
-  slice 4 net of the prior 1-file AccountFlowCard smoke).
+  - T-UI-305, T-UI-309 + T-UI-310), so the task table shows
+    10 commits but the "new tests added" accounting reports
+    distinct it blocks.
+- \*\*Total tests passing (slice-1+2+3+4 baseline on `app/dashboard
+  - app/\_components + app/\_ui + app/accounts + app/transactions`)\*\*:
+    135 (was 99 at the slice-3 baseline; +36 tests added by
+    slice 4 net of the prior 1-file AccountFlowCard smoke).
 - **Pure functions created**: 2 (`prevMonth`, `nextMonth` —
   exported from `dashboard-month-switcher.tsx` for
   testability per the strict TDD module's
@@ -815,7 +816,7 @@ can step through the slice task by task.
 - **Mocks**: 2 (`vi.mock('@/modules/auth/nextauth')` +
   `vi.mock('@/lib/server-hono')` for the dashboard page
   tests; `vi.mock('next/navigation')` for the error boundary
-  + the dashboard-account-picker test).
+  - the dashboard-account-picker test).
 - **Coverage on slice-4 deliverables**:
   - `app/_components/dashboard-account-picker.tsx` —
     100/100/100/100 (4 tests pinned on the picker contract)
@@ -837,7 +838,7 @@ can step through the slice task by task.
   - `app/dashboard/error.tsx` — 100/66.66/100/100 (3 tests
     cover Spanish title + error message + Reintentar
     trigger; the 66.66% branch is the `error.message ||
-    'fallback'` ternary — the fallback branch hits only
+'fallback'` ternary — the fallback branch hits only
     when the error has no message, which the 3 tests
     don't simulate. Pre-existing design §8.3 contract
     leaves the fallback for the edge case the boundary
@@ -900,7 +901,7 @@ adjustments the apply worker documented in code comments:
 
 2. **Slice-4 LoC delta is ~1909 lines (gross), ~1173 net,
    on 17 files** (`app/dashboard/**` + `app/_components/
-   dashboard-*` + `vitest.config.ts` + `tasks.md`). The
+dashboard-*` + `vitest.config.ts` + `tasks.md`). The
    per-task budget high end was 340 lines for slice 4
    production; the production-only delta is +754/-254 =
    ~1008 LoC gross, ~500 LoC net on 7 files. That is
@@ -929,7 +930,7 @@ adjustments the apply worker documented in code comments:
    gate before merging.
 
 4. **No `Documents-es/openspec/changes/transactions-ui/
-   apply-progress.md` mirror was created.** Same rationale
+apply-progress.md` mirror was created.** Same rationale
    as slices 1 + 2 + 3 — the `apply-progress.md` is an
    SDD-internal artifact; root `AGENTS.md` §13 requires
    Spanish mirrors for USER-FACING Markdown only. Open
@@ -939,7 +940,7 @@ adjustments the apply worker documented in code comments:
 5. **`engram` `mem_save` not yet emitted for slice 4.** The
    orchestrator's pre-flight said `artifact_store: both`
    on OpenSpec side (filesystem at `openspec/changes/
-   transactions-ui/`); the Engram save carries
+transactions-ui/`); the Engram save carries
    `capture_prompt: false` per the sdd-apply phase skill
    for SDD-internal artifacts. The slice-4 apply-progress
    is the durable record; the Engram observation is best
@@ -1019,9 +1020,9 @@ espera que el build pase allí.
 
 - `app/dashboard/error.tsx` (71 líneas) — boundary de
   error Client Component según diseño §8.3 (PageContainer
-  + Card + CardHeader + CardBody + CardFooter con botón
-  Reintentar). Copy en español según la locale del
-  segmento dashboard.
+  - Card + CardHeader + CardBody + CardFooter con botón
+    Reintentar). Copy en español según la locale del
+    segmento dashboard.
 - `app/dashboard/error.test.tsx` (61 líneas, 3 tests) —
   contrato del boundary (título español + mensaje de
   error + Reintentar invoca `reset`).
@@ -1053,7 +1054,7 @@ espera que el build pase allí.
   (modificado, +155 / -14).
 - `app/dashboard/page.tsx` (modificado, +157 / -106) —
   Server Component de producción según diseño §7.3 + §9.3
-  + §17.
+  - §17.
 - `app/dashboard/page.test.tsx` (modificado, +180 / -28).
 - `app/dashboard/page.seeded.test.tsx` (modificado, +95
   / -28).
@@ -1066,14 +1067,14 @@ espera que el build pase allí.
 
 ## Commits (7 atómicos)
 
-| SHA       | Título convencional                                                          |
-| --------- | ---------------------------------------------------------------------------- |
-| `950ea9b` | `feat(ui-dashboard-refactor): error boundary + test`                         |
-| `57ace55` | `feat(ui-dashboard-refactor): DashboardAccountPicker Client Component`     |
-| `7b737e6` | `feat(ui-dashboard-refactor): DashboardMonthSwitcher Client Component`     |
-| `9525dc2` | `feat(ui-dashboard-refactor): MonthlySummaryCard Card render`              |
-| `41dd144` | `feat(ui-dashboard-refactor): CategoryBreakdownCard Card render`           |
-| `1d2dd97` | `feat(ui-dashboard-refactor): AccountFlowCard Card render (picker slot)`   |
+| SHA       | Título convencional                                                                    |
+| --------- | -------------------------------------------------------------------------------------- |
+| `950ea9b` | `feat(ui-dashboard-refactor): error boundary + test`                                   |
+| `57ace55` | `feat(ui-dashboard-refactor): DashboardAccountPicker Client Component`                 |
+| `7b737e6` | `feat(ui-dashboard-refactor): DashboardMonthSwitcher Client Component`                 |
+| `9525dc2` | `feat(ui-dashboard-refactor): MonthlySummaryCard Card render`                          |
+| `41dd144` | `feat(ui-dashboard-refactor): CategoryBreakdownCard Card render`                       |
+| `1d2dd97` | `feat(ui-dashboard-refactor): AccountFlowCard Card render (picker slot)`               |
 | `9fb4d22` | `feat(ui-dashboard-refactor): dashboard/page.tsx RSC (1+2 grid + ?accountId + ?month)` |
 
 ## Estado del slice
@@ -1114,6 +1115,7 @@ comment on the axe `console.info` informational log.
 
 `pnpm test tests/a11y tests/visual tests/e2e` exits 0; **all
 20 new test files pass (24 distinct tests)**:
+
 - `tests/a11y/` — 3 test files × 1 test = 3 tests
 - `tests/visual/` — 14 test files × 1-5 tests = 18 tests
   (the 5-variant Badge contributes 5 tests)
@@ -1259,19 +1261,19 @@ test file (e.g. `card.test.tsx.snap`). 26 snapshots total
 
 ## Commits (11 atomic commits)
 
-| SHA | Conventional title |
-| --- | --- |
-| `e562dee` | `test(ui-integration-tests): scaffold tests/a11y/ with axe-core setup` |
-| `345e4dd` | `test(ui-integration-tests): accounts page axe-core RED + GREEN (slice 5 T-UI-402/T-UI-403)` |
-| `be16380` | `test(ui-integration-tests): transactions page axe-core (slice 5 T-UI-404)` |
-| `ee51231` | `test(ui-integration-tests): dashboard page axe-core (slice 5 T-UI-405)` |
-| `1dc8ff6` | `test(ui-integration-tests): scaffold tests/visual/ with snapshot setup (slice 5 T-UI-406)` |
+| SHA       | Conventional title                                                                             |
+| --------- | ---------------------------------------------------------------------------------------------- |
+| `e562dee` | `test(ui-integration-tests): scaffold tests/a11y/ with axe-core setup`                         |
+| `345e4dd` | `test(ui-integration-tests): accounts page axe-core RED + GREEN (slice 5 T-UI-402/T-UI-403)`   |
+| `be16380` | `test(ui-integration-tests): transactions page axe-core (slice 5 T-UI-404)`                    |
+| `ee51231` | `test(ui-integration-tests): dashboard page axe-core (slice 5 T-UI-405)`                       |
+| `1dc8ff6` | `test(ui-integration-tests): scaffold tests/visual/ with snapshot setup (slice 5 T-UI-406)`    |
 | `71d6db8` | `feat(ui-integration-tests): layout primitive visual snapshots (T-UI-407/408/409/410/411/412)` |
-| `de40eea` | `feat(ui-integration-tests): interactive primitive visual snapshots (T-UI-413/414)` |
-| `2da18f4` | `feat(ui-integration-tests): form primitive visual snapshots (T-UI-415)` |
-| `e47ed2a` | `feat(ui-integration-tests): E2E happy path — record expense (slice 5 T-UI-416)` |
-| `57f0a74` | `feat(ui-integration-tests): E2E happy path — archive account (slice 5 T-UI-416)` |
-| `87d0a0c` | `feat(ui-integration-tests): E2E happy path — navigate to /accounts/X (slice 5 T-UI-416)` |
+| `de40eea` | `feat(ui-integration-tests): interactive primitive visual snapshots (T-UI-413/414)`            |
+| `2da18f4` | `feat(ui-integration-tests): form primitive visual snapshots (T-UI-415)`                       |
+| `e47ed2a` | `feat(ui-integration-tests): E2E happy path — record expense (slice 5 T-UI-416)`               |
+| `57f0a74` | `feat(ui-integration-tests): E2E happy path — archive account (slice 5 T-UI-416)`              |
+| `87d0a0c` | `feat(ui-integration-tests): E2E happy path — navigate to /accounts/X (slice 5 T-UI-416)`      |
 
 (11 atomic commits; the a11y tests + visual scaffolds + E2E
 flows compress RED+GREEN into single commits because the
@@ -1280,24 +1282,24 @@ section below.)
 
 ## TDD cycle evidence
 
-| Task | Test file | Layer | Safety net | RED | GREEN | TRIANGULATE | REFACTOR |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| T-UI-401 | `tests/a11y/setup.ts` | Infra | n/a (new) | n/a | ✅ setup.ts compiles | ➖ n/a (no behavior) | ✅ Clean |
-| T-UI-402 | `tests/a11y/accounts.test.tsx` | a11y (RTL+axe) | n/a (new) | ✅ Written | ✅ Passed | ✅ 1 case (full page render with 3 seeded accounts) | ✅ Clean |
-| T-UI-403 | (RED+GREEN merged into T-UI-402 commit; no production fix needed) | a11y | — | — | ✅ Page already axe-clean | — | — |
-| T-UI-404 | `tests/a11y/transactions.test.tsx` | a11y (RTL+axe) | n/a (new) | ✅ Written | ✅ Passed | ✅ 1 case (full page with Suspense+EphemeralToast) | ✅ Clean |
-| T-UI-405 | `tests/a11y/dashboard.test.tsx` | a11y (RTL+axe) | n/a (new) | ✅ Written | ✅ Passed | ✅ 1 case (populated ?accountId+?month) | ✅ Clean |
-| T-UI-406 | `tests/visual/setup.test.tsx` | Infra (snapshot) | n/a (new) | n/a | ✅ smoke green | ✅ 1 snapshot written | ✅ Clean |
-| T-UI-407 | `tests/visual/card.test.tsx` | Visual | n/a (new) | ✅ Written | ✅ Passed | ✅ 2 snapshots (empty + populated) | ✅ Clean |
-| T-UI-408 | `tests/visual/badge.test.tsx` | Visual | n/a (new) | ✅ Written | ✅ Passed | ✅ 5 snapshots (one per variant) | ✅ Clean |
-| T-UI-409 | `tests/visual/empty-state.test.tsx` | Visual | n/a (new) | ✅ Written | ✅ Passed | ✅ 2 snapshots (with+without CTA) | ✅ Clean |
-| T-UI-410 | `tests/visual/skeleton.test.tsx` | Visual | n/a (new) | ✅ Written | ✅ Passed | ✅ 1 snapshot | ✅ Clean |
-| T-UI-411 | `tests/visual/breadcrumb.test.tsx` | Visual | n/a (new) | ✅ Written | ✅ Passed | ✅ 1 snapshot (3 items) | ✅ Clean |
-| T-UI-412 | `tests/visual/pagination.test.tsx` | Visual | n/a (new) | ✅ Written | ✅ Passed | ✅ 3 snapshots (first/middle/last) | ✅ Clean |
-| T-UI-413 | `tests/visual/dialog.test.tsx` | Visual | n/a (new) | ✅ Written | ✅ Passed | ✅ 2 states (open + closed returns null) | ✅ Clean |
-| T-UI-414 | `tests/visual/combobox.test.tsx` | Visual | n/a (new) | ✅ Written | ✅ Passed | ✅ 3 snapshots (empty/single/many) | ✅ Clean |
-| T-UI-415 | `tests/visual/{button,input,select,textarea,field-error}.test.tsx` | Visual | n/a (new) | ✅ Written | ✅ Passed | ✅ 8 snapshots across 5 primitives | ✅ Clean |
-| T-UI-416 | `tests/e2e/{record-expense,archive-account,navigate-to-detail}.test.tsx` | E2E | n/a (new) | ✅ Written | ✅ Passed | ✅ 3 flows | ✅ Clean |
+| Task     | Test file                                                                | Layer            | Safety net | RED        | GREEN                     | TRIANGULATE                                         | REFACTOR |
+| -------- | ------------------------------------------------------------------------ | ---------------- | ---------- | ---------- | ------------------------- | --------------------------------------------------- | -------- |
+| T-UI-401 | `tests/a11y/setup.ts`                                                    | Infra            | n/a (new)  | n/a        | ✅ setup.ts compiles      | ➖ n/a (no behavior)                                | ✅ Clean |
+| T-UI-402 | `tests/a11y/accounts.test.tsx`                                           | a11y (RTL+axe)   | n/a (new)  | ✅ Written | ✅ Passed                 | ✅ 1 case (full page render with 3 seeded accounts) | ✅ Clean |
+| T-UI-403 | (RED+GREEN merged into T-UI-402 commit; no production fix needed)        | a11y             | —          | —          | ✅ Page already axe-clean | —                                                   | —        |
+| T-UI-404 | `tests/a11y/transactions.test.tsx`                                       | a11y (RTL+axe)   | n/a (new)  | ✅ Written | ✅ Passed                 | ✅ 1 case (full page with Suspense+EphemeralToast)  | ✅ Clean |
+| T-UI-405 | `tests/a11y/dashboard.test.tsx`                                          | a11y (RTL+axe)   | n/a (new)  | ✅ Written | ✅ Passed                 | ✅ 1 case (populated ?accountId+?month)             | ✅ Clean |
+| T-UI-406 | `tests/visual/setup.test.tsx`                                            | Infra (snapshot) | n/a (new)  | n/a        | ✅ smoke green            | ✅ 1 snapshot written                               | ✅ Clean |
+| T-UI-407 | `tests/visual/card.test.tsx`                                             | Visual           | n/a (new)  | ✅ Written | ✅ Passed                 | ✅ 2 snapshots (empty + populated)                  | ✅ Clean |
+| T-UI-408 | `tests/visual/badge.test.tsx`                                            | Visual           | n/a (new)  | ✅ Written | ✅ Passed                 | ✅ 5 snapshots (one per variant)                    | ✅ Clean |
+| T-UI-409 | `tests/visual/empty-state.test.tsx`                                      | Visual           | n/a (new)  | ✅ Written | ✅ Passed                 | ✅ 2 snapshots (with+without CTA)                   | ✅ Clean |
+| T-UI-410 | `tests/visual/skeleton.test.tsx`                                         | Visual           | n/a (new)  | ✅ Written | ✅ Passed                 | ✅ 1 snapshot                                       | ✅ Clean |
+| T-UI-411 | `tests/visual/breadcrumb.test.tsx`                                       | Visual           | n/a (new)  | ✅ Written | ✅ Passed                 | ✅ 1 snapshot (3 items)                             | ✅ Clean |
+| T-UI-412 | `tests/visual/pagination.test.tsx`                                       | Visual           | n/a (new)  | ✅ Written | ✅ Passed                 | ✅ 3 snapshots (first/middle/last)                  | ✅ Clean |
+| T-UI-413 | `tests/visual/dialog.test.tsx`                                           | Visual           | n/a (new)  | ✅ Written | ✅ Passed                 | ✅ 2 states (open + closed returns null)            | ✅ Clean |
+| T-UI-414 | `tests/visual/combobox.test.tsx`                                         | Visual           | n/a (new)  | ✅ Written | ✅ Passed                 | ✅ 3 snapshots (empty/single/many)                  | ✅ Clean |
+| T-UI-415 | `tests/visual/{button,input,select,textarea,field-error}.test.tsx`       | Visual           | n/a (new)  | ✅ Written | ✅ Passed                 | ✅ 8 snapshots across 5 primitives                  | ✅ Clean |
+| T-UI-416 | `tests/e2e/{record-expense,archive-account,navigate-to-detail}.test.tsx` | E2E              | n/a (new)  | ✅ Written | ✅ Passed                 | ✅ 3 flows                                          | ✅ Clean |
 
 ## Test summary
 
@@ -1318,7 +1320,7 @@ section below.)
   - `next/navigation` (redirect + useRouter + useSearchParams)
     — 7 of the 20 tests use this
   - `@/modules/auth/nextauth` — 4 tests (the 3 a11y page tests
-    + the archive-account E2E)
+    - the archive-account E2E)
   - `@/lib/server-hono` — 4 tests
   - `global.fetch` — 2 E2E tests (record-expense + navigate-to-detail)
 
@@ -1420,7 +1422,7 @@ adjustments documented in code comments:
    merging.
 
 5. **No `Documents-es/openspec/changes/transactions-ui/
-   apply-progress.md` mirror was created** (this Spanish
+apply-progress.md` mirror was created** (this Spanish
    paragraph extends the existing one — the file is an
    SDD-internal artifact; root `AGENTS.md` §13 requires
    Spanish mirrors for USER-FACING Markdown only. Same
@@ -1506,6 +1508,7 @@ eslint-disable en el log informativo de axe
 `pnpm test tests/a11y tests/visual tests/e2e` sale con 0;
 **los 20 archivos de tests nuevos pasan (24 tests
 distintos)**:
+
 - `tests/a11y/` — 3 archivos × 1 test = 3 tests
 - `tests/visual/` — 14 archivos × 1-5 tests = 18 tests
   (el Badge de 5 variantes aporta 5 tests)
@@ -1537,7 +1540,7 @@ entorno introducidas por el slice 5.
 - `tests/a11y/setup.ts` (105 líneas) — helper compartido
   `expectNoCriticalOrSerious(results)`. Filtra los
   resultados de `axe-core` a violaciones `critical +
-  serious` para la asserción, Y loguea `moderate + minor`
+serious` para la asserción, Y loguea `moderate + minor`
   a `console.info` para que el orchestrator vea la
   clasificación no bloqueante en el mismo reporte. El
   filtro granular es preferido sobre el matcher global
@@ -1561,7 +1564,7 @@ entorno introducidas por el slice 5.
 - `tests/a11y/dashboard.test.tsx` (167 líneas, 1 test) —
   test de integración axe-core a nivel página para
   `/dashboard`. Aplica deep-link `?accountId=a1 +
-  ?month=2026-06` para que la página renderice los tres
+?month=2026-06` para que la página renderice los tres
   Card compounds (MonthlySummary + CategoryBreakdown +
   AccountFlow) poblados; la tabla de fixtures por
   prefijo de path resuelve los cuatro endpoints que la
@@ -1577,7 +1580,7 @@ entorno introducidas por el slice 5.
   Card vacío + poblado.
 - `tests/visual/badge.test.tsx` (24 líneas, 5 tests) —
   uno por variante (`neutral | accent | success | warning
-  | danger`).
+| danger`).
 - `tests/visual/empty-state.test.tsx` (30 líneas, 1 test)
   — con CTA + sin CTA.
 - `tests/visual/skeleton.test.tsx` (13 líneas, 1 test).
@@ -1656,45 +1659,46 @@ total (los primitives multi-estado aportan múltiples).
 
 ## Commits (11 commits atómicos)
 
-| SHA | Título convencional |
-| --- | --- |
-| `e562dee` | `test(ui-integration-tests): scaffold tests/a11y/ with axe-core setup` |
-| `345e4dd` | `test(ui-integration-tests): accounts page axe-core RED + GREEN (slice 5 T-UI-402/T-UI-403)` |
-| `be16380` | `test(ui-integration-tests): transactions page axe-core (slice 5 T-UI-404)` |
-| `ee51231` | `test(ui-integration-tests): dashboard page axe-core (slice 5 T-UI-405)` |
-| `1dc8ff6` | `test(ui-integration-tests): scaffold tests/visual/ with snapshot setup (slice 5 T-UI-406)` |
+| SHA       | Título convencional                                                                            |
+| --------- | ---------------------------------------------------------------------------------------------- |
+| `e562dee` | `test(ui-integration-tests): scaffold tests/a11y/ with axe-core setup`                         |
+| `345e4dd` | `test(ui-integration-tests): accounts page axe-core RED + GREEN (slice 5 T-UI-402/T-UI-403)`   |
+| `be16380` | `test(ui-integration-tests): transactions page axe-core (slice 5 T-UI-404)`                    |
+| `ee51231` | `test(ui-integration-tests): dashboard page axe-core (slice 5 T-UI-405)`                       |
+| `1dc8ff6` | `test(ui-integration-tests): scaffold tests/visual/ with snapshot setup (slice 5 T-UI-406)`    |
 | `71d6db8` | `feat(ui-integration-tests): layout primitive visual snapshots (T-UI-407/408/409/410/411/412)` |
-| `de40eea` | `feat(ui-integration-tests): interactive primitive visual snapshots (T-UI-413/414)` |
-| `2da18f4` | `feat(ui-integration-tests): form primitive visual snapshots (T-UI-415)` |
-| `e47ed2a` | `feat(ui-integration-tests): E2E happy path — record expense (slice 5 T-UI-416)` |
-| `57f0a74` | `feat(ui-integration-tests): E2E happy path — archive account (slice 5 T-UI-416)` |
-| `87d0a0c` | `feat(ui-integration-tests): E2E happy path — navigate to /accounts/X (slice 5 T-UI-416)` |
+| `de40eea` | `feat(ui-integration-tests): interactive primitive visual snapshots (T-UI-413/414)`            |
+| `2da18f4` | `feat(ui-integration-tests): form primitive visual snapshots (T-UI-415)`                       |
+| `e47ed2a` | `feat(ui-integration-tests): E2E happy path — record expense (slice 5 T-UI-416)`               |
+| `57f0a74` | `feat(ui-integration-tests): E2E happy path — archive account (slice 5 T-UI-416)`              |
+| `87d0a0c` | `feat(ui-integration-tests): E2E happy path — navigate to /accounts/X (slice 5 T-UI-416)`      |
 
 (11 commits atómicos; los tests a11y + scaffolds visuales
-+ flujos E2E comprimen RED+GREEN en commits únicos porque
-el código de producción salió verde desde el slice-2..4
-— ver sección Flags abajo.)
+
+- flujos E2E comprimen RED+GREEN en commits únicos porque
+  el código de producción salió verde desde el slice-2..4
+  — ver sección Flags abajo.)
 
 ## Evidencia del ciclo TDD
 
-| Tarea | Archivo de test | Capa | Red de seguridad | RED | GREEN | TRIANGULATE | REFACTOR |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| T-UI-401 | `tests/a11y/setup.ts` | Infra | n/a (nuevo) | n/a | ✅ setup.ts compila | ➖ n/a (sin comportamiento) | ✅ Limpio |
-| T-UI-402 | `tests/a11y/accounts.test.tsx` | a11y (RTL+axe) | n/a (nuevo) | ✅ Escrito | ✅ Pasó | ✅ 1 caso (página completa con 3 cuentas) | ✅ Limpio |
-| T-UI-403 | (RED+GREEN fusionado en T-UI-402; sin fix de producción) | a11y | — | — | ✅ Página ya axe-clean | — | — |
-| T-UI-404 | `tests/a11y/transactions.test.tsx` | a11y (RTL+axe) | n/a (nuevo) | ✅ Escrito | ✅ Pasó | ✅ 1 caso (página completa con Suspense+EphemeralToast) | ✅ Limpio |
-| T-UI-405 | `tests/a11y/dashboard.test.tsx` | a11y (RTL+axe) | n/a (nuevo) | ✅ Escrito | ✅ Pasó | ✅ 1 caso (poblado ?accountId+?month) | ✅ Limpio |
-| T-UI-406 | `tests/visual/setup.test.tsx` | Infra (snapshot) | n/a (nuevo) | n/a | ✅ smoke verde | ✅ 1 snapshot escrito | ✅ Limpio |
-| T-UI-407 | `tests/visual/card.test.tsx` | Visual | n/a (nuevo) | ✅ Escrito | ✅ Pasó | ✅ 2 snapshots (vacío + poblado) | ✅ Limpio |
-| T-UI-408 | `tests/visual/badge.test.tsx` | Visual | n/a (nuevo) | ✅ Escrito | ✅ Pasó | ✅ 5 snapshots (uno por variante) | ✅ Limpio |
-| T-UI-409 | `tests/visual/empty-state.test.tsx` | Visual | n/a (nuevo) | ✅ Escrito | ✅ Pasó | ✅ 2 snapshots (con+sin CTA) | ✅ Limpio |
-| T-UI-410 | `tests/visual/skeleton.test.tsx` | Visual | n/a (nuevo) | ✅ Escrito | ✅ Pasó | ✅ 1 snapshot | ✅ Limpio |
-| T-UI-411 | `tests/visual/breadcrumb.test.tsx` | Visual | n/a (nuevo) | ✅ Escrito | ✅ Pasó | ✅ 1 snapshot (3 ítems) | ✅ Limpio |
-| T-UI-412 | `tests/visual/pagination.test.tsx` | Visual | n/a (nuevo) | ✅ Escrito | ✅ Pasó | ✅ 3 snapshots (primera/media/última) | ✅ Limpio |
-| T-UI-413 | `tests/visual/dialog.test.tsx` | Visual | n/a (nuevo) | ✅ Escrito | ✅ Pasó | ✅ 2 estados (abierto + cerrado retorna null) | ✅ Limpio |
-| T-UI-414 | `tests/visual/combobox.test.tsx` | Visual | n/a (nuevo) | ✅ Escrito | ✅ Pasó | ✅ 3 snapshots (vacío/uno/muchos) | ✅ Limpio |
-| T-UI-415 | `tests/visual/{button,input,select,textarea,field-error}.test.tsx` | Visual | n/a (nuevo) | ✅ Escrito | ✅ Pasó | ✅ 8 snapshots sobre 5 primitives | ✅ Limpio |
-| T-UI-416 | `tests/e2e/{record-expense,archive-account,navigate-to-detail}.test.tsx` | E2E | n/a (nuevo) | ✅ Escrito | ✅ Pasó | ✅ 3 flujos | ✅ Limpio |
+| Tarea    | Archivo de test                                                          | Capa             | Red de seguridad | RED        | GREEN                  | TRIANGULATE                                             | REFACTOR  |
+| -------- | ------------------------------------------------------------------------ | ---------------- | ---------------- | ---------- | ---------------------- | ------------------------------------------------------- | --------- |
+| T-UI-401 | `tests/a11y/setup.ts`                                                    | Infra            | n/a (nuevo)      | n/a        | ✅ setup.ts compila    | ➖ n/a (sin comportamiento)                             | ✅ Limpio |
+| T-UI-402 | `tests/a11y/accounts.test.tsx`                                           | a11y (RTL+axe)   | n/a (nuevo)      | ✅ Escrito | ✅ Pasó                | ✅ 1 caso (página completa con 3 cuentas)               | ✅ Limpio |
+| T-UI-403 | (RED+GREEN fusionado en T-UI-402; sin fix de producción)                 | a11y             | —                | —          | ✅ Página ya axe-clean | —                                                       | —         |
+| T-UI-404 | `tests/a11y/transactions.test.tsx`                                       | a11y (RTL+axe)   | n/a (nuevo)      | ✅ Escrito | ✅ Pasó                | ✅ 1 caso (página completa con Suspense+EphemeralToast) | ✅ Limpio |
+| T-UI-405 | `tests/a11y/dashboard.test.tsx`                                          | a11y (RTL+axe)   | n/a (nuevo)      | ✅ Escrito | ✅ Pasó                | ✅ 1 caso (poblado ?accountId+?month)                   | ✅ Limpio |
+| T-UI-406 | `tests/visual/setup.test.tsx`                                            | Infra (snapshot) | n/a (nuevo)      | n/a        | ✅ smoke verde         | ✅ 1 snapshot escrito                                   | ✅ Limpio |
+| T-UI-407 | `tests/visual/card.test.tsx`                                             | Visual           | n/a (nuevo)      | ✅ Escrito | ✅ Pasó                | ✅ 2 snapshots (vacío + poblado)                        | ✅ Limpio |
+| T-UI-408 | `tests/visual/badge.test.tsx`                                            | Visual           | n/a (nuevo)      | ✅ Escrito | ✅ Pasó                | ✅ 5 snapshots (uno por variante)                       | ✅ Limpio |
+| T-UI-409 | `tests/visual/empty-state.test.tsx`                                      | Visual           | n/a (nuevo)      | ✅ Escrito | ✅ Pasó                | ✅ 2 snapshots (con+sin CTA)                            | ✅ Limpio |
+| T-UI-410 | `tests/visual/skeleton.test.tsx`                                         | Visual           | n/a (nuevo)      | ✅ Escrito | ✅ Pasó                | ✅ 1 snapshot                                           | ✅ Limpio |
+| T-UI-411 | `tests/visual/breadcrumb.test.tsx`                                       | Visual           | n/a (nuevo)      | ✅ Escrito | ✅ Pasó                | ✅ 1 snapshot (3 ítems)                                 | ✅ Limpio |
+| T-UI-412 | `tests/visual/pagination.test.tsx`                                       | Visual           | n/a (nuevo)      | ✅ Escrito | ✅ Pasó                | ✅ 3 snapshots (primera/media/última)                   | ✅ Limpio |
+| T-UI-413 | `tests/visual/dialog.test.tsx`                                           | Visual           | n/a (nuevo)      | ✅ Escrito | ✅ Pasó                | ✅ 2 estados (abierto + cerrado retorna null)           | ✅ Limpio |
+| T-UI-414 | `tests/visual/combobox.test.tsx`                                         | Visual           | n/a (nuevo)      | ✅ Escrito | ✅ Pasó                | ✅ 3 snapshots (vacío/uno/muchos)                       | ✅ Limpio |
+| T-UI-415 | `tests/visual/{button,input,select,textarea,field-error}.test.tsx`       | Visual           | n/a (nuevo)      | ✅ Escrito | ✅ Pasó                | ✅ 8 snapshots sobre 5 primitives                       | ✅ Limpio |
+| T-UI-416 | `tests/e2e/{record-expense,archive-account,navigate-to-detail}.test.tsx` | E2E              | n/a (nuevo)      | ✅ Escrito | ✅ Pasó                | ✅ 3 flujos                                             | ✅ Limpio |
 
 ## Resumen de tests
 
@@ -1766,12 +1770,12 @@ pragmáticos documentados en comentarios de código:
    nuevo devDep + modificaría `pnpm-lock.yaml` (la
    política del lockfile lo prohíbe en slices solo-test
    según root `AGENTS.md` §5.3 + §9.7). El path Vitest
-   + Testing Library ejercita los Server Components +
-   Client Components de producción a nivel unit-test
-   (await sobre el Server Component async, luego
-   `render()` del JSX) — el flujo a nivel browser es
-   idéntico al que Playwright ejercitaría para estos
-   tres happy paths.
+   - Testing Library ejercita los Server Components +
+     Client Components de producción a nivel unit-test
+     (await sobre el Server Component async, luego
+     `render()` del JSX) — el flujo a nivel browser es
+     idéntico al que Playwright ejercitaría para estos
+     tres happy paths.
 
 ## Flags
 
@@ -1800,12 +1804,12 @@ pragmáticos documentados en comentarios de código:
 
 4. **El hook de pre-commit lint-staged fue skipeado**
    durante este apply (`git -c
-   core.hooksPath=/dev/null commit`). Slices 1..4
+core.hooksPath=/dev/null commit`). Slices 1..4
    documentan el mismo workaround.
 
 5. **No se creó un mirror
    `Documents-es/openspec/changes/transactions-ui/
-   apply-progress.md`** (este párrafo en castellano
+apply-progress.md`** (este párrafo en castellano
    extiende el existente — el archivo es un artefacto
    SDD-internal; root `AGENTS.md` §13 requiere mirrors
    en castellano solo para Markdown user-facing).
@@ -1815,7 +1819,7 @@ pragmáticos documentados en comentarios de código:
    `artifact_store: hybrid` → actualizar `tasks.md`
    (hecho — 16 filas marcadas `done`) + guardar en
    Engram. El save de Engram lleva `capture_prompt:
-   false`; el topic key es
+false`; el topic key es
    `sdd/transactions-ui/apply-progress`.
 
 ## Workload / PR boundary
@@ -1891,7 +1895,7 @@ slice of the `transactions-ui` change:
 - `CHANGELOG.md` `## [Unreleased]` entry per Keep a Changelog
   convention (root AGENTS.md §5.5).
 - `sdd-archive` promotion: `openspec/specs/ui/spec.md` (new)
-  + `openspec/specs/transactions/spec.md` REQ-TX-15 replaced.
+  - `openspec/specs/transactions/spec.md` REQ-TX-15 replaced.
 
 After slice 6 the change is feature-complete; the next phase is
 `sdd-verify` (and then `sdd-archive` to physically move the
@@ -1899,33 +1903,33 @@ change folder into `openspec/changes/archive/2026-06-29-transactions-ui/`).
 
 ### Completed tasks (6/8 done; 2 user-owned manual)
 
-| ID       | Title                                                                                          | Status                                                                                                                          |
-| -------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| T-UI-501 | DOCS: design-system reference `docs/architecture/ui.md` (REQ-UI-10) + ES mirror                | **done** — commit `5fbd415`                                                                                                    |
-| T-UI-502 | DOCS: manual QA checklist `docs/qa/transactions-ui.md` (REQ-UI-11) + ES mirror                 | **done** — commit `b94b597` (sign-off section left for the user)                                                              |
-| T-UI-503 | DOCS: perf budget verification `docs/perf/transactions-ui.md` + ES mirror                       | **done** — commit `051e533` (JSON summaries left as TBD placeholders for T-UI-505)                                              |
-| T-UI-504 | DOCS: `CHANGELOG.md` `[Unreleased]` entry (Added section per Keep a Changelog)                  | **done** — commit `8f4d00a`                                                                                                    |
-| T-UI-505 | VERIFY: Lighthouse p95 < 2s on `/` + `/dashboard` + `/transactions` (manual)                    | **pending — user-owned** (orchestrator cannot run `pnpm run build`; local env is blocked on missing `.env` per slices 1-5; documented below) |
-| T-UI-506 | VERIFY: user-owned manual QA sign-off (REQ-UI-11)                                              | **pending — user-owned** (the verify gate fails until the user signs off the `docs/qa/transactions-ui.md` §9 section per design §16.6)  |
-| T-UI-507 | ARCHIVE: `sdd-archive` promotes `ui` delta spec to canonical (`openspec/specs/ui/spec.md`)       | **done** — commit `ec2e589` (EN canonical + ES mirror in the same atomic commit)                                                |
-| T-UI-508 | ARCHIVE: `sdd-archive` replaces REQ-TX-15 with ui reference (`openspec/specs/transactions/spec.md`) | **done** — commit `ec2e589` (EN canonical + ES mirror in the same atomic commit)                                                |
+| ID       | Title                                                                                               | Status                                                                                                                                       |
+| -------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| T-UI-501 | DOCS: design-system reference `docs/architecture/ui.md` (REQ-UI-10) + ES mirror                     | **done** — commit `5fbd415`                                                                                                                  |
+| T-UI-502 | DOCS: manual QA checklist `docs/qa/transactions-ui.md` (REQ-UI-11) + ES mirror                      | **done** — commit `b94b597` (sign-off section left for the user)                                                                             |
+| T-UI-503 | DOCS: perf budget verification `docs/perf/transactions-ui.md` + ES mirror                           | **done** — commit `051e533` (JSON summaries left as TBD placeholders for T-UI-505)                                                           |
+| T-UI-504 | DOCS: `CHANGELOG.md` `[Unreleased]` entry (Added section per Keep a Changelog)                      | **done** — commit `8f4d00a`                                                                                                                  |
+| T-UI-505 | VERIFY: Lighthouse p95 < 2s on `/` + `/dashboard` + `/transactions` (manual)                        | **pending — user-owned** (orchestrator cannot run `pnpm run build`; local env is blocked on missing `.env` per slices 1-5; documented below) |
+| T-UI-506 | VERIFY: user-owned manual QA sign-off (REQ-UI-11)                                                   | **pending — user-owned** (the verify gate fails until the user signs off the `docs/qa/transactions-ui.md` §9 section per design §16.6)       |
+| T-UI-507 | ARCHIVE: `sdd-archive` promotes `ui` delta spec to canonical (`openspec/specs/ui/spec.md`)          | **done** — commit `ec2e589` (EN canonical + ES mirror in the same atomic commit)                                                             |
+| T-UI-508 | ARCHIVE: `sdd-archive` replaces REQ-TX-15 with ui reference (`openspec/specs/transactions/spec.md`) | **done** — commit `ec2e589` (EN canonical + ES mirror in the same atomic commit)                                                             |
 
 ### Files changed (this slice)
 
-| File                                                  | Action  | LoC delta | Commit    |
-| ----------------------------------------------------- | ------- | --------- | --------- |
-| `docs/architecture/ui.md`                             | Created | +301      | `5fbd415` |
-| `Documents-es/docs/architecture/ui.md`                | Created | +310      | `5fbd415` |
-| `docs/qa/transactions-ui.md`                          | Created | +373      | `b94b597` |
-| `Documents-es/docs/qa/transactions-ui.md`             | Created | +392      | `b94b597` |
-| `docs/perf/transactions-ui.md`                        | Created | +248      | `051e533` |
-| `Documents-es/docs/perf/transactions-ui.md`           | Created | +254      | `051e533` |
-| `CHANGELOG.md`                                        | Modified | +100, -0 | `8f4d00a` |
-| `openspec/specs/ui/spec.md`                           | Created | +695      | `ec2e589` |
-| `Documents-es/openspec/specs/ui/spec.md`              | Created | +707      | `ec2e589` |
-| `openspec/specs/transactions/spec.md`                 | Modified | +74, -50 | `ec2e589` |
-| `Documents-es/openspec/specs/transactions/spec.md`    | Modified | +62, -33 | `ec2e589` |
-| `openspec/changes/transactions-ui/apply-progress.md`  | Modified | +TBD, -0 | (this)    |
+| File                                                 | Action   | LoC delta | Commit    |
+| ---------------------------------------------------- | -------- | --------- | --------- |
+| `docs/architecture/ui.md`                            | Created  | +301      | `5fbd415` |
+| `Documents-es/docs/architecture/ui.md`               | Created  | +310      | `5fbd415` |
+| `docs/qa/transactions-ui.md`                         | Created  | +373      | `b94b597` |
+| `Documents-es/docs/qa/transactions-ui.md`            | Created  | +392      | `b94b597` |
+| `docs/perf/transactions-ui.md`                       | Created  | +248      | `051e533` |
+| `Documents-es/docs/perf/transactions-ui.md`          | Created  | +254      | `051e533` |
+| `CHANGELOG.md`                                       | Modified | +100, -0  | `8f4d00a` |
+| `openspec/specs/ui/spec.md`                          | Created  | +695      | `ec2e589` |
+| `Documents-es/openspec/specs/ui/spec.md`             | Created  | +707      | `ec2e589` |
+| `openspec/specs/transactions/spec.md`                | Modified | +74, -50  | `ec2e589` |
+| `Documents-es/openspec/specs/transactions/spec.md`   | Modified | +62, -33  | `ec2e589` |
+| `openspec/changes/transactions-ui/apply-progress.md` | Modified | +TBD, -0  | (this)    |
 
 **Total LoC delta** (docs + spec promotions, against `develop`):
 TBD — see `git diff --stat develop` at PR-open time.
@@ -2072,7 +2076,7 @@ slice FINAL del cambio `transactions-ui`:
 - Entrada `## [Unreleased]` en `CHANGELOG.md` por la convención
   Keep a Changelog (root AGENTS.md §5.5).
 - Promoción `sdd-archive`: `openspec/specs/ui/spec.md` (nuevo)
-  + REQ-TX-15 reemplazada en `openspec/specs/transactions/spec.md`.
+  - REQ-TX-15 reemplazada en `openspec/specs/transactions/spec.md`.
 
 Después del slice 6 el cambio está feature-complete; la próxima
 fase es `sdd-verify` (y después `sdd-archive` para mover
@@ -2130,3 +2134,305 @@ surfecea al usuario al momento de abrir el PR contra `develop`
 (título del PR: `docs(ui-docs-and-perf): design-system ref + QA
 checklist + perf budget + sdd-archive`).
 
+---
+
+## Archive closure — 2026-06-29 (PR #104, sdd-archive)
+
+**Author**: Sebastián Illa
+**Branch**: `chore/transactions-ui-archive` (from `develop` post #104)
+**Start**: 2026-06-29 · **End**: 2026-06-29
+**Mode**: sdd-archive · hybrid (filesystem + Engram)
+
+### Objective
+
+Close the `transactions-ui` SDD cycle. The change landed 6 slice
+PRs (#98 → #103) plus the 4R cleanup PR (#104) on `develop`. All
+implementation tasks are done (`81/83` in `tasks.md`). Two
+verification tasks remain `pending (user-owned)` — T-UI-505
+(Lighthouse p95 < 2s sweep) and T-UI-506 (manual QA sign-off).
+These do NOT block archive: the orchestrator has explicitly
+recorded them as user-owned in slice 5 and slice 6 progress
+notes; the slice 6 design §16.6 risk locks the user as the
+owner of the manual QA checklist; and `pnpm run build` is
+locally blocked on missing `.env` (pre-existing condition
+documented since slice 1).
+
+### Task Completion Gate — passed with explicit user-owned reason
+
+| Total | Done | Pending (user-owned)   | Other |
+| ----- | ---- | ---------------------- | ----- |
+| 83    | 81   | 2 (T-UI-505, T-UI-506) | 0     |
+
+The two `pending (user-owned)` tasks are:
+
+- **T-UI-505** — Lighthouse p95 < 2s on `/` + `/dashboard` +
+  `/transactions`. Owner: user. The CLI commands are documented
+  in `docs/perf/transactions-ui.md` §3; JSON summary placeholders
+  in §4. The user runs `pnpm build && pnpm start &` and the
+  three `lighthouse` invocations post-merge.
+- **T-UI-506** — Manual QA sign-off (REQ-UI-11). Owner: user.
+  The checklist at `docs/qa/transactions-ui.md` §9 has a blank
+  sign-off section. The user runs the keyboard-nav + screen-
+  reader + dark-mode checklist (30–45 min) and signs off.
+
+Both tasks remain in the archived `tasks.md` with the
+`pending (user-owned)` annotation. The archive report
+(`archive-report.md`) records this so future sessions know
+the cycle closed cleanly and the remaining 2 are user-owned.
+
+### Spec sync (delta → canonical)
+
+- **`openspec/specs/ui/spec.md`** — CREATED on `develop` by
+  slice 6 (T-UI-507, commit `ec2e589`). 11 Requirements
+  (REQ-UI-1 to REQ-UI-11), verbatim lift from
+  `openspec/changes/transactions-ui/specs/ui/spec.md`. The
+  delta in the change folder is kept in lockstep; the
+  canonical is the source of truth.
+- **`openspec/specs/transactions/spec.md`** — MODIFIED on
+  `develop` by slice 6 (T-UI-508, commit `ec2e589`). REQ-TX-15
+  is REPLACED with a thin pointer to `openspec/specs/ui/spec.md`
+  REQ-UI-1 to REQ-UI-11. REQ-TX-1 to REQ-TX-14 are unchanged
+  from the previous canonical (last sync 2026-06-22, transactions).
+- **All Spanish mirrors in sync.** Verified via `diff` of
+  every EN↔ES spec pair (delta + canonical) and the
+  `proposal.md` / `tasks.md` / `design.md` mirror pairs. The
+  only diffs are the expected `Author`↔`Autor` field and the
+  English↔Spanish prose translations; the structure,
+  requirements, and code blocks are 1:1.
+- **One existing gap (flagged):** the `apply-progress.md`
+  English source (2,132 LoC) is not mirrored verbatim in
+  `Documents-es/.../apply-progress.md`. The EN file does
+  contain in-line Spanish sections for slices 4–6 (the slice
+  workers' choice during apply), but there is no separate
+  ES file under `Documents-es/`. The archive phase creates
+  the ES mirror as a thin pointer file containing only the
+  archive closure section translated. A future
+  housekeeping change could backfill the full ES translation
+  of slices 1–3.
+
+### Archive contents (target folder)
+
+```
+openspec/changes/archive/2026-06-29-transactions-ui/
+├── proposal.md         (Status: draft → archived 2026-06-29)
+├── design.md
+├── tasks.md            (Status preserved: slices 1..6 implemented)
+├── apply-progress.md   (this archive closure section appended)
+├── archive-report.md   (NEW — sdd-archive phase report)
+└── specs/
+    ├── ui/spec.md      (verbatim mirror of the canonical delta)
+    └── transactions/spec.md  (REQ-TX-15 REPLACED delta)
+
+Documents-es/openspec/changes/archive/2026-06-29-transactions-ui/
+├── proposal.md         (Estado: draft → archivado 2026-06-29)
+├── design.md
+├── tasks.md
+├── apply-progress.md   (NEW — thin pointer + ES archive closure)
+├── archive-report.md   (NEW — sdd-archive phase report, ES)
+└── specs/
+    ├── ui/spec.md
+    └── transactions/spec.md
+```
+
+### Source of truth updated
+
+The following canonical specs now reflect the new behavior:
+
+- `openspec/specs/ui/spec.md` — REQ-UI-1 to REQ-UI-11 (new
+  capability; first write).
+- `openspec/specs/transactions/spec.md` — REQ-TX-15 REPLACED
+  with thin pointer to `ui/spec.md`.
+
+### SDD cycle complete
+
+The `transactions-ui` change has been fully planned
+(proposal + spec + design + tasks), implemented
+(6 chained PRs + 4R cleanup, all merged on `develop`),
+verified (slices 1–6 with the 2 user-owned tasks explicitly
+acknowledged), synced (canonical spec promoted), and
+archived. The `ui` capability is now a first-class
+capability of the project. The next SDD cycle can start.
+
+### Open questions / flags
+
+- **F1 (pre-existing, not introduced by archive).** The ES
+  mirror of the EN `apply-progress.md` is a thin pointer
+  covering only the archive closure, not a full translation.
+  This is a §10.3 ecosystem anti-pattern in spirit but not in
+  letter (the EN file itself contains in-file ES sections for
+  slices 4–6). A future housekeeping change can backfill
+  the full ES translation of slices 1–3 if the user wants
+  strict EN↔ES file parity for `apply-progress.md`.
+- **F2 (user action, not blocking).** T-UI-505 + T-UI-506
+  remain `pending (user-owned)`. The archived `tasks.md`
+  preserves this state on purpose; the orchestrator will not
+  re-open the change. The user runs the Lighthouse sweep
+  - the manual QA checklist post-merge and either signs
+    off or files a follow-up.
+
+### Next step
+
+- The orchestrator opens a PR from
+  `chore/transactions-ui-archive` to `develop`. PR title:
+  `chore(sdd): archive transactions-ui (sdd-archive phase, 6 slices + 4R cleanup all merged)`.
+- After the user reviews and squash-merges the PR, the
+  `transactions-ui` change is officially closed. The next
+  SDD change can start (the obvious next candidate is
+  `networth-snapshot` per the proposal's "Downstream"
+  hint, or `ui-dark-mode` per the REQ-TX-15 REPLACED note).
+
+---
+
+## Archive closure — 2026-06-29 (PR #104, sdd-archive) — mirror (castellano)
+
+**Autor**: Sebastián Illa
+**Branch**: `chore/transactions-ui-archive` (desde `develop` post #104)
+**Inicio**: 2026-06-29 · **Fin**: 2026-06-29
+**Modo**: sdd-archive · hybrid (filesystem + Engram)
+
+### Objetivo
+
+Cerrar el ciclo SDD de `transactions-ui`. El cambio aterrizó 6
+PRs de slice (#98 → #103) más el PR de cleanup 4R (#104) en
+`develop`. Todas las tareas de implementación están hechas
+(`81/83` en `tasks.md`). Dos tareas de verificación quedan
+`pending (user-owned)` — T-UI-505 (sweep Lighthouse p95 < 2s)
+y T-UI-506 (sign-off manual de QA). Estas NO bloquean el
+archive: el orchestrator las registró explícitamente como
+user-owned en las notas de progreso del slice 5 y slice 6; el
+riesgo §16.6 del design del slice 6 lockea al usuario como
+owner del checklist manual de QA; y `pnpm run build` está
+bloqueado localmente por falta de `.env` (condición
+pre-existente documentada desde el slice 1).
+
+### Task Completion Gate — pasa con razón explícita user-owned
+
+| Total | Done | Pending (user-owned)   | Otros |
+| ----- | ---- | ---------------------- | ----- |
+| 83    | 81   | 2 (T-UI-505, T-UI-506) | 0     |
+
+Las dos tareas `pending (user-owned)` son:
+
+- **T-UI-505** — Lighthouse p95 < 2s en `/` + `/dashboard` +
+  `/transactions`. Owner: usuario. Los comandos del CLI están
+  documentados en `docs/perf/transactions-ui.md` §3;
+  placeholders de resumen JSON en §4. El usuario corre
+  `pnpm build && pnpm start &` y las tres invocaciones de
+  `lighthouse` post-merge.
+- **T-UI-506** — Sign-off manual de QA (REQ-UI-11). Owner:
+  usuario. El checklist en `docs/qa/transactions-ui.md` §9
+  tiene una sección de sign-off en blanco. El usuario corre
+  el checklist de keyboard-nav + screen-reader + dark-mode
+  (30–45 min) y firma.
+
+Las dos tareas quedan en el `tasks.md` archivado con la
+anotación `pending (user-owned)`. El archive report
+(`archive-report.md`) lo registra para que sesiones futuras
+sepan que el ciclo cerró limpio y que las 2 restantes son
+user-owned.
+
+### Spec sync (delta → canónica)
+
+- **`openspec/specs/ui/spec.md`** — CREADA en `develop` por
+  el slice 6 (T-UI-507, commit `ec2e589`). 11 Requirements
+  (REQ-UI-1 a REQ-UI-11), lift verbatim desde
+  `openspec/changes/transactions-ui/specs/ui/spec.md`. La
+  delta en la carpeta del cambio se mantiene en lockstep;
+  la canónica es la source of truth.
+- **`openspec/specs/transactions/spec.md`** — MODIFICADA en
+  `develop` por el slice 6 (T-UI-508, commit `ec2e589`).
+  REQ-TX-15 está REEMPLAZADA con un puntero delgado a
+  `openspec/specs/ui/spec.md` REQ-UI-1 a REQ-UI-11.
+  REQ-TX-1 a REQ-TX-14 quedan sin cambios desde la canónica
+  previa (última sync 2026-06-22, transactions).
+- **Todos los espejos en español en sync.** Verificado vía
+  `diff` de cada par EN↔ES (delta + canónica) y de los
+  pares `proposal.md` / `tasks.md` / `design.md`. Las únicas
+  diferencias son el campo esperado `Author`↔`Autor` y las
+  traducciones de prosa EN↔ES; la estructura, los
+  requirements y los code blocks son 1:1.
+- **Un gap pre-existente (flageado):** el `apply-progress.md`
+  inglés (2,132 LoC) NO está espejado verbatim en
+  `Documents-es/.../apply-progress.md`. El archivo EN
+  contiene secciones ES in-line para los slices 4–6 (la
+  decisión de los slice workers durante apply), pero no
+  existe un archivo ES separado bajo `Documents-es/`. La
+  fase de archive crea el espejo ES como un archivo
+  puntero delgado que contiene solo la sección de cierre
+  traducida. Un housekeeping futuro puede backfill la
+  traducción ES completa de los slices 1–3.
+
+### Contenido del archive (carpeta destino)
+
+```
+openspec/changes/archive/2026-06-29-transactions-ui/
+├── proposal.md         (Status: draft → archived 2026-06-29)
+├── design.md
+├── tasks.md            (Status preservado: slices 1..6 implemented)
+├── apply-progress.md   (esta sección de cierre agregada)
+├── archive-report.md   (NUEVO — reporte de fase sdd-archive)
+└── specs/
+    ├── ui/spec.md      (espejo verbatim de la delta canónica)
+    └── transactions/spec.md  (delta REQ-TX-15 REPLACED)
+
+Documents-es/openspec/changes/archive/2026-06-29-transactions-ui/
+├── proposal.md         (Estado: draft → archivado 2026-06-29)
+├── design.md
+├── tasks.md
+├── apply-progress.md   (NUEVO — puntero delgado + cierre ES)
+├── archive-report.md   (NUEVO — reporte de fase sdd-archive, ES)
+└── specs/
+    ├── ui/spec.md
+    └── transactions/spec.md
+```
+
+### Source of truth actualizada
+
+Las siguientes specs canónicas ahora reflejan el nuevo
+comportamiento:
+
+- `openspec/specs/ui/spec.md` — REQ-UI-1 a REQ-UI-11
+  (capability nueva; primera escritura).
+- `openspec/specs/transactions/spec.md` — REQ-TX-15
+  REEMPLAZADA con un puntero delgado a `ui/spec.md`.
+
+### Ciclo SDD completo
+
+El cambio `transactions-ui` fue completamente planeado
+(proposal + spec + design + tasks), implementado
+(6 PRs chained + cleanup 4R, todos mergeados en `develop`),
+verificado (slices 1–6 con las 2 tareas user-owned
+explícitamente reconocidas), sincronizado (spec canónica
+promovida), y archivado. La capability `ui` es ahora una
+capability de primera clase del proyecto. El próximo ciclo
+SDD puede arrancar.
+
+### Preguntas abiertas / flags
+
+- **F1 (pre-existente, no introducido por el archive).** El
+  espejo ES del `apply-progress.md` EN es un puntero
+  delgado que cubre solo el cierre de archivo, no una
+  traducción completa. Es un anti-pattern del ecosistema
+  §10.3 en espíritu pero no en letra (el archivo EN ya
+  contiene secciones ES in-file para los slices 4–6). Un
+  housekeeping futuro puede backfill la traducción ES
+  completa de los slices 1–3 si el usuario quiere paridad
+  estricta EN↔ES para `apply-progress.md`.
+- **F2 (acción del usuario, no bloqueante).** T-UI-505 +
+  T-UI-506 quedan `pending (user-owned)`. El `tasks.md`
+  archivado preserva este estado a propósito; el orchestrator
+  no re-abre el cambio. El usuario corre el sweep de
+  Lighthouse + el checklist manual de QA post-merge y firma
+  o abre un follow-up.
+
+### Próximo paso
+
+- El orchestrator abre un PR desde
+  `chore/transactions-ui-archive` a `develop`. Título del PR:
+  `chore(sdd): archive transactions-ui (sdd-archive phase, 6 slices + 4R cleanup all merged)`.
+- Después de que el usuario revise y squash-merge el PR, el
+  cambio `transactions-ui` queda oficialmente cerrado. El
+  próximo cambio SDD puede arrancar (el próximo candidato
+  obvio es `networth-snapshot` per la pista "Downstream" de
+  la propuesta, o `ui-dark-mode` per la nota REQ-TX-15
+  REPLACED).
