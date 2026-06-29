@@ -635,6 +635,45 @@ de este usuario.
   el commit con timeout más largo (5 minutos es seguro). El segundo
   intento suele ser más rápido porque `gga run` cachea el resultado.
 
+### 9.7 Environment quirks (macOS, this user's home directory)
+
+The repo is host-agnostic, but the local development environment has
+a few quirks every agent needs to know about. These are workarounds,
+not bugs in the repo — the agent must apply them when working in
+this user's setup.
+
+- **`/Users/sebailla/pnpm-workspace.yaml` hijacks the workspace root.**
+  This file exists at the user's `$HOME` and pnpm treats it as a
+  workspace root, so a plain `pnpm install --frozen-lockfile` in
+  any worktree silently no-ops (no `node_modules/` is created).
+  Workaround for fresh worktrees:
+
+  ```bash
+  pnpm install --ignore-workspace   # not --frozen-lockfile
+  npx prisma generate               # the install skipped build scripts
+  ```
+
+  Once the worktree has a `node_modules/` populated this way, all
+  subsequent `pnpm test`, `pnpm typecheck`, etc. work normally.
+  The lockfile is regenerated in the process — restore it with
+  `git checkout pnpm-lock.yaml` before committing (the regenerated
+  lockfile drifts because the workspace hijack changes resolution).
+
+- **`.npmrc` in a worktree breaks lint-staged.** If a worktree has
+  a `.npmrc` file (created by some pnpm version on install), the
+  pre-commit hook fails with `error: invalid object 100644 ... for
+  '.npmrc'` because lint-staged tries to stage it. Fix: delete the
+  file before committing (`rm .npmrc`) or add it to `.gitignore`.
+  The repo does NOT need `.npmrc` — pnpm reads `pnpm-workspace.yaml`
+  if any, otherwise its built-in defaults.
+
+- **Pre-commit hook can take 1–2 minutes.** `pnpm exec lint-staged && gga run`
+  in `.husky/pre-commit` runs the full coverage gate. If your shell
+  tool has a 2-minute command timeout, the first commit attempt
+  will be killed before `gga run` completes. Workaround: retry the
+  commit with a longer timeout (5 minutes is safe). The second
+  attempt is usually faster because `gga run` caches its result.
+
 ---
 
 ## 10. Anti-Patterns
