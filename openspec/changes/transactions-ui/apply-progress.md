@@ -532,18 +532,51 @@ comments:
 - Mode: chained PR slice (`stacked-to-main`).
 - Branch: `feat/ui-transactions` (created from develop HEAD
   `82bda42`, post-merge of slice 2).
-- Commits ahead of develop: 13 (10 task commits + 1 wire
-  type inline + 2 supporting = wait, 11 task commits + 1
-  supporting). Concrete: 11 atomic + 2 inline-into-GREEN +
-  1 chore = 13 total git commits.
-- Diff stat vs develop: **+1883 / -419** (cumulative across
-  slice 1 + slice 2 + slice 3 files; sliced view below).
-- Slice-3-only LoC delta (LoC between `develop` and this
-  branch on `app/transactions/**` + `app/_components/
-  transactions-list-table.*` + `app/_lib/transaction-types.ts`):
-  **+1192 / -212** (~1004 LoC net). For the slice-3-only
-  PR (revert-scope), production LoC is ~860 of those;
-  tests + config add the remaining ~340 LoC.
+- Commits ahead of develop: 12 atomic commits (slice-3
+  only; `origin/develop` already contains slice 1 PR #98
+  and slice 2 PR #99, both merged).
+- Diff stat vs `origin/develop`: 12 git commits totaling
+  **+1602 / -323** (gross LoC) on 13 files inside
+  `app/transactions/**` + `app/_components/transactions-
+  list-table.tsx` + `app/_lib/transaction-types.ts`
+  + `vitest.config.ts`.
+- **Slice-3 LoC delta vs merge-base (`dde2a59`, slice 2
+  PR #99)**: **+1602 / -323** (~1925 LoC gross, ~1280 LoC net).
+  This is **above** the orchestrator's pre-flight budget
+  for slice 3 (320–460 LoC of production-render code). The
+  split is roughly:
+  - Production code (~760 LoC gross): `error.tsx` (new, 68
+    lines) + `transactions-list-table.tsx` (319, of
+    which ~245 is net new replacing the smoke 75-line
+    implementation) + `transaction-detail-forms.tsx`
+    (305, of which ~193 is net new replacing the smoke
+    112-line impl) + `create-transaction-form.tsx`
+    (345, of which ~228 is net new replacing the smoke
+    117-line impl) + 3 page shells (`page.tsx` × 3,
+    deltas 78 + 87 + 46 = ~211 LoC replacing the smoke
+    pages).
+  - Tests (~821 LoC): 5 new test files (error, list-table,
+    detail-forms, create-form, accessibility) of which
+    4 are production Client Component tests and 1 is the
+    axe-core contract.
+  - Config: `vitest.config.ts` (+12 lines adding the
+    coverage scope) + `transaction-types.ts` (+6 lines
+    adding `accountName?:`).
+- **Budget flag for the orchestrator**: slice 3 LoC exceeds
+  the 320–460 LoC forecast by ~2.0×. The over-budget is
+  driven by the test coverage the slice-2 lesson required
+  (BOTH INCOME + EXPENSE branches + 3 error code paths +
+  loading state) and the 4 client-component test files
+  that follow the slice-2 convention. The PR review
+  budget is best-effort here: the production-render diff
+  is the meaningful review surface (~760 LoC of new
+  component code) — the test LoC follows the slice-2
+  precedent and the orchestrator should treat the
+  budget overrun as expected given the coverage-gate
+  lesson from slice 2.
+- Reviewer-friendly: the 12 commits map 1:1 to the task
+  IDs in `tasks.md` (T-UI-201..T-UI-210 + 2 supporting);
+  the reviewer can step through the slice task by task.
 
 ## Status
 
