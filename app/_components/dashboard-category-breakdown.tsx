@@ -1,35 +1,42 @@
-// smoke-minimal, not production
 /**
- * CategoryBreakdownCard — pure render Server Component.
+ * CategoryBreakdownCard — pure render Server Component
+ * (slice 4 T-UI-307, originally T-RPT-304).
  *
- * Renders the category breakdown table for the dashboard.
- * Per design §9.3: the columns are Categoría, Monto, Tx. The
- * rows render in input order — the domain factory already
- * sorts by `amountMinor DESC` primary and
- * `categoryNormalized ASC` secondary (BR-RPT-2, §3.3.1), so
- * the component trusts the wire shape and does NOT re-sort.
+ * Per design §7.3 + §9.3 + REQ-UI-3:
+ * - Card compound (Card + CardHeader + CardBody) consuming
+ *   the design-system primitives.
+ * - CardHeader: title "Por categoría" + Badge carrying the
+ *   UTC month label.
+ * - CardBody populated: Table primitive with bucket rows
+ *   (Categoría / Monto / Tx). The domain factory already
+ *   sorts by `amountMinor DESC` primary + `categoryNormalized
+ *   ASC` secondary (BR-RPT-2); the component renders rows in
+ *   input order (trusts the wire shape).
+ * - CardBody empty: EmptyState primitive.
  *
- * Empty state (`buckets.length === 0`): renders the "Sin
- * datos" message + the month label + the UTC marker. The
- * zero-accounts / zero-transactions case (design §12.7) is
- * rendered uniformly with the empty-buckets case.
+ * Surface the NORMALIZED category label; the raw `category`
+ * field is preserved on the DTO for debugging but the
+ * production UI displays the normalized form (BR-RPT-2).
  *
- * The `(UTC)` label + the `YYYY-MM` month string explain the
- * bucketing decision: every bucket groups transactions by
- * `(categoryNormalized, convertedCurrency)` within a calendar
- * month anchored at UTC midnight (BR-RPT-3, design §3.6). The
- * smoke UI surfaces the marker so the user can reason about
- * which month the breakdown is for without timezone
- * ambiguity — the same UTC day boundary is used by the
- * month value object and the Prisma adapter (see
- * dashboard-monthly-summary.tsx for the cross-card note).
+ * The (UTC) marker explains the bucketing decision
+ * (BR-RPT-3, design §3.6): every bucket groups transactions
+ * by `(categoryNormalized, convertedCurrency)` within a
+ * calendar month anchored at UTC midnight.
  *
- * No `'use client'` directive. The component is a pure render
- * Server Component that takes the pre-fetched DTO as a prop;
- * the dashboard page owns the data fetch (API-first pattern,
- * architecture-standards rule).
+ * No `'use client'` directive. Pure render Server Component.
  */
 
+import { Card, CardHeader, CardBody } from '../_ui/primitives/card';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableCell,
+  type TableColumn,
+} from '../_ui/primitives/table';
+import { Badge } from '../_ui/primitives/badge';
+import { EmptyState } from '../_ui/primitives/empty-state';
 import type { CategoryBreakdownDTO } from '../_lib/report-types';
 import { formatMinor } from '../_lib/format-minor';
 
@@ -38,51 +45,45 @@ interface Props {
   month: string; // YYYY-MM (UTC month, per BR-RPT-3)
 }
 
-export function CategoryBreakdownCard({ breakdown, month }: Props) {
+const BUCKETS_COLUMNS: ReadonlyArray<TableColumn> = [
+  { key: 'category', label: 'Categoría' },
+  { key: 'amount', label: 'Monto' },
+  { key: 'count', label: 'Tx' },
+];
+
+export function CategoryBreakdownCard({ breakdown, month }: Props): React.JSX.Element {
   const isEmpty = breakdown.buckets.length === 0;
-
   return (
-    <section
-      className="border border-gray-300 rounded p-4"
-      aria-labelledby="category-breakdown-heading"
-    >
-      <header className="mb-2">
-        <h2 id="category-breakdown-heading" className="text-lg font-semibold">
-          Por categoría
-        </h2>
-        <p className="text-xs text-gray-600">{month} (UTC)</p>
-      </header>
-
+    <Card aria-label={`Desglose por categoría ${month}`}>
+      <CardHeader
+        title="Por categoría"
+        badge={<Badge variant="neutral">{month} (UTC)</Badge>}
+      />
       {isEmpty ? (
-        <p className="text-sm text-gray-700">Sin datos</p>
+        <CardBody>
+          <EmptyState
+            title="Sin datos"
+            description="No hay transacciones categorizadas para este mes."
+          />
+        </CardBody>
       ) : (
-        <table className="w-full border-collapse border border-gray-300">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="border border-gray-300 px-3 py-2 text-left">Categoría</th>
-              <th className="border border-gray-300 px-3 py-2 text-right">Monto</th>
-              <th className="border border-gray-300 px-3 py-2 text-right">Tx</th>
-            </tr>
-          </thead>
-          <tbody>
-            {breakdown.buckets.map((b) => (
-              <tr key={`${b.categoryNormalized}-${b.convertedCurrency}`}>
-                <td className="border border-gray-300 px-3 py-2">
-                  {/* Surface the normalized category label;
-                      the raw `category` field is preserved on
-                      the DTO for debugging but the smoke UI
-                      displays the normalized form (BR-RPT-2). */}
-                  {b.categoryNormalized}
-                </td>
-                <td className="border border-gray-300 px-3 py-2 text-right font-mono">
-                  {formatMinor(b.amountMinor, b.convertedCurrency)}
-                </td>
-                <td className="border border-gray-300 px-3 py-2 text-right">{b.txCount}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <CardBody>
+          <Table caption="Desglose por categoría — totales por bucket (moneda convertida)">
+            <TableHeader columns={BUCKETS_COLUMNS} />
+            <TableBody>
+              {breakdown.buckets.map((b) => (
+                <TableRow key={`${b.categoryNormalized}-${b.convertedCurrency}`}>
+                  <TableCell>{b.categoryNormalized}</TableCell>
+                  <TableCell className="text-right font-mono">
+                    {formatMinor(b.amountMinor, b.convertedCurrency)}
+                  </TableCell>
+                  <TableCell className="text-right">{b.txCount}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardBody>
       )}
-    </section>
+    </Card>
   );
 }
