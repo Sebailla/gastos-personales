@@ -23,7 +23,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within, fireEvent } from '@testing-library/react';
+import { render, screen, within, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 vi.mock('next/navigation', () => ({
@@ -188,5 +188,58 @@ describe('TransactionDetailForms — delete confirmation uses Dialog (no window.
     // Suppress unused-import warning for `UPDATE_PATH`: kept as a
     // documentation comment for the Server Action module URL.
     void UPDATE_PATH;
+  });
+
+  it('a rejected delete shows the in-dialog error AND keeps the Dialog open (FIX 4b)', async () => {
+    const user = userEvent.setup();
+    const { deleteTransactionServerAction } = await import(
+      '../../_actions/transactions-server-actions'
+    );
+    // Mock the delete action to reject — simulates a 5xx from
+    // the Server Action. Pre-FIX-4b, the `try/finally` closed
+    // the Dialog regardless of outcome; post-FIX-4b, the error
+    // surfaces inside the Dialog with role="alert" and the
+    // Dialog stays open so the user can retry.
+    (deleteTransactionServerAction as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('Delete failed (500)'),
+    );
+    render(<TransactionDetailForms id="tx-1" tx={makeTx()} />);
+    const deleteBtn = screen.getByRole('button', { name: /^delete$/i });
+    await user.click(deleteBtn);
+    const dialog = screen.getByRole('dialog');
+    const confirm = within(dialog).getByRole('button', { name: /confirm/i });
+    await user.click(confirm);
+    // The action was invoked exactly once.
+    expect(deleteTransactionServerAction).toHaveBeenCalledTimes(1);
+    expect(deleteTransactionServerAction).toHaveBeenCalledWith('tx-1');
+    // The in-dialog alert surfaces the error.
+    const alert = within(dialog).getByRole('alert');
+    expect(alert).toHaveTextContent(/Delete failed \(500\)/);
+    // The Dialog is STILL OPEN — pre-FIX-4b, the `finally`
+    // block closed it. Post-FIX-4b, the dialog stays mounted
+    // so the user can retry without re-opening it.
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    // The Confirm button is no longer in its loading state
+    // (the failure path resolved, no retry in flight).
+    expect(confirm).not.toBeDisabled();
+  });
+
+  it('a successful delete closes the Dialog AND does not surface an error (FIX 4b)', async () => {
+    const user = userEvent.setup();
+    const { deleteTransactionServerAction } = await import(
+      '../../_actions/transactions-server-actions'
+    );
+    // Default mock resolves with `undefined` (success).
+    render(<TransactionDetailForms id="tx-1" tx={makeTx()} />);
+    const deleteBtn = screen.getByRole('button', { name: /^delete$/i });
+    await user.click(deleteBtn);
+    const dialog = screen.getByRole('dialog');
+    const confirm = within(dialog).getByRole('button', { name: /confirm/i });
+    await user.click(confirm);
+    // The dialog closes on success.
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(deleteTransactionServerAction).toHaveBeenCalledTimes(1);
   });
 });

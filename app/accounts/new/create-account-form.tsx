@@ -28,35 +28,46 @@ import { Button } from '../../_ui/primitives/button';
 import { Input } from '../../_ui/primitives/input';
 import { Select } from '../../_ui/primitives/select';
 import { FormField } from '../../_ui/primitives/form-field';
-import { FieldError } from '../../_ui/primitives/field-error';
 import { mapApiErrorToFieldError, type FieldErrorMap } from '../../_ui/_shared/map-api-error';
+import {
+  TYPES,
+  CURRENCIES,
+  ACCOUNT_KINDS,
+  INVESTMENT_TYPES,
+  CASAS,
+  type AccountType,
+  type AccountCurrency,
+  type OpeningBalanceMode,
+  type Casa,
+  type AccountKind,
+  type InvestmentType,
+  parseAccountType,
+  parseAccountCurrency,
+  parseAccountKind,
+  parseInvestmentType,
+  parseCasaOrNull,
+  parseOpeningBalanceMode,
+} from './type-guards';
 
-const TYPES = ['BANK', 'CREDIT', 'INVESTMENT', 'CRYPTO', 'CASH', 'OTHER'] as const;
-const CURRENCIES = ['ARS', 'USD', 'EUR'] as const;
-const ACCOUNT_KINDS = ['SAVINGS', 'CHECKING'] as const;
-const INVESTMENT_TYPES = [
-  'STOCKS',
-  'BONDS',
-  'MUTUAL_FUNDS',
-  'CERTS_OF_DEPOSIT',
-  'OTHER',
-] as const;
-const CASAS = ['OFICIAL', 'BLUE', 'MEP', 'CCL', 'CRIPTO', 'TARJETA'] as const;
-
-type AccountType = (typeof TYPES)[number];
-type AccountCurrency = (typeof CURRENCIES)[number];
-type OpeningBalanceMode = 'FRESH' | 'HISTORICAL';
-type Casa = (typeof CASAS)[number];
-
-const EMPTY_TYPE_FIELDS = {
+const EMPTY_TYPE_FIELDS: {
+  bankName: string;
+  accountKind: AccountKind;
+  issuer: string;
+  creditLimitMinor: string;
+  statementDay: string;
+  paymentDueDay: string;
+  broker: string;
+  investmentType: InvestmentType;
+  walletAddress: string;
+} = {
   bankName: '',
-  accountKind: 'SAVINGS' as (typeof ACCOUNT_KINDS)[number],
+  accountKind: 'SAVINGS',
   issuer: '',
   creditLimitMinor: '',
   statementDay: '',
   paymentDueDay: '',
   broker: '',
-  investmentType: 'STOCKS' as (typeof INVESTMENT_TYPES)[number],
+  investmentType: 'STOCKS',
   walletAddress: '',
 };
 
@@ -90,8 +101,7 @@ export function CreateAccountForm(): React.JSX.Element {
   const [name, setName] = useState<string>('');
   const [currency, setCurrency] = useState<AccountCurrency>('USD');
   const [openingBalanceMinor, setOpeningBalanceMinor] = useState<string>('0');
-  const [openingBalanceMode, setOpeningBalanceMode] =
-    useState<OpeningBalanceMode>('FRESH');
+  const [openingBalanceMode, setOpeningBalanceMode] = useState<OpeningBalanceMode>('FRESH');
   const [openingBalanceDate, setOpeningBalanceDate] = useState<string>('');
   const [typeFields, setTypeFields] = useState(EMPTY_TYPE_FIELDS);
   // `null` means "inherit the global default" and maps to
@@ -112,9 +122,17 @@ export function CreateAccountForm(): React.JSX.Element {
     setFieldErrors((prev) => {
       const next: FieldErrorMap = {};
       for (const [k, v] of Object.entries(prev)) {
-        if (!k.startsWith('bank') && !k.startsWith('account') && !k.startsWith('issuer') &&
-            !k.startsWith('credit') && !k.startsWith('statement') && !k.startsWith('payment') &&
-            !k.startsWith('broker') && !k.startsWith('investment') && !k.startsWith('wallet')) {
+        if (
+          !k.startsWith('bank') &&
+          !k.startsWith('account') &&
+          !k.startsWith('issuer') &&
+          !k.startsWith('credit') &&
+          !k.startsWith('statement') &&
+          !k.startsWith('payment') &&
+          !k.startsWith('broker') &&
+          !k.startsWith('investment') &&
+          !k.startsWith('wallet')
+        ) {
           next[k] = v;
         }
       }
@@ -147,8 +165,7 @@ export function CreateAccountForm(): React.JSX.Element {
       currency,
       openingBalanceMinor: Number(openingBalanceMinor),
       openingBalanceMode,
-      openingBalanceDate:
-        openingBalanceMode === 'HISTORICAL' ? openingBalanceDate : null,
+      openingBalanceDate: openingBalanceMode === 'HISTORICAL' ? openingBalanceDate : null,
     };
     if (casa !== null) {
       body['casa'] = casa;
@@ -184,8 +201,8 @@ export function CreateAccountForm(): React.JSX.Element {
         body: JSON.stringify(body),
       });
       if (res.status === 201) {
-        const payload = (await res.json().catch(() => null)) as { data?: { id?: string } } | null;
-        const newId = payload?.data?.id;
+        const payload = (await res.json().catch(() => null)) as { data?: { id?: unknown } } | null;
+        const newId = typeof payload?.data?.id === 'string' ? payload.data.id : null;
         if (newId) {
           router.push(`/accounts/${newId}`);
         } else {
@@ -194,22 +211,25 @@ export function CreateAccountForm(): React.JSX.Element {
         return;
       }
       // 4xx: map the error envelope to field errors.
-      const errBody = (await res.json().catch(() => null)) as
-        | { error?: { code: string; message: string } }
-        | null;
-      if (errBody?.error) {
-        const envelope = { error: errBody.error };
-        if (errBody.error.code === 'VALIDATION_ERROR') {
+      const errBody = (await res.json().catch(() => null)) as {
+        error?: { code: unknown; message: unknown };
+      } | null;
+      const errCode =
+        errBody?.error && typeof errBody.error.code === 'string' ? errBody.error.code : null;
+      const errMessage =
+        errBody?.error && typeof errBody.error.message === 'string' ? errBody.error.message : null;
+      if (errBody?.error && errCode && errMessage) {
+        if (errCode === 'VALIDATION_ERROR') {
           // Surface a banner; the per-field mapping happens
           // server-side in a follow-up.
-          setErrorBanner(errBody.error.message);
+          setErrorBanner(errMessage);
         } else {
           const mapped = mapApiErrorToFieldError(
-            envelope as Parameters<typeof mapApiErrorToFieldError>[0],
+            { error: { code: errCode, message: errMessage } },
             FORM_FIELDS,
           );
           setFieldErrors(mapped);
-          setErrorBanner(errBody.error.message);
+          setErrorBanner(errMessage);
         }
       } else {
         setErrorBanner(`create failed (${res.status})`);
@@ -228,7 +248,7 @@ export function CreateAccountForm(): React.JSX.Element {
           id="type"
           options={TYPES.map((t) => ({ value: t, label: t }))}
           value={type}
-          onChange={(e) => onTypeChange(e.target.value as AccountType)}
+          onChange={(e) => onTypeChange(parseAccountType(e.target.value, type))}
         />
       </FormField>
 
@@ -249,7 +269,7 @@ export function CreateAccountForm(): React.JSX.Element {
           id="currency"
           options={CURRENCIES.map((c) => ({ value: c, label: c }))}
           value={currency}
-          onChange={(e) => setCurrency(e.target.value as AccountCurrency)}
+          onChange={(e) => setCurrency(parseAccountCurrency(e.target.value, currency))}
           aria-invalid={lookupError('currency') ? 'true' : undefined}
         />
       </FormField>
@@ -267,9 +287,7 @@ export function CreateAccountForm(): React.JSX.Element {
             ...CASAS.map((c) => ({ value: c, label: c })),
           ]}
           value={casa ?? ''}
-          onChange={(e) =>
-            setCasa(e.target.value === '' ? null : (e.target.value as Casa))
-          }
+          onChange={(e) => setCasa(parseCasaOrNull(e.target.value))}
         />
       </FormField>
 
@@ -280,9 +298,7 @@ export function CreateAccountForm(): React.JSX.Element {
               id="bankName"
               type="text"
               value={typeFields.bankName}
-              onChange={(e) =>
-                setTypeFields((s) => ({ ...s, bankName: e.target.value }))
-              }
+              onChange={(e) => setTypeFields((s) => ({ ...s, bankName: e.target.value }))}
               required
               aria-invalid={lookupError('bankName') ? 'true' : undefined}
             />
@@ -295,7 +311,7 @@ export function CreateAccountForm(): React.JSX.Element {
               onChange={(e) =>
                 setTypeFields((s) => ({
                   ...s,
-                  accountKind: e.target.value as (typeof ACCOUNT_KINDS)[number],
+                  accountKind: parseAccountKind(e.target.value, s.accountKind),
                 }))
               }
             />
@@ -310,9 +326,7 @@ export function CreateAccountForm(): React.JSX.Element {
               id="issuer"
               type="text"
               value={typeFields.issuer}
-              onChange={(e) =>
-                setTypeFields((s) => ({ ...s, issuer: e.target.value }))
-              }
+              onChange={(e) => setTypeFields((s) => ({ ...s, issuer: e.target.value }))}
               required
               aria-invalid={lookupError('issuer') ? 'true' : undefined}
             />
@@ -371,9 +385,7 @@ export function CreateAccountForm(): React.JSX.Element {
               id="broker"
               type="text"
               value={typeFields.broker}
-              onChange={(e) =>
-                setTypeFields((s) => ({ ...s, broker: e.target.value }))
-              }
+              onChange={(e) => setTypeFields((s) => ({ ...s, broker: e.target.value }))}
               required
             />
           </FormField>
@@ -385,7 +397,7 @@ export function CreateAccountForm(): React.JSX.Element {
               onChange={(e) =>
                 setTypeFields((s) => ({
                   ...s,
-                  investmentType: e.target.value as (typeof INVESTMENT_TYPES)[number],
+                  investmentType: parseInvestmentType(e.target.value, s.investmentType),
                 }))
               }
             />
@@ -424,7 +436,7 @@ export function CreateAccountForm(): React.JSX.Element {
             ]}
             value={openingBalanceMode}
             onChange={(e) => {
-              const v = e.target.value as OpeningBalanceMode;
+              const v = parseOpeningBalanceMode(e.target.value, openingBalanceMode);
               setOpeningBalanceMode(v);
               if (v === 'FRESH') setOpeningBalanceDate('');
             }}
@@ -464,7 +476,10 @@ export function CreateAccountForm(): React.JSX.Element {
       </fieldset>
 
       {errorBanner ? (
-        <div role="alert" className="rounded-ui-md border border-ui-danger bg-ui-danger/10 px-ui-space-3 py-ui-space-2 text-ui-text-sm text-ui-danger">
+        <div
+          role="alert"
+          className="rounded-ui-md border border-ui-danger bg-ui-danger/10 px-ui-space-3 py-ui-space-2 text-ui-text-sm text-ui-danger"
+        >
           {errorBanner}
         </div>
       ) : null}
@@ -477,8 +492,3 @@ export function CreateAccountForm(): React.JSX.Element {
     </form>
   );
 }
-
-// Suppress unused-import lint for FieldError (consumed via FormField
-// inside the form; explicit re-export keeps the a11y contract
-// discoverable from this module's surface).
-export { FieldError };

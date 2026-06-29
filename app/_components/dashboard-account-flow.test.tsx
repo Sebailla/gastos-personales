@@ -1,10 +1,17 @@
 /**
  * Tests for `AccountFlowCard` — dashboard-ui slice 4
- * (T-UI-308, originally T-RPT-305).
+ * (T-UI-308, originally T-RPT-305) + FIX 2.
  *
- * Per design §7.3 + §9.2 + §9.3: the card now consumes the
- * DashboardAccountPicker (slice 4 T-UI-303). Three branches
- * are covered by three cases:
+ * After FIX 2 the card became self-fetching (async Server
+ * Component). The card fetches `/api/accounts` (for the
+ * picker) and conditionally `/api/reports/accounts/:id/flow`
+ * (only when `currentAccountId !== null`). The test seam
+ * follows the page-level precedent: mock `@/lib/server-hono`
+ * so the in-process Hono call returns our pre-seeded DTOs
+ * without booting Prisma, then `await` the card before
+ * passing the resolved element to `renderToStaticMarkup`.
+ *
+ * Three branches:
  *
  *   1. No `currentAccountId` + at least one account in the
  *      picker → the CardHeader renders the picker (no
@@ -23,28 +30,80 @@
  *
  * Per design §9.3: the picker + switcher state lives in the
  * URL query string; the Server Component page passes
- * `accounts` + `currentAccountId` + `flow` down to this
- * card. The card is a pure render Server Component.
- *
- * No logic in tests (root AGENTS.md §10.5): fixtures are
- * hand-written, the assertions are direct `toContain`
- * checks.
+ * `currentAccountId` + `month` down to this card. The card
+ * owns both fetches. No logic in tests (root AGENTS.md §10.5).
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { AccountFlowCard } from './dashboard-account-flow';
 import type { AccountFlowDTO, AccountFlowDayDTO } from '../_lib/report-types';
 
-const ACCOUNTS = [
-  { id: 'a1', name: 'Main ARS' },
-  { id: 'a2', name: 'Main USD' },
-] as const;
+const mockServerHonoRequest = vi.fn(async (_path: string, _init: RequestInit = {}) => {
+  return new Response('{}', { status: 200 });
+});
+
+vi.mock('@/lib/server-hono', () => ({
+  serverHonoRequest: (path: string, init: RequestInit = {}) => mockServerHonoRequest(path, init),
+}));
+
+// Import AFTER the mocks are registered.
+import { AccountFlowCard } from './dashboard-account-flow';
+
+const ACCOUNTS_RESPONSE = {
+  data: [
+    {
+      id: 'a1',
+      userId: 'u1',
+      type: 'BANK',
+      name: 'Main ARS',
+      currency: 'ARS',
+      openingBalanceMinor: 0,
+      openingBalanceMode: 'CURRENT',
+      openingBalanceDate: null,
+      archivedAt: null,
+      bankName: 'Banco Galicia',
+      accountKind: null,
+      issuer: null,
+      creditLimitMinor: null,
+      statementDay: null,
+      paymentDueDay: null,
+      broker: null,
+      investmentType: null,
+      walletAddress: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    },
+    {
+      id: 'a2',
+      userId: 'u1',
+      type: 'BANK',
+      name: 'Main USD',
+      currency: 'USD',
+      openingBalanceMinor: 0,
+      openingBalanceMode: 'CURRENT',
+      openingBalanceDate: null,
+      archivedAt: null,
+      bankName: 'Banco Galicia',
+      accountKind: null,
+      issuer: null,
+      creditLimitMinor: null,
+      statementDay: null,
+      paymentDueDay: null,
+      broker: null,
+      investmentType: null,
+      walletAddress: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    },
+  ],
+  nextCursor: null,
+  total: 2,
+};
 
 const POPULATED_FLOW: AccountFlowDTO = {
   fromDate: '2026-06-01',
   toDate: '2026-06-30',
-  days: ([
+  days: [
     {
       date: '2026-06-01',
       netMinor: 12000,
@@ -59,7 +118,7 @@ const POPULATED_FLOW: AccountFlowDTO = {
       count: 1,
       convertedCurrency: 'ARS',
     },
-  ] as AccountFlowDayDTO[]),
+  ] as AccountFlowDayDTO[],
   generatedAt: '2026-06-30T23:59:59.000Z',
 };
 
@@ -71,14 +130,15 @@ const EMPTY_FLOW: AccountFlowDTO = {
 };
 
 describe('AccountFlowCard (slice 4 T-UI-308)', () => {
-  it('renders an EmptyState in the body when no account is selected', () => {
+  it('renders an EmptyState in the body when no account is selected', async () => {
+    mockServerHonoRequest.mockResolvedValueOnce(
+      new Response(JSON.stringify(ACCOUNTS_RESPONSE), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
     const html = renderToStaticMarkup(
-      <AccountFlowCard
-        accounts={ACCOUNTS}
-        currentAccountId={null}
-        flow={null}
-        month="2026-06"
-      />,
+      await AccountFlowCard({ currentAccountId: null, month: '2026-06' }),
     );
     // Card compound + CardHeader title.
     expect(html).toContain('<article');
@@ -96,14 +156,21 @@ describe('AccountFlowCard (slice 4 T-UI-308)', () => {
     expect(html).toContain('role="status"');
   });
 
-  it('renders a populated Table + picker with aria-current when an account is selected', () => {
+  it('renders a populated Table + picker with aria-current when an account is selected', async () => {
+    mockServerHonoRequest.mockResolvedValueOnce(
+      new Response(JSON.stringify(ACCOUNTS_RESPONSE), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    mockServerHonoRequest.mockResolvedValueOnce(
+      new Response(JSON.stringify(POPULATED_FLOW), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
     const html = renderToStaticMarkup(
-      <AccountFlowCard
-        accounts={ACCOUNTS}
-        currentAccountId="a2"
-        flow={POPULATED_FLOW}
-        month="2026-06"
-      />,
+      await AccountFlowCard({ currentAccountId: 'a2', month: '2026-06' }),
     );
     // Card compound.
     expect(html).toContain('<article');
@@ -112,11 +179,6 @@ describe('AccountFlowCard (slice 4 T-UI-308)', () => {
     expect(html).toContain('aria-label="Account picker"');
     // The selected account (a2) carries aria-current="page".
     expect(html).toContain('aria-current="page"');
-    // The non-selected account does NOT carry aria-current.
-    // (We assert the picker renders both links; the negative
-    // assertion on aria-current is more brittle than a string
-    // check on the whole aria-current attribute set, so we
-    // do the positive check here.)
     // Table primitive renders days.
     expect(html).toContain('<table');
     expect(html).toContain('<caption');
@@ -128,14 +190,21 @@ describe('AccountFlowCard (slice 4 T-UI-308)', () => {
     expect(html).not.toContain('role="status"');
   });
 
-  it('renders an EmptyState in the body when the selected account has no flow', () => {
+  it('renders an EmptyState in the body when the selected account has no flow', async () => {
+    mockServerHonoRequest.mockResolvedValueOnce(
+      new Response(JSON.stringify(ACCOUNTS_RESPONSE), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    mockServerHonoRequest.mockResolvedValueOnce(
+      new Response(JSON.stringify(EMPTY_FLOW), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
     const html = renderToStaticMarkup(
-      <AccountFlowCard
-        accounts={ACCOUNTS}
-        currentAccountId="a1"
-        flow={EMPTY_FLOW}
-        month="2026-06"
-      />,
+      await AccountFlowCard({ currentAccountId: 'a1', month: '2026-06' }),
     );
     // CardHeader + picker still render.
     expect(html).toContain('aria-label="Account picker"');
@@ -144,5 +213,48 @@ describe('AccountFlowCard (slice 4 T-UI-308)', () => {
     expect(html).toContain('role="status"');
     expect(html).toContain('Sin datos');
   });
-});
 
+  it('silently swallows a 404 from /flow (per design §9.3) and renders the unavailability empty state', async () => {
+    mockServerHonoRequest.mockResolvedValueOnce(
+      new Response(JSON.stringify(ACCOUNTS_RESPONSE), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    mockServerHonoRequest.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { code: 'NOT_FOUND', message: 'gone' } }), {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    const html = renderToStaticMarkup(
+      await AccountFlowCard({ currentAccountId: 'archived-1', month: '2026-06' }),
+    );
+    expect(html).toContain('aria-label="Account picker"');
+    expect(html).toContain('role="status"');
+    expect(html).toContain('ya no está disponible');
+  });
+
+  it('renders an in-card error surface when /flow returns a non-404 5xx (FIX 2 — per-card fetch failure isolation)', async () => {
+    mockServerHonoRequest.mockResolvedValueOnce(
+      new Response(JSON.stringify(ACCOUNTS_RESPONSE), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    mockServerHonoRequest.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { code: 'INTERNAL', message: 'flow boom' } }), {
+        status: 500,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    const html = renderToStaticMarkup(
+      await AccountFlowCard({ currentAccountId: 'a1', month: '2026-06' }),
+    );
+    expect(html).toContain('Flujo por cuenta');
+    expect(html).toContain('flow boom');
+    expect(html).toContain('role="alert"');
+    expect(html).not.toContain('2026-06-01');
+    expect(html).not.toContain('aria-current="page"');
+  });
+});

@@ -34,12 +34,7 @@
  */
 
 import { useState } from 'react';
-import {
-  Card,
-  CardHeader,
-  CardBody,
-  CardFooter,
-} from '../../_ui/primitives/card';
+import { Card, CardHeader, CardBody, CardFooter } from '../../_ui/primitives/card';
 import { Badge } from '../../_ui/primitives/badge';
 import { Button } from '../../_ui/primitives/button';
 import { Input } from '../../_ui/primitives/input';
@@ -69,13 +64,25 @@ export function TransactionDetailForms({ id, tx }: Props): React.JSX.Element {
   const [editing, setEditing] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState<boolean>(false);
+  // FIX 4b — in-dialog delete error surface. The pre-FIX-4b
+  // `try/finally` closed the Dialog even if the action threw;
+  // the error bubbled to the page-level `error.tsx` (off-screen,
+  // no in-dialog feedback). Now: only close on success; on
+  // failure, surface the error inside the Dialog with
+  // `role="alert"` + `aria-live="polite"` so a screen-reader
+  // announces the failure while focus stays in the dialog.
+  // Pattern precedent: `app/transactions/new/create-transaction-
+  // form.tsx:278-285`.
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   return (
     <>
       <Card aria-label={`Transaction ${tx.id.slice(0, 8)}`}>
         <CardHeader
           title="Transaction detail"
-          badge={<Badge variant={tx.direction === 'INCOME' ? 'success' : 'danger'}>{tx.direction}</Badge>}
+          badge={
+            <Badge variant={tx.direction === 'INCOME' ? 'success' : 'danger'}>{tx.direction}</Badge>
+          }
         />
 
         {/* Identification — date + direction + wire id. */}
@@ -130,7 +137,9 @@ export function TransactionDetailForms({ id, tx }: Props): React.JSX.Element {
                 {formatDateTime(tx.fxAsOfSnapshot)}
               </dd>
               <dt className="font-ui-font-semibold text-ui-fg">Casa</dt>
-              <dd className="font-mono text-ui-text-xs text-ui-fg-muted">{tx.casaSnapshot ?? '—'}</dd>
+              <dd className="font-mono text-ui-text-xs text-ui-fg-muted">
+                {tx.casaSnapshot ?? '—'}
+              </dd>
             </dl>
           </section>
         </CardBody>
@@ -152,19 +161,11 @@ export function TransactionDetailForms({ id, tx }: Props): React.JSX.Element {
 
         <CardFooter>
           {editing ? null : (
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setEditing(true)}
-            >
+            <Button type="button" variant="secondary" onClick={() => setEditing(true)}>
               Edit
             </Button>
           )}
-          <Button
-            type="button"
-            variant="danger"
-            onClick={() => setConfirmDeleteOpen(true)}
-          >
+          <Button type="button" variant="danger" onClick={() => setConfirmDeleteOpen(true)}>
             Delete
           </Button>
         </CardFooter>
@@ -182,34 +183,59 @@ export function TransactionDetailForms({ id, tx }: Props): React.JSX.Element {
 
       <Dialog
         open={confirmDeleteOpen}
-        onClose={() => setConfirmDeleteOpen(false)}
+        onClose={() => {
+          setConfirmDeleteOpen(false);
+          setDeleteError(null);
+        }}
         title="Delete transaction?"
         description="This permanently removes the transaction and its FX snapshot. The action cannot be undone."
       >
-        <div className="flex justify-end gap-ui-space-2 pt-ui-space-2">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => setConfirmDeleteOpen(false)}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            variant="danger"
-            isLoading={submitting}
-            onClick={async () => {
-              setSubmitting(true);
-              try {
-                await deleteTransactionServerAction(id);
-              } finally {
-                setSubmitting(false);
+        <div className="flex flex-col gap-ui-space-3 pt-ui-space-2">
+          {deleteError ? (
+            <div
+              role="alert"
+              aria-live="polite"
+              className="rounded-ui-md border border-ui-danger bg-ui-danger/10 px-ui-space-3 py-ui-space-2 text-ui-text-sm text-ui-danger"
+            >
+              {deleteError}
+            </div>
+          ) : null}
+          <div className="flex justify-end gap-ui-space-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
                 setConfirmDeleteOpen(false);
-              }
-            }}
-          >
-            Confirm
-          </Button>
+                setDeleteError(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              isLoading={submitting}
+              onClick={async () => {
+                setSubmitting(true);
+                setDeleteError(null);
+                try {
+                  await deleteTransactionServerAction(id);
+                  // Success — close the dialog. Any failure
+                  // path keeps the dialog open with the error
+                  // surfaced in-line.
+                  setConfirmDeleteOpen(false);
+                } catch (err) {
+                  const message =
+                    err instanceof Error ? err.message : 'No pudimos borrar la transacción.';
+                  setDeleteError(message);
+                } finally {
+                  setSubmitting(false);
+                }
+              }}
+            >
+              Confirm
+            </Button>
+          </div>
         </div>
       </Dialog>
     </>

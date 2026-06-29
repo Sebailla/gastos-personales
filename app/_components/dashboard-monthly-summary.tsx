@@ -1,38 +1,28 @@
 /**
- * MonthlySummaryCard — pure render Server Component (slice 4
- * T-UI-306, originally T-RPT-303).
+ * MonthlySummaryCard — async Server Component (FIX 2 — 4R review).
  *
- * Per design §7.3 + §9.3 + REQ-UI-3:
- * - Card compound (Card + CardHeader + CardBody + CardFooter)
- *   consuming the design-system primitives.
- * - CardHeader: title "Resumen mensual" + a Badge carrying
- *   the UTC month label (so the (UTC) marker stays visible to
- *   the user without re-rendering it in the body).
- * - CardBody: populated branch renders a Table primitive with
- *   the totals rows (Currency / Ingresos / Gastos / Neto / #).
- *   Empty branch renders an EmptyState primitive (per REQ-UI-3,
- *   with a CTA linking to `/transactions/new`).
- * - CardFooter: on the empty branch, the CTA sits in the
- *   footer so the visual hierarchy matches the other two
- *   cards. On the populated branch, the footer is omitted
- *   (no action needed).
+ * Refactored in `fix/ui-4r-cleanup` to be self-fetching so the
+ * dashboard page can wrap it in its own `<Suspense>` boundary.
+ * Per design §16.5 + §17: each card owns its fetch; a thrown
+ * fetch error stays within the card's boundary and the sibling
+ * cards continue to render.
  *
- * The currency column carries `convertedCurrency`
- * (BR-RPT-1 / BR-ACC-12) — never the raw transaction
- * currency. The (UTC) marker explains the bucketing
- * decision (BR-RPT-3, design §3.6): every totals row groups
- * transactions by `convertedCurrency` within a calendar
- * month anchored at UTC midnight. The same UTC day boundary
- * is used by the Month value object
- * (`src/modules/reports/domain/value-objects/month.ts`) and
- * the Prisma adapter.
+ * The card fetches `/api/reports/monthly?month=<month>` via the
+ * Server-Component-safe `serverHonoRequest` helper. The response
+ * is parsed through Zod to surface drift as a parse error rather
+ * than a silent type mismatch on the consumer (architecture-
+ * standards rule). Non-200 responses throw so the per-card
+ * `<Suspense>` fallback renders; the other two cards stay alive.
  *
- * No `'use client'` directive. The component is a pure
- * render Server Component that takes the pre-fetched DTO as
- * a prop; the dashboard page owns the data fetch
- * (API-first pattern, architecture-standards rule).
+ * The render branches (empty / populated) are unchanged from the
+ * pre-FIX-2 version: the populated branch renders the totals
+ * Table, the empty branch renders the EmptyState with a CTA to
+ * `/transactions/new` (REQ-UI-3).
+ *
+ * No `'use client'` directive. Pure async Server Component.
  */
 
+import { z } from 'zod';
 import { Card, CardHeader, CardBody, CardFooter } from '../_ui/primitives/card';
 import {
   Table,
@@ -45,13 +35,31 @@ import {
 import { Badge } from '../_ui/primitives/badge';
 import { EmptyState } from '../_ui/primitives/empty-state';
 import { Link } from '../_ui/primitives/link';
+import { serverHonoRequest } from '@/lib/server-hono';
 import type { MonthlySummaryDTO } from '../_lib/report-types';
 import { formatMinor } from '../_lib/format-minor';
 
 interface Props {
-  summary: MonthlySummaryDTO;
   month: string; // YYYY-MM (UTC month, per BR-RPT-3)
 }
+
+// Local response schema — mirrors `app/_lib/report-types.ts`.
+// The UI cannot import the application DTO from `src/modules/...`
+// per the API-first rule. Drift between the DTO mapper and this
+// schema surfaces as a Zod parse error on every page load, not
+// as a silent type mismatch on the consumer.
+const monthlySummaryResponseSchema: z.ZodType<MonthlySummaryDTO> = z.object({
+  totals: z.array(
+    z.object({
+      convertedCurrency: z.string(),
+      incomeMinor: z.number(),
+      expenseMinor: z.number(),
+      netMinor: z.number(),
+      count: z.number(),
+    }),
+  ),
+  generatedAt: z.string(),
+});
 
 const TOTALS_COLUMNS: ReadonlyArray<TableColumn> = [
   { key: 'currency', label: 'Currency' },
@@ -61,14 +69,48 @@ const TOTALS_COLUMNS: ReadonlyArray<TableColumn> = [
   { key: 'count', label: '#' },
 ];
 
-export function MonthlySummaryCard({ summary, month }: Props): React.JSX.Element {
+async function fetchMonthlySummary(month: string): Promise<MonthlySummaryDTO> {
+  const res = await serverHonoRequest(`/api/reports/monthly?month=${month}`);
+  if (!res.ok) {
+    // Non-2xx surfaces as a thrown error so the per-card
+    // <Suspense> boundary catches it (FIX 2 — design §16.5).
+    const body = await res.json().catch(() => null);
+    const message = body?.error?.message ?? `monthly failed (${res.status})`;
+    throw new Error(message);
+  }
+  return monthlySummaryResponseSchema.parse(await res.json());
+}
+
+export async function MonthlySummaryCard({ month }: Props): Promise<React.JSX.Element> {
+  let summary: MonthlySummaryDTO;
+  try {
+    summary = await fetchMonthlySummary(month);
+  } catch (err) {
+    // FIX 2 — per-card failure isolation. A thrown fetch error
+    // MUST stay inside this card's Suspense boundary so the
+    // sibling cards continue to render. We render an in-card
+    // error surface (CardHeader + role="alert") instead of
+    // letting the error bubble up to the dashboard's segment
+    // error.tsx (which would tear down the whole page).
+    const message = err instanceof Error ? err.message : 'No pudimos cargar el resumen mensual.';
+    return (
+      <Card aria-label={`Resumen mensual ${month} — error`}>
+        <CardHeader
+          title="Resumen mensual"
+          badge={<Badge variant="neutral">{month} (UTC)</Badge>}
+        />
+        <CardBody>
+          <div role="alert" className="text-ui-text-sm text-ui-fg">
+            {message}
+          </div>
+        </CardBody>
+      </Card>
+    );
+  }
   const isEmpty = summary.totals.length === 0;
   return (
     <Card aria-label={`Resumen mensual ${month}`}>
-      <CardHeader
-        title="Resumen mensual"
-        badge={<Badge variant="neutral">{month} (UTC)</Badge>}
-      />
+      <CardHeader title="Resumen mensual" badge={<Badge variant="neutral">{month} (UTC)</Badge>} />
       {isEmpty ? (
         <CardBody>
           <EmptyState

@@ -28,6 +28,14 @@
  * the signin page test pattern, so a missing-session
  * assertion can catch the redirect path.
  *
+ * FIX 2 (4R review): the cards are now async + wrapped in
+ * per-card `<Suspense>` boundaries. `renderToStaticMarkup` and
+ * `renderToString` do NOT await async children inside Suspense
+ * (they emit the fallback). We use `renderServerTree` (a thin
+ * `renderToPipeableStream` + `onAllReady` wrapper) to await
+ * every Suspense boundary before serializing, matching
+ * Next.js's production behavior.
+ *
  * The mock factory is split into two test files: this one
  * pins the empty + deep-link contract; `page.seeded.test.tsx`
  * pins the populated happy path. Splitting avoids a shared
@@ -39,7 +47,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { renderServerTree } from './test-helpers/render-server-tree';
 
 vi.mock('@/modules/auth/nextauth', () => ({
   auth: vi.fn(async () => ({ user: { id: 'u1', email: 'u1@example.com' } })),
@@ -51,11 +59,7 @@ vi.mock('next/navigation', () => ({
   },
 }));
 
-import type {
-  MonthlySummaryDTO,
-  CategoryBreakdownDTO,
-  AccountFlowDTO,
-} from '../_lib/report-types';
+import type { MonthlySummaryDTO, CategoryBreakdownDTO, AccountFlowDTO } from '../_lib/report-types';
 
 const EMPTY_MONTHLY: MonthlySummaryDTO = {
   totals: [],
@@ -88,7 +92,7 @@ const POPULATED_FLOW: AccountFlowDTO = {
 const ACCOUNTS_RESPONSE = {
   data: [
     {
-      id: 'a1',
+      id: '00000000-0000-4000-8000-000000000001',
       userId: 'u1',
       type: 'BANK',
       name: 'Main ARS',
@@ -110,7 +114,7 @@ const ACCOUNTS_RESPONSE = {
       updatedAt: '2026-01-01T00:00:00.000Z',
     },
     {
-      id: 'a2',
+      id: '00000000-0000-4000-8000-000000000002',
       userId: 'u1',
       type: 'BANK',
       name: 'Main USD',
@@ -159,7 +163,7 @@ import DashboardPage from './page';
 describe('DashboardPage — empty user (slice 4 T-UI-309)', () => {
   it('renders three Card compounds with empty states + the MonthSwitcher', async () => {
     const jsx = await DashboardPage({ searchParams: Promise.resolve({}) });
-    const html = renderToStaticMarkup(jsx);
+    const html = await renderServerTree(jsx);
     // PageContainer + PageHeader.
     expect(html).toContain('Dashboard');
     // MonthSwitcher surfaces.
@@ -182,22 +186,23 @@ describe('DashboardPage — empty user (slice 4 T-UI-309)', () => {
     expect(html).toContain('Elegí una cuenta');
     // The flow endpoint is NEVER called when no ?accountId=
     // is present.
-    const flowCalls = mockServerHonoRequest.mock.calls.filter(([p]) =>
-      String(p).includes('/flow'),
-    );
+    const flowCalls = mockServerHonoRequest.mock.calls.filter(([p]) => String(p).includes('/flow'));
     expect(flowCalls).toHaveLength(0);
   });
 });
 
 describe('DashboardPage — ?accountId= deep-link (slice 4 T-UI-309)', () => {
   it('calls the flow endpoint when ?accountId=<id> is present + renders the picker with aria-current', async () => {
+    // FIX 4a — the deep-link accountId MUST be UUID-format
+    // (the page now sanitizes malformed values to null).
+    const accountId = '00000000-0000-4000-8000-000000000002';
     const jsx = await DashboardPage({
-      searchParams: Promise.resolve({ accountId: 'a2' }),
+      searchParams: Promise.resolve({ accountId }),
     });
-    const html = renderToStaticMarkup(jsx);
+    const html = await renderServerTree(jsx);
     // The flow endpoint IS called with the deep-linked account.
     const flowCalls = mockServerHonoRequest.mock.calls.filter(([p]) =>
-      String(p).includes('/api/reports/accounts/a2/flow'),
+      String(p).includes(`/api/reports/accounts/${accountId}/flow`),
     );
     expect(flowCalls).toHaveLength(1);
     // The AccountFlowCard picks the deep-linked account.
@@ -209,6 +214,51 @@ describe('DashboardPage — ?accountId= deep-link (slice 4 T-UI-309)', () => {
   });
 });
 
+describe('DashboardPage — ?accountId= UUID-format validation (FIX 4a)', () => {
+  it('sanitizes a path-injection attempt to null — the flow fetch is never invoked', async () => {
+    mockServerHonoRequest.mockClear();
+    const jsx = await DashboardPage({
+      searchParams: Promise.resolve({ accountId: '../../etc/passwd' }),
+    });
+    await renderServerTree(jsx);
+    // No flow endpoint call — the malformed accountId was
+    // sanitized to null BEFORE reaching AccountFlowCard.
+    const flowCalls = mockServerHonoRequest.mock.calls.filter(([p]) => String(p).includes('/flow'));
+    expect(flowCalls).toHaveLength(0);
+    // And no URL anywhere in the rendered HTML mentions the
+    // injection payload.
+    const html = await renderServerTree(
+      await DashboardPage({
+        searchParams: Promise.resolve({ accountId: '../../etc/passwd' }),
+      }),
+    );
+    expect(html).not.toContain('../../etc/passwd');
+  });
+
+  it('accepts a canonical UUID', async () => {
+    const accountId = '11111111-2222-4333-8444-555555555555';
+    mockServerHonoRequest.mockClear();
+    const jsx = await DashboardPage({
+      searchParams: Promise.resolve({ accountId }),
+    });
+    await renderServerTree(jsx);
+    const flowCalls = mockServerHonoRequest.mock.calls.filter(([p]) =>
+      String(p).includes(`/api/reports/accounts/${accountId}/flow`),
+    );
+    expect(flowCalls).toHaveLength(1);
+  });
+
+  it('rejects a near-UUID with the wrong character set', async () => {
+    mockServerHonoRequest.mockClear();
+    const jsx = await DashboardPage({
+      searchParams: Promise.resolve({ accountId: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx' }),
+    });
+    await renderServerTree(jsx);
+    const flowCalls = mockServerHonoRequest.mock.calls.filter(([p]) => String(p).includes('/flow'));
+    expect(flowCalls).toHaveLength(0);
+  });
+});
+
 describe('DashboardPage — ?month= searchParam (slice 4 T-UI-309)', () => {
   it('passes ?month= to the monthly + breakdown endpoint URLs', async () => {
     mockServerHonoRequest.mockClear();
@@ -216,7 +266,7 @@ describe('DashboardPage — ?month= searchParam (slice 4 T-UI-309)', () => {
       searchParams: Promise.resolve({ month: '2025-12' }),
     });
     // Render to trigger the calls.
-    renderToStaticMarkup(jsx);
+    await renderServerTree(jsx);
     // Monthly endpoint gets month=2025-12.
     const monthlyCalls = mockServerHonoRequest.mock.calls
       .map(([p]) => String(p))
@@ -229,4 +279,3 @@ describe('DashboardPage — ?month= searchParam (slice 4 T-UI-309)', () => {
     expect(breakdownCalls.some((p) => p.includes('month=2025-12'))).toBe(true);
   });
 });
-
