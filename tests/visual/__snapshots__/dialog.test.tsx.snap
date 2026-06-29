@@ -1,0 +1,38 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`visual snapshot — Dialog primitive (T-UI-413) > renders Dialog open + closed > open 1`] = `
+<div>
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+  >
+    <div
+      aria-describedby=":r1:"
+      aria-labelledby=":r0:"
+      aria-modal="true"
+      class="w-full max-w-md rounded-ui-lg border border-ui-border bg-ui-bg p-0 shadow-ui-shadow-lg"
+      role="dialog"
+      tabindex="-1"
+    >
+      <div
+        class="flex flex-col gap-ui-space-3 px-ui-space-6 py-ui-space-4"
+      >
+        <h2
+          class="text-ui-text-lg font-ui-font-semibold text-ui-fg"
+          id=":r0:"
+        >
+          Confirm
+        </h2>
+        <p
+          class="text-ui-text-sm text-ui-fg-muted"
+          id=":r1:"
+        >
+          Are you sure?
+        </p>
+        <p>
+          Body content
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+`;

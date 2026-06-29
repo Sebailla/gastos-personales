@@ -1,0 +1,9 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`visual snapshot — Skeleton primitive (T-UI-410) > renders the Skeleton primitive 1`] = `
+<span
+  aria-hidden="true"
+  class="animate-pulse rounded-ui-md bg-ui-bg-subtle"
+  style="display: inline-block; width: 120px; height: 20px;"
+/>
+`;

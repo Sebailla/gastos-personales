@@ -1,0 +1,52 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`visual snapshot — Breadcrumb primitive (T-UI-411) > renders a three-item Breadcrumb 1`] = `
+<nav
+  aria-label="Breadcrumb"
+>
+  <ol
+    class="flex flex-wrap items-center gap-ui-space-1 text-ui-text-sm text-ui-fg-muted"
+  >
+    <li
+      class="flex items-center gap-ui-space-1"
+    >
+      <a
+        class="text-ui-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-accent focus-visible:ring-offset-2 rounded-ui-sm hover:underline"
+        href="/"
+      >
+        Home
+      </a>
+      <span
+        aria-hidden="true"
+      >
+        /
+      </span>
+    </li>
+    <li
+      class="flex items-center gap-ui-space-1"
+    >
+      <a
+        class="text-ui-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-accent focus-visible:ring-offset-2 rounded-ui-sm hover:underline"
+        href="/accounts"
+      >
+        Accounts
+      </a>
+      <span
+        aria-hidden="true"
+      >
+        /
+      </span>
+    </li>
+    <li
+      class="flex items-center gap-ui-space-1"
+    >
+      <span
+        aria-current="page"
+        class="text-ui-fg"
+      >
+        Main ARS
+      </span>
+    </li>
+  </ol>
+</nav>
+`;

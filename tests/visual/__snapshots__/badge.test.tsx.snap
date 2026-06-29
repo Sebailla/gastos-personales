@@ -1,0 +1,41 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`visual snapshot — Badge primitive (T-UI-408) > renders the accent variant > accent 1`] = `
+<span
+  class="inline-flex items-center rounded-ui-full px-ui-space-2 py-0.5 text-ui-text-xs font-ui-font-medium bg-ui-accent text-ui-accent-fg"
+>
+  accent
+</span>
+`;
+
+exports[`visual snapshot — Badge primitive (T-UI-408) > renders the danger variant > danger 1`] = `
+<span
+  class="inline-flex items-center rounded-ui-full px-ui-space-2 py-0.5 text-ui-text-xs font-ui-font-medium bg-ui-danger text-ui-danger-fg"
+>
+  danger
+</span>
+`;
+
+exports[`visual snapshot — Badge primitive (T-UI-408) > renders the neutral variant > neutral 1`] = `
+<span
+  class="inline-flex items-center rounded-ui-full px-ui-space-2 py-0.5 text-ui-text-xs font-ui-font-medium bg-ui-bg-subtle text-ui-fg"
+>
+  neutral
+</span>
+`;
+
+exports[`visual snapshot — Badge primitive (T-UI-408) > renders the success variant > success 1`] = `
+<span
+  class="inline-flex items-center rounded-ui-full px-ui-space-2 py-0.5 text-ui-text-xs font-ui-font-medium bg-ui-success text-ui-success-fg"
+>
+  success
+</span>
+`;
+
+exports[`visual snapshot — Badge primitive (T-UI-408) > renders the warning variant > warning 1`] = `
+<span
+  class="inline-flex items-center rounded-ui-full px-ui-space-2 py-0.5 text-ui-text-xs font-ui-font-medium bg-ui-warning text-ui-warning-fg"
+>
+  warning
+</span>
+`;

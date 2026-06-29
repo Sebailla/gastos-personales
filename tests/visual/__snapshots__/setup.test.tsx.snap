@@ -1,0 +1,10 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`visual snapshot suite — slice 5 smoke (T-UI-406) > renders the Button primitive (placeholder so the per-primitive tests own the contract) > button-placeholder 1`] = `
+<button
+  class="inline-flex items-center justify-center gap-2 rounded-ui-md px-ui-space-4 py-ui-space-2 text-ui-text-sm font-ui-font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-accent focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-ui-accent text-ui-accent-fg hover:bg-ui-accent/90"
+  type="button"
+>
+  Click me
+</button>
+`;
