@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`ui` capability end-to-end** (#98 #99 #100 #101 #102 #103, slice 6 of
   `transactions-ui`): the new design-system reference + production
   render layer. The capability is hand-built on Tailwind v4 + React
-  19 with **zero new top-level dependencies** (`pnpm-lock.yaml`
+  19 with **zero new production dependencies** (`pnpm-lock.yaml`
   unchanged from v0.3.0). Scope:
   - **18 design-system primitives** at `app/_ui/primitives/`:
     `Button`, `Input`, `Textarea`, `Select`, `Checkbox`,
@@ -116,6 +116,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   until the user runs them post-release. Neither is a release
   blocker — both are observability + sign-off artifacts the
   maintainer can execute at any time against the v0.4.0 tag.
+- **3 new devDependencies** were added in slices 1-5 of
+  `transactions-ui`
+  (`@testing-library/jest-dom@^6.9.1`, `@testing-library/react@^16.3.2`,
+  `@testing-library/user-event@^14.6.1`). Test-only; do not affect
+  the production bundle. The "zero new dependencies" claim above
+  refers to **production** dependencies (the `dependencies`
+  section of `package.json`) — the lockfile is unchanged from
+  v0.3.0 because these three packages land in `devDependencies`.
 
 ## [0.2.1] - 2026-06-25
 
