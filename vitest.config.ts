@@ -24,6 +24,7 @@ export default defineConfig({
       ['app/_ui/**/*.{test,spec}.tsx', 'jsdom'],
       ['app/accounts/**/*.{test,spec}.tsx', 'jsdom'],
       ['app/transactions/**/*.{test,spec}.tsx', 'jsdom'],
+      ['app/_components/**/*.{test,spec}.tsx', 'jsdom'],
       ['app/dashboard/**/*.{test,spec}.tsx', 'jsdom'],
     ],
     coverage: {
@@ -44,9 +45,11 @@ export default defineConfig({
         'app/_ui/**',
         // Slice 2 (`accounts-ui`): the production renders for the
         // accounts pages + their co-located components. Slice 3
-        // (`transactions-ui`) will add `app/transactions/**` and
+        // (`transactions-ui`) adds `app/transactions/**` and
         // `app/_components/transactions-list-table.tsx`.
         'app/accounts/**',
+        'app/transactions/**',
+        'app/_components/transactions-list-table.tsx',
       ],
       exclude: [
         'src/modules/**/domain/interfaces/**/*.ts',
@@ -73,6 +76,13 @@ export default defineConfig({
         // (12.6% covered). The full Client Component contract lives
         // in the integration suite (slice 5).
         'app/accounts/[[]id]/balance-widget.tsx',
+        // Slice 3 (`transactions-ui`): mirror of slice 2's
+        // exclusion — the three Server Component shells depend
+        // on NextAuth + the Hono composition root and are covered
+        // at the integration layer in slice 5.
+        'app/transactions/page.tsx',
+        'app/transactions/[[]id]/page.tsx',
+        'app/transactions/new/page.tsx',
       ],
       thresholds: {
         lines: 80,

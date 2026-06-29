@@ -1,19 +1,23 @@
-// smoke-minimal, not production
 /**
- * Transactions list page — Server Component.
+ * /transactions — Server Component production render.
  *
- * BR-TX-15: the smoke UI is API-first (slice-5 hard guardrail
- * #7). The list call goes through `serverHonoRequest` (no
- * application actions directly).
+ * BR-TX-15 + BR-UI-2: the list call goes through
+ * `serverHonoRequest` (no application actions directly). The
+ * list query carries `?include=accountName` so the
+ * `TransactionsListTable` can render the Account column. The
+ * flag is additive on the API; without it, the wire response
+ * omits `accountName` on every row and the table hides the
+ * column. See the BR-UI-2 follow-up note in apply-progress.
  *
  * Auth gate (REQ-TX-6): missing session → redirect to
- * `/auth/signin?callbackUrl=/transactions` (encoded).
+ * `/auth/signin?callbackUrl=/transactions` (URL-encoded).
  *
- * Pagination: the list query carries `limit=50`. The
- * truncation footer ("Showing first 50 of N") renders only
- * when `body.data.length === 50` and a `nextCursor` is set
- * (the smoke UI does not yet render a "Next" link — the
- * pagination is a smoke verification, not a production UX).
+ * Pagination / sort: the table consumes the cursor from the
+ * `nextCursor` wire field and surfaces a Pagination primitive
+ * only when there is a next page. The page is `force-dynamic`
+ * because the table renders `useState` (the Client Component)
+ * which requires dynamic boundary; this also keeps the auth
+ * gate fresh on every request.
  *
  * The `EphemeralToast` is mounted on this page because both
  * the post-create redirect (REQ-TX-15) and the post-delete
@@ -25,9 +29,15 @@ import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { auth } from '@/modules/auth/nextauth';
 import { serverHonoRequest } from '@/lib/server-hono';
+import { PageContainer } from '../_ui/layout/page-container';
+import { PageHeader } from '../_ui/layout/page-header';
+import { Link } from '../_ui/primitives/link';
 import { TransactionsListTable } from '../_components/transactions-list-table';
 import { EphemeralToast } from '../_components/ephemeral-toast';
-import type { TransactionsListResponse, ErrorEnvelope } from '../_lib/transaction-types';
+import type {
+  TransactionsListResponse,
+  ErrorEnvelope,
+} from '../_lib/transaction-types';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,7 +47,14 @@ export default async function TransactionsPage() {
     redirect('/auth/signin?callbackUrl=' + encodeURIComponent('/transactions'));
   }
 
-  const res = await serverHonoRequest('/api/transactions?limit=50');
+  // BR-UI-2: ?include=accountName is OPTIONAL. We pass it so the
+  // table can opt the Account column in. If the API is not yet
+  // honoring the flag, no row carries the field and the table
+  // hides the column entirely (a single non-undefined field
+  // enables it conservatively for the whole table).
+  const res = await serverHonoRequest(
+    '/api/transactions?limit=50&include=accountName',
+  );
   if (res.status === 401) {
     redirect('/auth/signin?callbackUrl=' + encodeURIComponent('/transactions'));
   }
@@ -48,24 +65,33 @@ export default async function TransactionsPage() {
   }
   const body = (await res.json()) as TransactionsListResponse;
 
+  const accountNameIncluded = body.data.some(
+    (row) => 'accountName' in row,
+  );
+
   return (
-    <main className="p-6">
-      <header className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-semibold">Transactions</h1>
-        <a href="/transactions/new" className="rounded bg-blue-600 text-white px-3 py-1">
-          New transaction
-        </a>
-      </header>
+    <PageContainer>
+      <PageHeader
+        title="Transactions"
+        actions={
+          <Link
+            href="/transactions/new"
+            className="rounded-ui-md bg-ui-accent px-ui-space-4 py-ui-space-2 text-ui-text-sm font-ui-font-medium text-ui-accent-fg hover:bg-ui-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-accent focus-visible:ring-offset-2"
+          >
+            + New transaction
+          </Link>
+        }
+      />
 
       <Suspense>
         <EphemeralToast searchParamKey="toast" />
       </Suspense>
 
-      {body.data.length === 0 ? (
-        <p>No transactions yet — record one</p>
-      ) : (
-        <TransactionsListTable transactions={body.data} hasMore={body.nextCursor !== null} />
-      )}
-    </main>
+      <TransactionsListTable
+        transactions={body.data}
+        nextCursor={body.nextCursor}
+        accountNameIncluded={accountNameIncluded}
+      />
+    </PageContainer>
   );
 }
