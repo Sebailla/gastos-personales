@@ -796,44 +796,45 @@ de `auth/spec.md`). (Traces: BR-TX-8, BR-TX-11.)
 - THEN: el payload capturado NO contiene el string literal
   `"secret name"` ni la key `memo`
 
-### UI smoke slice
+### Production UI surface (formerly REQ-TX-15)
 
-#### Requirement: Tres páginas smoke espejan la slice de accounts (REQ-TX-15)
+#### Requirement: la superficie de UI de producción es owned por la capability ui (REQ-TX-15)
 
-El sistema DEBE enviar tres páginas de Next.js App Router bajo
-`app/transactions/`, cada una con el comentario de header
-`// smoke-minimal, not production`:
+El sistema DEBE renderizar la superficie user-facing de grado de
+producción para `/transactions`, `/transactions/[id]`,
+`/transactions/new`, `/accounts`, `/accounts/[id]`,
+`/accounts/new`, y `/dashboard` mediante la capability `ui` en
+`openspec/specs/ui/spec.md`. La UI de producción DEBE satisfacer
+cada Requirement codificado en `ui/spec.md` REQ-UI-1 a
+REQ-UI-11, incluyendo:
 
-- `app/transactions/page.tsx` — página de listado (Server
-  Component que resuelve la sesión vía `auth()`, llama
-  `GET /api/transactions`, y renderiza un `<table>` con
-  columnas `Date`, `Account`, `Direction`, `Amount`,
-  `Converted amount`. El footer de paginación cursor espeja
-  la página de listado de `accounts`).
-- `app/transactions/new/page.tsx` — formulario de create
-  (Server Component shell + un único Client form). Renderiza
-  un `<select name="accountId">` poblado desde
-  `GET /api/accounts` (solo cuentas live), un `<select
-name="direction">` con `INCOME | EXPENSE`, un `<input
-name="amountMinor">` (entero positivo), un `<select
-name="currency">` con la whitelist de `AccountCurrency`, un
-  date input, un memo input opcional (máx 500 chars), y un
-  category input opcional. En `201`,
-  `router.push('/transactions')`. En `4xx`, el banner de
-  error inline muestra el primer mensaje del campo `error`
-  del response body.
-- `app/transactions/[id]/page.tsx` — página de detalle (Server
-  Component que resuelve la sesión, llama `GET
-/api/transactions/:id`, y renderiza la fila completa en un
-  `<dl>` incluyendo `originalAmount`, `originalCurrency`,
-  `convertedAmount`, `convertedCurrency`, y `fxAsOfSnapshot`
-  renderizado como `"Rate as of: <ISO>"`).
+- Los dos flags aditivos de query sobre los GET endpoints
+  existentes (`include=lastActivity` en `/api/accounts`,
+  REQ-UI-1; `include=accountName` en `/api/transactions`,
+  REQ-UI-2).
+- La state machine de página de listado cubriendo empty /
+  loading / error / success (REQ-UI-3).
+- El piso de accesibilidad WCAG 2.2 AA (REQ-UI-4 a REQ-UI-8).
+- La restricción de single-light-theme (REQ-UI-9).
+- Los deliverables de docs y QA
+  (`docs/architecture/ui.md`, `docs/qa/transactions-ui.md`,
+  REQ-UI-10 y REQ-UI-11).
 
-Las tres páginas NO DEBEN agregarse a `proxy.ts:24-32
-PUBLIC_PATHS`; el 307 redirect a
-`/auth/signin?callbackUrl=...` es la puerta de auth.
-(Traces: `accounts/spec.md` BR-ACC-14 a BR-ACC-19 para las
-reglas paralelas de smoke slice.)
+Las tres páginas bajo `app/transactions/` (listado, detalle,
+create) y los correspondientes componentes presentacionales a
+nivel de página (`TransactionsListTable`, `TransactionDetail`,
+`CreateTransactionForm`) TIENEN QUE mantener el gate de Server
+Component `auth()`, el data path `serverHonoRequest`, y las
+rutas Hono existentes (`/api/transactions/*`); solo cambia la
+capa de render. Los dos query flags son aditivos sobre los GET
+endpoints existentes — el endpoint sin el flag TIENE QUE
+mantenerse byte-identical al contrato actual (REQ-UI-1,
+REQ-UI-2). No se introduce nueva ruta `app/transactions/**` ni
+nuevo código de framework HTTP.
+
+(Traces: `ui/spec.md` REQ-UI-1 a REQ-UI-11. Reemplaza el
+wording original "Three smoke pages mirror the accounts slice"
+que vivía en este spec en el último sync 2026-06-22.)
 
 #### Scenario: Sesión faltante redirige a /auth/signin
 
@@ -842,12 +843,12 @@ reglas paralelas de smoke slice.)
 - THEN: la respuesta es un 302 a
   `/auth/signin?callbackUrl=%2Ftransactions`
 
-#### Scenario: Listado vacío muestra el empty state
+#### Scenario: Listado vacío muestra el empty state con CTA
 
 - GIVEN: un usuario autenticado con cero transacciones
 - WHEN: el usuario visita `/transactions`
-- THEN: la página renderiza `"No transactions yet — record
-one"`
+- THEN: la página renderiza el primitive `EmptyState`
+  (REQ-UI-3)
 - AND: la página renderiza un botón `New transaction`
   linkeando a `/transactions/new`
 
@@ -856,9 +857,19 @@ one"`
 - GIVEN: una fila de `Transaction` owned por el usuario
   autenticado con `fxAsOfSnapshot = <ISO>`
 - WHEN: el usuario visita `/transactions/:id`
-- THEN: la página renderiza la fila en un `<dl>`
+- THEN: la página renderiza la fila en un layout basado en
+  `Card` (REQ-UI-3)
 - AND: la página renderiza `fxAsOfSnapshot` como texto plano
   `"Rate as of: <ISO>"`
+
+#### Scenario: el account picker dirige la flow card del dashboard
+
+- GIVEN: una sesión autenticada
+- AND: existe la cuenta `A` con un flujo no vacío
+- WHEN: el usuario visita `/dashboard?accountId=<A>`
+- THEN: la flow card fetcha `/api/reports/accounts/<A>/flow`
+- AND: la flow card renderiza el flujo diario por cuenta
+  (REQ-UI-3)
 
 ## Error semantics
 
