@@ -28,6 +28,14 @@
  * the signin page test pattern, so a missing-session
  * assertion can catch the redirect path.
  *
+ * FIX 2 (4R review): the cards are now async + wrapped in
+ * per-card `<Suspense>` boundaries. `renderToStaticMarkup` and
+ * `renderToString` do NOT await async children inside Suspense
+ * (they emit the fallback). We use `renderServerTree` (a thin
+ * `renderToPipeableStream` + `onAllReady` wrapper) to await
+ * every Suspense boundary before serializing, matching
+ * Next.js's production behavior.
+ *
  * The mock factory is split into two test files: this one
  * pins the empty + deep-link contract; `page.seeded.test.tsx`
  * pins the populated happy path. Splitting avoids a shared
@@ -39,7 +47,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { renderServerTree } from './test-helpers/render-server-tree';
 
 vi.mock('@/modules/auth/nextauth', () => ({
   auth: vi.fn(async () => ({ user: { id: 'u1', email: 'u1@example.com' } })),
@@ -51,11 +59,7 @@ vi.mock('next/navigation', () => ({
   },
 }));
 
-import type {
-  MonthlySummaryDTO,
-  CategoryBreakdownDTO,
-  AccountFlowDTO,
-} from '../_lib/report-types';
+import type { MonthlySummaryDTO, CategoryBreakdownDTO, AccountFlowDTO } from '../_lib/report-types';
 
 const EMPTY_MONTHLY: MonthlySummaryDTO = {
   totals: [],
@@ -159,7 +163,7 @@ import DashboardPage from './page';
 describe('DashboardPage — empty user (slice 4 T-UI-309)', () => {
   it('renders three Card compounds with empty states + the MonthSwitcher', async () => {
     const jsx = await DashboardPage({ searchParams: Promise.resolve({}) });
-    const html = renderToStaticMarkup(jsx);
+    const html = await renderServerTree(jsx);
     // PageContainer + PageHeader.
     expect(html).toContain('Dashboard');
     // MonthSwitcher surfaces.
@@ -182,9 +186,7 @@ describe('DashboardPage — empty user (slice 4 T-UI-309)', () => {
     expect(html).toContain('Elegí una cuenta');
     // The flow endpoint is NEVER called when no ?accountId=
     // is present.
-    const flowCalls = mockServerHonoRequest.mock.calls.filter(([p]) =>
-      String(p).includes('/flow'),
-    );
+    const flowCalls = mockServerHonoRequest.mock.calls.filter(([p]) => String(p).includes('/flow'));
     expect(flowCalls).toHaveLength(0);
   });
 });
@@ -194,7 +196,7 @@ describe('DashboardPage — ?accountId= deep-link (slice 4 T-UI-309)', () => {
     const jsx = await DashboardPage({
       searchParams: Promise.resolve({ accountId: 'a2' }),
     });
-    const html = renderToStaticMarkup(jsx);
+    const html = await renderServerTree(jsx);
     // The flow endpoint IS called with the deep-linked account.
     const flowCalls = mockServerHonoRequest.mock.calls.filter(([p]) =>
       String(p).includes('/api/reports/accounts/a2/flow'),
@@ -216,7 +218,7 @@ describe('DashboardPage — ?month= searchParam (slice 4 T-UI-309)', () => {
       searchParams: Promise.resolve({ month: '2025-12' }),
     });
     // Render to trigger the calls.
-    renderToStaticMarkup(jsx);
+    await renderServerTree(jsx);
     // Monthly endpoint gets month=2025-12.
     const monthlyCalls = mockServerHonoRequest.mock.calls
       .map(([p]) => String(p))
@@ -229,4 +231,3 @@ describe('DashboardPage — ?month= searchParam (slice 4 T-UI-309)', () => {
     expect(breakdownCalls.some((p) => p.includes('month=2025-12'))).toBe(true);
   });
 });
-

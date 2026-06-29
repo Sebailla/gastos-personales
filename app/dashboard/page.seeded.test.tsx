@@ -19,7 +19,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { renderServerTree } from './test-helpers/render-server-tree';
 
 vi.mock('@/modules/auth/nextauth', () => ({
   auth: vi.fn(async () => ({ user: { id: 'u1', email: 'u1@example.com' } })),
@@ -138,7 +138,7 @@ import DashboardPage from './page';
 describe('DashboardPage — seeded user (slice 4 T-UI-309 / T-UI-310)', () => {
   it('renders populated summary + breakdown + the picker for account selection', async () => {
     const jsx = await DashboardPage({ searchParams: Promise.resolve({}) });
-    const html = renderToStaticMarkup(jsx);
+    const html = await renderServerTree(jsx);
     // MonthlySummaryCard populated: a Table with totals columns.
     expect(html).toContain('<table');
     expect(html).toContain('<caption');
@@ -169,4 +169,3 @@ describe('DashboardPage — seeded user (slice 4 T-UI-309 / T-UI-310)', () => {
     expect(calledPaths.some((p) => p.startsWith('/api/accounts'))).toBe(true);
   });
 });
-
