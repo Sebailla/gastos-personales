@@ -23,7 +23,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 vi.mock('next/navigation', () => ({
@@ -100,25 +100,45 @@ describe('TransactionDetailForms — edit form', () => {
 
   it('submits a memo-only change WITHOUT the FX snapshot fields', async () => {
     const user = userEvent.setup();
+    const { updateTransactionServerAction } = await import(
+      '../../_actions/transactions-server-actions'
+    );
     render(<TransactionDetailForms id="tx-1" tx={makeTx()} />);
+    // The detail starts in view mode; click Edit to reveal the form.
+    await user.click(screen.getByRole('button', { name: /^edit$/i }));
     // The edit form exposes the memo field via FormField + Input.
     const memoField = screen.getByLabelText(/^memo$/i) as HTMLInputElement;
-    // Replace the memo value.
-    await user.clear(memoField);
-    await user.type(memoField, 'Updated memo');
-    // Submit. The page's CardFooter exposes a "Save" button.
-    const save = screen.getByRole('button', { name: /save/i });
+    // Replace the memo value with fireEvent.change for a
+    // synchronous commit.
+    fireEvent.change(memoField, { target: { value: 'Updated memo' } });
+    // Submit. The form's footer exposes a "Save" button.
+    const save = screen.getByRole('button', { name: /^save$/i });
     await user.click(save);
 
-    // The action is invoked; we do not assert the URL pattern (it is
-    // a Server Action, hashed). Instead, assert that the memo change
-    // is reflected in the FormData (via the input's `defaultValue`
-    // / current `value`).
-    expect(memoField.value).toBe('Updated memo');
+    // The action receives the new memo in its FormData. React 19
+    // resets uncontrolled forms on a successful action, so the
+    // input reverts to `defaultValue`; we therefore assert the
+    // mock's call args (the actual wire payload) instead of the
+    // DOM value.
+    expect(updateTransactionServerAction).toHaveBeenCalledTimes(1);
+    const [callId, callFormData] = (
+      updateTransactionServerAction as ReturnType<typeof vi.fn>
+    ).mock.calls[0]!;
+    expect(callId).toBe('tx-1');
+    expect(callFormData).toBeInstanceOf(FormData);
+    expect((callFormData as FormData).get('memo')).toBe('Updated memo');
+    // FX snapshot fields are NOT on the form; the schema only accepts
+    // memo + category, so the immutable constraint is enforced by the
+    // Server Action schema, not by form-level filtering.
+    expect((callFormData as FormData).get('fxAsOfSnapshot')).toBeNull();
   });
 });
 
 describe('TransactionDetailForms — delete confirmation uses Dialog (no window.confirm)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('clicking Delete opens a Dialog with a Confirm button', async () => {
     const user = userEvent.setup();
     render(<TransactionDetailForms id="tx-1" tx={makeTx()} />);

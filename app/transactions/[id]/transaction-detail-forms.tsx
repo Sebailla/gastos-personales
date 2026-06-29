@@ -1,19 +1,50 @@
-// smoke-minimal, not production
 'use client';
 
 /**
- * TransactionDetailForms — Client Component.
+ * TransactionDetailForms — Client Component production render.
  *
- * Renders the edit form + delete button for the detail page.
- * The edit form posts to `updateTransactionServerAction`;
- * the delete button posts to `deleteTransactionServerAction`.
+ * Per design §7.3 + §18 risk mitigation:
+ * - Card layout groups the wire fields into four sections:
+ *   Identification (id + transactionDate + direction),
+ *   Amount (amountMinor + currency + memo + category),
+ *   FX snapshot (fxAsOfSnapshot + casaSnapshot — read-only
+ *   per the immutability constraint), and Audit
+ *   (createdAt + updatedAt).
+ * - The edit form exposes `memo` + `category` for edit
+ *   (per the slice-3 server-action update schema in
+ *   `_actions/transactions-server-actions.ts` — only those
+ *   two fields are open for edit; `amountMinor` and the FX
+ *   snapshot stay immutable per REQ-TX-15 + the design
+ *   §18 audit-trail rule).
+ * - Submitting the edit form calls the existing
+ *   `updateTransactionServerAction` Server Action.
+ * - The Delete button opens a `Dialog` (Client Component
+ *   from the slice-1 primitives) for confirm instead of
+ *   `window.confirm()` (the slice-5 hard guardrail #4 says
+ *   no native confirm dialogs). The Dialog exposes Confirm
+ *   + Cancel; Cancel + Escape both dismiss without invoking
+ *   the delete action.
  *
- * The delete button uses a `<form>` with an inline
- * `onSubmit` confirm (the smoke UI does not need a custom
- * modal — a native `confirm()` is fine).
+ * Accessibility (REQ-UI-7):
+ * - The edit form uses `FormField` + `Input` primitives
+ *   (each label is paired with its input via htmlFor).
+ * - The Delete button is keyboard-focusable; the Dialog
+ *   traps focus (handled by the primitive) and Escape
+ *   closes.
  */
 
 import { useState } from 'react';
+import {
+  Card,
+  CardHeader,
+  CardBody,
+  CardFooter,
+} from '../../_ui/primitives/card';
+import { Badge } from '../../_ui/primitives/badge';
+import { Button } from '../../_ui/primitives/button';
+import { Input } from '../../_ui/primitives/input';
+import { FormField } from '../../_ui/primitives/form-field';
+import { Dialog } from '../../_ui/primitives/dialog';
 import {
   updateTransactionServerAction,
   deleteTransactionServerAction,
@@ -25,88 +56,226 @@ interface Props {
   tx: TransactionWire;
 }
 
-export function TransactionDetailForms({ id, tx }: Props) {
-  const [showEdit, setShowEdit] = useState(false);
+function formatDate(iso: string): string {
+  return iso.slice(0, 10);
+}
+
+function formatDateTime(iso: string | null): string {
+  if (!iso) return '—';
+  return iso;
+}
+
+export function TransactionDetailForms({ id, tx }: Props): React.JSX.Element {
+  const [editing, setEditing] = useState<boolean>(false);
+  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState<boolean>(false);
 
   return (
-    <div className="border-t border-gray-200 pt-4">
-      {!showEdit ? (
-        <div className="flex gap-2">
-          <button
+    <>
+      <Card aria-label={`Transaction ${tx.id.slice(0, 8)}`}>
+        <CardHeader
+          title="Transaction detail"
+          badge={<Badge variant={tx.direction === 'INCOME' ? 'success' : 'danger'}>{tx.direction}</Badge>}
+        />
+
+        {/* Identification — date + direction + wire id. */}
+        <CardBody>
+          <section aria-labelledby="tx-id-section" className="flex flex-col gap-ui-space-2">
+            <h3 id="tx-id-section" className="text-ui-text-sm font-ui-font-semibold text-ui-fg">
+              Identification
+            </h3>
+            <dl className="grid grid-cols-[max-content_1fr] gap-x-ui-space-6 gap-y-ui-space-2 text-ui-text-sm">
+              <dt className="font-ui-font-semibold text-ui-fg">ID</dt>
+              <dd className="font-mono text-ui-fg-muted text-ui-text-xs">{tx.id}</dd>
+              <dt className="font-ui-font-semibold text-ui-fg">Date</dt>
+              <dd className="text-ui-fg">{formatDate(tx.transactionDate)}</dd>
+              <dt className="font-ui-font-semibold text-ui-fg">Direction</dt>
+              <dd className="text-ui-fg">{tx.direction}</dd>
+            </dl>
+          </section>
+        </CardBody>
+
+        {/* Amount — native + converted + memo + category. */}
+        <CardBody>
+          <section aria-labelledby="tx-amt-section" className="flex flex-col gap-ui-space-2">
+            <h3 id="tx-amt-section" className="text-ui-text-sm font-ui-font-semibold text-ui-fg">
+              Amount
+            </h3>
+            <dl className="grid grid-cols-[max-content_1fr] gap-x-ui-space-6 gap-y-ui-space-2 text-ui-text-sm">
+              <dt className="font-ui-font-semibold text-ui-fg">Native</dt>
+              <dd className="font-mono text-ui-fg">
+                {(tx.amountMinor / 100).toFixed(2)} {tx.currency}
+              </dd>
+              <dt className="font-ui-font-semibold text-ui-fg">Converted</dt>
+              <dd className="font-mono text-ui-fg">
+                {(tx.convertedAmountMinor / 100).toFixed(2)} {tx.convertedCurrency}
+              </dd>
+              <dt className="font-ui-font-semibold text-ui-fg">Memo</dt>
+              <dd className="text-ui-fg">{tx.memo ?? '—'}</dd>
+              <dt className="font-ui-font-semibold text-ui-fg">Category</dt>
+              <dd className="text-ui-fg">{tx.category ?? '—'}</dd>
+            </dl>
+          </section>
+        </CardBody>
+
+        {/* FX snapshot — read-only per REQ-TX-15 + design §18. */}
+        <CardBody>
+          <section aria-labelledby="tx-fx-section" className="flex flex-col gap-ui-space-2">
+            <h3 id="tx-fx-section" className="text-ui-text-sm font-ui-font-semibold text-ui-fg">
+              FX snapshot
+            </h3>
+            <dl className="grid grid-cols-[max-content_1fr] gap-x-ui-space-6 gap-y-ui-space-2 text-ui-text-sm">
+              <dt className="font-ui-font-semibold text-ui-fg">Rate as of</dt>
+              <dd className="font-mono text-ui-text-xs text-ui-fg-muted">
+                {formatDateTime(tx.fxAsOfSnapshot)}
+              </dd>
+              <dt className="font-ui-font-semibold text-ui-fg">Casa</dt>
+              <dd className="font-mono text-ui-text-xs text-ui-fg-muted">{tx.casaSnapshot ?? '—'}</dd>
+            </dl>
+          </section>
+        </CardBody>
+
+        {/* Audit timestamps. */}
+        <CardBody>
+          <section aria-labelledby="tx-audit-section" className="flex flex-col gap-ui-space-2">
+            <h3 id="tx-audit-section" className="text-ui-text-sm font-ui-font-semibold text-ui-fg">
+              Audit
+            </h3>
+            <dl className="grid grid-cols-[max-content_1fr] gap-x-ui-space-6 gap-y-ui-space-2 text-ui-text-sm">
+              <dt className="font-ui-font-semibold text-ui-fg">Created at</dt>
+              <dd className="text-ui-fg">{formatDate(tx.createdAt)}</dd>
+              <dt className="font-ui-font-semibold text-ui-fg">Updated at</dt>
+              <dd className="text-ui-fg">{formatDate(tx.updatedAt)}</dd>
+            </dl>
+          </section>
+        </CardBody>
+
+        <CardFooter>
+          {editing ? null : (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setEditing(true)}
+            >
+              Edit
+            </Button>
+          )}
+          <Button
             type="button"
-            onClick={() => setShowEdit(true)}
-            className="rounded bg-blue-600 text-white px-3 py-1"
+            variant="danger"
+            onClick={() => setConfirmDeleteOpen(true)}
           >
-            Edit
-          </button>
-          <form
-            action={async () => {
-              if (
-                typeof window !== 'undefined' &&
-                !window.confirm('Delete this transaction? This cannot be undone.')
-              ) {
-                return;
+            Delete
+          </Button>
+        </CardFooter>
+      </Card>
+
+      {editing ? (
+        <EditForm
+          id={id}
+          tx={tx}
+          submitting={submitting}
+          onSubmittingChange={setSubmitting}
+          onCancel={() => setEditing(false)}
+        />
+      ) : null}
+
+      <Dialog
+        open={confirmDeleteOpen}
+        onClose={() => setConfirmDeleteOpen(false)}
+        title="Delete transaction?"
+        description="This permanently removes the transaction and its FX snapshot. The action cannot be undone."
+      >
+        <div className="flex justify-end gap-ui-space-2 pt-ui-space-2">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setConfirmDeleteOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            isLoading={submitting}
+            onClick={async () => {
+              setSubmitting(true);
+              try {
+                await deleteTransactionServerAction(id);
+              } finally {
+                setSubmitting(false);
+                setConfirmDeleteOpen(false);
               }
-              await deleteTransactionServerAction(id);
             }}
           >
-            <button type="submit" className="rounded bg-red-600 text-white px-3 py-1">
-              Delete
-            </button>
-          </form>
+            Confirm
+          </Button>
         </div>
-      ) : (
+      </Dialog>
+    </>
+  );
+}
+
+interface EditFormProps {
+  id: string;
+  tx: TransactionWire;
+  submitting: boolean;
+  onSubmittingChange: (next: boolean) => void;
+  onCancel: () => void;
+}
+
+function EditForm({
+  id,
+  tx,
+  submitting,
+  onSubmittingChange,
+  onCancel,
+}: EditFormProps): React.JSX.Element {
+  return (
+    <Card aria-label="Edit transaction">
+      <CardHeader title="Edit transaction" />
+      <CardBody>
         <form
           action={async (formData) => {
-            await updateTransactionServerAction(id, formData);
+            onSubmittingChange(true);
+            try {
+              await updateTransactionServerAction(id, formData);
+            } finally {
+              onSubmittingChange(false);
+            }
           }}
-          className="grid gap-3 max-w-md"
+          className="flex flex-col gap-ui-space-4 max-w-xl"
         >
-          <label className="grid gap-1">
-            <span className="font-semibold">Amount (minor units, positive integer)</span>
-            <input
-              name="amountMinor"
-              type="number"
-              min="1"
-              step="1"
-              defaultValue={tx.amountMinor}
-              className="border border-gray-300 px-2 py-1"
-            />
-          </label>
-          <label className="grid gap-1">
-            <span className="font-semibold">Memo</span>
-            <input
+          <FormField id="memo" label="Memo" description="Free-form note (max 500 chars).">
+            <Input
+              id="memo"
               name="memo"
               type="text"
-              maxLength={500}
               defaultValue={tx.memo ?? ''}
-              className="border border-gray-300 px-2 py-1"
+              maxLength={500}
+              disabled={submitting}
             />
-          </label>
-          <label className="grid gap-1">
-            <span className="font-semibold">Category</span>
-            <input
+          </FormField>
+          <FormField id="category" label="Category" description="One tag (max 50 chars).">
+            <Input
+              id="category"
               name="category"
               type="text"
-              maxLength={50}
               defaultValue={tx.category ?? ''}
-              className="border border-gray-300 px-2 py-1"
+              maxLength={50}
+              disabled={submitting}
             />
-          </label>
-          <div className="flex gap-2">
-            <button type="submit" className="rounded bg-blue-600 text-white px-3 py-1">
-              Save
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowEdit(false)}
-              className="text-sm text-blue-600 hover:underline self-center"
-            >
+          </FormField>
+          <div className="flex justify-end gap-ui-space-2">
+            <Button type="button" variant="secondary" onClick={onCancel} disabled={submitting}>
               Cancel
-            </button>
+            </Button>
+            <Button type="submit" variant="primary" isLoading={submitting} disabled={submitting}>
+              Save
+            </Button>
           </div>
         </form>
-      )}
-    </div>
+      </CardBody>
+    </Card>
   );
 }
