@@ -15,6 +15,12 @@ export default defineConfig({
       'test/**/*.{test,spec}.ts',
       'app/**/*.{test,spec}.{ts,tsx}',
       'proxy.{test,spec}.ts',
+      // Slice 5 (`ui-integration-tests`, design §13.4 + §13.5 +
+      // §13.6): the page-level axe-core suite (`tests/a11y/`),
+      // the visual snapshot suite (`tests/visual/`), and the
+      // E2E happy paths (`tests/e2e/`) all live under
+      // `tests/` and are picked up by Vitest here.
+      'tests/**/*.{test,spec}.{ts,tsx}',
     ],
     exclude: ['node_modules', 'dist', '.next'],
     // App-router React component tests need a DOM. Configure per-file
@@ -26,7 +32,22 @@ export default defineConfig({
       ['app/transactions/**/*.{test,spec}.tsx', 'jsdom'],
       ['app/_components/**/*.{test,spec}.tsx', 'jsdom'],
       ['app/dashboard/**/*.{test,spec}.tsx', 'jsdom'],
+      // Slice 5 (`ui-integration-tests`): the page-level tests
+      // render full Server Components (auth + Hono composition
+      // root + Client Component children) through
+      // `@testing-library/react`; jsdom is required.
+      ['tests/a11y/**/*.{test,spec}.tsx', 'jsdom'],
+      ['tests/visual/**/*.{test,spec}.tsx', 'jsdom'],
+      ['tests/e2e/**/*.{test,spec}.tsx', 'jsdom'],
     ],
+    // Slice 5 visual snapshot directory — keeps the
+    // `tests/visual/__snapshots__/` folder separate from the
+    // existing per-file snapshot files (Vitest default would
+    // co-locate them; the design §13.5 contract asks for the
+    // separate `__snapshots__/` folder).
+    resolveSnapshotPath: (testPath) => {
+      return testPath.replace(/\.test\.tsx$/, '__snapshots__/') + '.snap';
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'json'],
