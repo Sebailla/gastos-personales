@@ -3,7 +3,7 @@
 **Autor**: Sebastián Illa
 **Change**: `transactions-ui`
 **Capabilities**: `ui` (nueva — primera escritura de la spec canónica); un delta en `transactions` (REQ-TX-15 REEMPLAZADO por la referencia REQ-UI-1..11); sin cambio de spec en `accounts` (dos flags aditivos de query aterrizan en los GET endpoints existentes — ver BR-UI-1, BR-UI-2); sin cambio de spec en `reports`, `auth`, `fx`, `errors`
-**Status**: slice 1 implementado (sdd-apply para `feat/ui-primitives`) · **Implementado**: 2026-06-28 (slice 1: tokens + 18 primitives + 5 primitives de layout + helpers + tests + README + barrel) · **Creado**: 2026-06-27
+**Status**: slices 1..6 implementados · 81/83 tasks hechas · 2 tasks `pending (user-owned)` (T-UI-505 sweep de Lighthouse, T-UI-506 sign-off manual de QA) — NO bloquean el archive per design §16.6 del slice 6 y brief del orchestrator · **Implementado**: 2026-06-28 (slices 1–4) → 2026-06-29 (slices 5–6 + cleanup 4R) · **Archivado**: 2026-06-29 (sdd-archive después de PR #104) · **Creado**: 2026-06-27
 **Stack**: v3 — Next.js 16 + Node 20 + React 19 + Hono catch-all + Auth.js v5 (heredado de `auth-foundation`) + Prisma 6 + PostgreSQL (Neon) + Zod + Vitest + Testing Library + pnpm + Tailwind v4
 **Artefactos fuente**: `openspec/changes/transactions-ui/proposal.md` (v1, 704 LoC) · `openspec/changes/transactions-ui/specs/ui/spec.md` (REQ-UI-1..11) · `openspec/changes/transactions-ui/specs/transactions/spec.md` (REQ-TX-15 REPLACED) · `openspec/changes/transactions-ui/design.md` (3,188 LoC; 20 secciones) — input para esta fase
 **Preflight**: interactive · `both` (Engram + OpenSpec) · `force-chained` (cache `auto-forecast`) · budget de review 400 líneas

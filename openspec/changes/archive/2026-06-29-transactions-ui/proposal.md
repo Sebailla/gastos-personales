@@ -1,7 +1,7 @@
 # Proposal — `transactions-ui`
 
-**Status**: draft · **Author**: Sebastián Illa
-**Created**: 2026-06-27 · **Target slice**: MVP-4 (production surface)
+**Status**: archived (2026-06-29, sdd-archive after PR #104) · **Author**: Sebastián Illa
+**Created**: 2026-06-27 · **Target slice**: MVP-4 (production surface) · **Archived**: 2026-06-29 (post-merge of PRs #98/#99/#100/#101/#102/#103 + 4R cleanup #104 on `develop`)
 **Upstream**: `openspec/AGENTS.md` (project lifecycle) · `openspec/config.yaml` (`ui` capability slot reserved at line 15; strict TDD; auto-forecast, 400 lines)
 **Upstream**: global SDD preflight (interactive, both, auto-forecast, 400 lines; review budget 400)
 **Upstream**: project contract (root `AGENTS.md` §2, §4.7, §5.4, §13; `openspec/AGENTS.md` author/dependencies)
