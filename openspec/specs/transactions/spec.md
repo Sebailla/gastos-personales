@@ -766,43 +766,43 @@ payload (BR-TX-8, BR-AUTH-11 carried from `auth/spec.md`).
 - THEN: the captured payload does NOT contain the literal
   string `"secret name"` or the `memo` key
 
-### UI smoke slice
+### Production UI surface (formerly REQ-TX-15)
 
-#### Requirement: Three smoke pages mirror the accounts slice (REQ-TX-15)
+#### Requirement: production UI surface is owned by the ui capability (REQ-TX-15)
 
-The system MUST ship three Next.js App Router pages under
-`app/transactions/`, each header comment
-`// smoke-minimal, not production`:
+The system MUST render the production-grade user-facing surface
+for `/transactions`, `/transactions/[id]`, `/transactions/new`,
+`/accounts`, `/accounts/[id]`, `/accounts/new`, and `/dashboard`
+through the `ui` capability at `openspec/specs/ui/spec.md`. The
+production UI MUST satisfy every Requirement codified in
+`ui/spec.md` REQ-UI-1 to REQ-UI-11, including:
 
-- `app/transactions/page.tsx` — list page (Server Component
-  that resolves the session via `auth()`, calls
-  `GET /api/transactions`, and renders a `<table>` with
-  columns `Date`, `Account`, `Direction`, `Amount`,
-  `Converted amount`. Cursor pagination footer mirrors the
-  `accounts` list page).
-- `app/transactions/new/page.tsx` — create form (Server
-  Component shell + single Client form). Renders a `<select
-name="accountId">` populated from `GET /api/accounts` (live
-  accounts only), a `<select name="direction">` with
-  `INCOME | EXPENSE`, an `<input name="amountMinor">` (positive
-  integer), a `<select name="currency">` with the
-  `AccountCurrency` whitelist, a date input, an optional memo
-  input (max 500 chars), and an optional category input. On
-  `201`, `router.push('/transactions')`. On `4xx`, the inline
-  error banner shows the first message from the response
-  body's `error` field.
-- `app/transactions/[id]/page.tsx` — detail page (Server
-  Component that resolves the session, calls
-  `GET /api/transactions/:id`, and renders the full row in a
-  `<dl>` including `originalAmount`, `originalCurrency`,
-  `convertedAmount`, `convertedCurrency`, and
-  `fxAsOfSnapshot` rendered as `"Rate as of: <ISO>"`).
+- The two additive query flags on existing GET endpoints
+  (`include=lastActivity` on `/api/accounts`, REQ-UI-1;
+  `include=accountName` on `/api/transactions`, REQ-UI-2).
+- The list-page state machine covering empty / loading /
+  error / success (REQ-UI-3).
+- The WCAG 2.2 AA accessibility floor (REQ-UI-4 to REQ-UI-8).
+- The single-light-theme constraint (REQ-UI-9).
+- The docs-and-QA deliverables
+  (`docs/architecture/ui.md`, `docs/qa/transactions-ui.md`,
+  REQ-UI-10 and REQ-UI-11).
 
-The three pages MUST NOT be added to
-`proxy.ts:24-32 PUBLIC_PATHS`; the 307 redirect to
-`/auth/signin?callbackUrl=...` is the auth gate.
-(Traces: `accounts/spec.md` BR-ACC-14 to BR-ACC-19 for the
-parallel smoke slice rules.)
+The three pages under `app/transactions/` (list, detail, create)
+and the corresponding page-level presentational components
+(`TransactionsListTable`, `TransactionDetail`,
+`CreateTransactionForm`) MUST keep the `auth()` Server
+Component gate, the `serverHonoRequest` data path, and the
+existing Hono routes (`/api/transactions/*`); only the render
+layer changes. The two query flags are additive on the existing
+GET endpoints — the endpoint without the flag MUST remain
+byte-identical to the current contract (REQ-UI-1, REQ-UI-2).
+No new `app/transactions/**` route or new HTTP framework code
+is introduced.
+
+(Traces: `ui/spec.md` REQ-UI-1 to REQ-UI-11. Replaces the
+original "Three smoke pages mirror the accounts slice" wording
+that lived in this spec at last sync 2026-06-22.)
 
 #### Scenario: missing session redirects to /auth/signin
 
@@ -811,11 +811,12 @@ parallel smoke slice rules.)
 - THEN: the response is a 302 to
   `/auth/signin?callbackUrl=%2Ftransactions`
 
-#### Scenario: empty list shows the empty state
+#### Scenario: empty list shows the empty state with CTA
 
 - GIVEN: an authenticated user with zero transactions
 - WHEN: the user visits `/transactions`
-- THEN: the page renders `"No transactions yet — record one"`
+- THEN: the page renders the `EmptyState` primitive
+  (REQ-UI-3)
 - AND: the page renders a `New transaction` button linking to
   `/transactions/new`
 
@@ -824,9 +825,20 @@ parallel smoke slice rules.)
 - GIVEN: a `Transaction` row owned by the authenticated user
   with `fxAsOfSnapshot = <ISO>`
 - WHEN: the user visits `/transactions/:id`
-- THEN: the page renders the row in a `<dl>`
+- THEN: the page renders the row in a `Card`-based layout
+  (REQ-UI-3)
 - AND: the page renders `fxAsOfSnapshot` as the plain text
   `"Rate as of: <ISO>"`
+
+#### Scenario: account picker drives the dashboard flow card
+
+- GIVEN: an authenticated session
+- AND: account `A` exists with a non-empty flow
+- WHEN: the user visits `/dashboard?accountId=<A>`
+- THEN: the flow card fetches
+  `/api/reports/accounts/<A>/flow`
+- AND: the flow card renders the per-account daily flow
+  (REQ-UI-3)
 
 ## Error semantics
 
@@ -918,7 +930,8 @@ detail.
 - Historical FX archive for back-dated transactions.
 - AI categorization.
 - Budget rules / spending limits.
-- Production UI (`transactions-ui` is a separate change).
+- Production UI (owned by the `ui` capability; this spec
+  references the `ui` REQs but does not duplicate them).
 - Mobile app.
 
 ## Cross-references
@@ -969,6 +982,15 @@ detail.
   `Transaction` aggregate + CRUD + multi-currency via the
   `fx` capability + smoke UI. Attachments, recurrence, and
   idempotency keys deferred to v1.1+ of the same change.
+- **2026-06-29 (transactions-ui)** — REQ-TX-15 REPLACED. The
+  "Three smoke pages mirror the accounts slice" wording is
+  replaced by a thin reference to the new `ui` capability,
+  which owns REQ-UI-1 to REQ-UI-11. REQ-TX-1 to REQ-TX-14 are
+  preserved verbatim. No BR changes; no behavior changes in
+  the Hono routes; no data model changes; no new top-level
+  dependencies. The `ui` capability was promoted from
+  `openspec/changes/transactions-ui/specs/ui/spec.md` to
+  `openspec/specs/ui/spec.md` by `sdd-archive`.
 
 ## References
 
