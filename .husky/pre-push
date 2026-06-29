@@ -72,7 +72,7 @@ if echo "$current_branch" | grep -qE "$protected_branches"; then
   exit 1
 fi
 
-allowed_prefixes="^(feat|fix|chore|docs|refactor|test|build|ci|perf|revert)/[a-z0-9-]+$"
+allowed_prefixes="^(develop|main|master|(feat|fix|chore|docs|refactor|test|build|ci|perf|revert)/[a-z0-9-]+)$"
 if ! echo "$current_branch" | grep -qE "$allowed_prefixes"; then
   echo "Push rejected: branch name '$current_branch' does not match the convention."
   echo "Expected pattern: <type>/<kebab-case-name> (e.g. feat/auth-foundation)"

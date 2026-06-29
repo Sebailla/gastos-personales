@@ -6,7 +6,8 @@
 # hook args and stdin to validate:
 #   - All-delete pushes pass through without checks
 #   - Normal pushes on feat/* branches validate branch name
-#   - Normal pushes on develop are rejected (not in allowed prefixes)
+#   - Normal pushes on develop are allowed (develop is in
+#     $allowed_prefixes as a special integration branch)
 #   - Pushes to main are rejected (protected)
 #
 # Uses two test seams exposed by the hook:
@@ -110,10 +111,15 @@ run_hook \
   "${REMOTE_ARGS[@]}"
 
 # 5. Normal push on develop — branch-name check REJECTS.
+#    NOTE: this test was written before develop was added to
+#    $allowed_prefixes. The fix in `fix(husky): pre-push hook
+#    now allows pushes to develop and main` flipped develop
+#    from "rejected" to "allowed", so the test now pins the
+#    NEW contract: develop passes the branch-name check.
 run_hook \
-  "update push from develop — rejected (no feat/ prefix)" \
-  "develop" "" \
-  1 "does not match the convention" \
+  "update push from develop — allowed (develop is in allowed_prefixes)" \
+  "develop" "1" \
+  0 "" \
   "refs/heads/develop abc123 refs/heads/develop def456" \
   "${REMOTE_ARGS[@]}"
 
@@ -138,18 +144,21 @@ run_hook \
 # 8. Empty stdin (no refspecs). Git can call pre-push with no
 #    stdin in some corner cases. The hook treats this as "not
 #    all deletes" and proceeds to branch-name validation.
+#    With develop now in $allowed_prefixes, the branch check
+#    passes — coverage is mocked-skipped, so the whole hook
+#    exits 0.
 run_hook \
-  "empty stdin — proceeds to branch check" \
-  "develop" "" \
-  1 "does not match the convention" \
+  "empty stdin — branch OK on develop, coverage skipped" \
+  "develop" "1" \
+  0 "" \
   "" \
   "${REMOTE_ARGS[@]}"
 
 # 9. Whitespace-only stdin — same as empty.
 run_hook \
-  "whitespace-only stdin — proceeds to branch check" \
-  "develop" "" \
-  1 "does not match the convention" \
+  "whitespace-only stdin — branch OK on develop, coverage skipped" \
+  "develop" "1" \
+  0 "" \
   $'\n  \n' \
   "${REMOTE_ARGS[@]}"
 
