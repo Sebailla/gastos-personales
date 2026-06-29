@@ -1,25 +1,25 @@
 /**
  * Seeded-user snapshot for `app/dashboard/page.tsx` —
- * dashboard-ui slice 4 (T-RPT-306).
+ * dashboard-ui slice 4 (T-UI-309 + T-UI-310).
  *
- * Companion to `page.test.tsx` (empty user). Splitting the
- * seeded case into its own file avoids a shared mutable
- * `currentFixture` selector — the mock factory is purely
- * declarative per file (no `if`/`else` in setup, per root
- * AGENTS.md §10.5).
+ * Companion to `page.test.tsx` (empty + deep-link + month
+ * branches). Splitting the seeded case into its own file
+ * avoids a shared mutable `currentFixture` selector — the
+ * mock factory is purely declarative per file (no `if`/`else`
+ * in setup, per root AGENTS.md §10.5).
  *
  * The seeded fixture has monthly totals (ARS, one row) +
- * two breakdown buckets (food + transport). The flow
- * endpoint is NOT called in v1 — the page never asks for it
- * (design §9.2). The test asserts that contract by checking
- * no `/flow` call lands in the mock.
+ * two breakdown buckets (food + transport) + the picker
+ * accounts. With NO ?accountId= the AccountFlowCard is in
+ * branch 1 (EmptyState). The seeded test pins the populated
+ * summary + breakdown + picker-with-no-selection contract.
  *
- * No logic in tests: assertions are direct `toContain` /
- * `toHaveBeenCalledWith` checks.
+ * No logic in tests: assertions are direct `toContain`
+ * checks against the rendered HTML.
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { renderServerTree } from './test-helpers/render-server-tree';
 
 vi.mock('@/modules/auth/nextauth', () => ({
   auth: vi.fn(async () => ({ user: { id: 'u1', email: 'u1@example.com' } })),
@@ -65,10 +65,62 @@ const SEEDED_BREAKDOWN: CategoryBreakdownDTO = {
   generatedAt: '2026-06-27T12:00:00.000Z',
 };
 
-// Path-prefix keyed lookup. The flow endpoint is intentionally
-// absent — a future call lands as 404 in the mock, surfacing
-// the contract drift here.
+const ACCOUNTS_RESPONSE = {
+  data: [
+    {
+      id: '00000000-0000-4000-8000-000000000001',
+      userId: 'u1',
+      type: 'BANK',
+      name: 'Main ARS',
+      currency: 'ARS',
+      openingBalanceMinor: 0,
+      openingBalanceMode: 'CURRENT',
+      openingBalanceDate: null,
+      archivedAt: null,
+      bankName: 'Banco Galicia',
+      accountKind: null,
+      issuer: null,
+      creditLimitMinor: null,
+      statementDay: null,
+      paymentDueDay: null,
+      broker: null,
+      investmentType: null,
+      walletAddress: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    },
+    {
+      id: '00000000-0000-4000-8000-000000000002',
+      userId: 'u1',
+      type: 'BANK',
+      name: 'Main USD',
+      currency: 'USD',
+      openingBalanceMinor: 0,
+      openingBalanceMode: 'CURRENT',
+      openingBalanceDate: null,
+      archivedAt: null,
+      bankName: 'Banco Galicia',
+      accountKind: null,
+      issuer: null,
+      creditLimitMinor: null,
+      statementDay: null,
+      paymentDueDay: null,
+      broker: null,
+      investmentType: null,
+      walletAddress: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    },
+  ],
+  nextCursor: null,
+  total: 2,
+};
+
+// The flow endpoint is NOT called when the page is rendered
+// without an ?accountId= deep-link — its mock would return 404
+// and the test would catch the contract drift.
 const FIXTURES_BY_PREFIX: ReadonlyArray<readonly [string, () => Response]> = [
+  ['/api/accounts', () => new Response(JSON.stringify(ACCOUNTS_RESPONSE), { status: 200 })],
   ['/api/reports/monthly', () => new Response(JSON.stringify(SEEDED_MONTHLY), { status: 200 })],
   ['/api/reports/breakdown', () => new Response(JSON.stringify(SEEDED_BREAKDOWN), { status: 200 })],
 ];
@@ -83,32 +135,37 @@ vi.mock('@/lib/server-hono', () => ({
 
 import DashboardPage from './page';
 
-describe('DashboardPage — seeded user (dashboard-ui T-RPT-306)', () => {
-  it('renders three populated cards (flow still empty v1)', async () => {
-    const jsx = await DashboardPage();
-    const html = renderToStaticMarkup(jsx);
-    // MonthlySummaryCard populated: a table with totals columns.
+describe('DashboardPage — seeded user (slice 4 T-UI-309 / T-UI-310)', () => {
+  it('renders populated summary + breakdown + the picker for account selection', async () => {
+    const jsx = await DashboardPage({ searchParams: Promise.resolve({}) });
+    const html = await renderServerTree(jsx);
+    // MonthlySummaryCard populated: a Table with totals columns.
     expect(html).toContain('<table');
+    expect(html).toContain('<caption');
     expect(html).toContain('Ingresos');
     expect(html).toContain('Gastos');
     expect(html).toContain('Neto');
     // CategoryBreakdownCard populated: the bucket rows show up.
     expect(html).toContain('food');
     expect(html).toContain('transport');
-    // AccountFlowCard still in v1 empty state.
+    // AccountFlowCard title surfaces; the picker renders the
+    // two accounts; currentAccountId is null so no aria-current.
     expect(html).toContain('Flujo por cuenta');
-    expect(html).toContain('Sin datos');
-    // The flow endpoint is NEVER called in v1.
+    expect(html).toContain('aria-label="Account picker"');
+    expect(html).toContain('href="/dashboard?accountId=00000000-0000-4000-8000-000000000001"');
+    expect(html).toContain('href="/dashboard?accountId=00000000-0000-4000-8000-000000000002"');
+    expect(html).not.toContain('aria-current="page"');
+    // The flow endpoint is NEVER called when no ?accountId=
+    // is passed.
     const flowCalls = mockServerHonoRequest.mock.calls.filter(([p]) => String(p).includes('/flow'));
     expect(flowCalls).toHaveLength(0);
     // Both monthly and breakdown were fetched. We inspect the
     // mock's call log directly rather than toHaveBeenCalledWith
-    // to keep the assertion pure (the page calls the helper
-    // with (path, init?) and Vitest's argument matcher needs
-    // every positional arg to match — easier to read the call
-    // log here).
+    // to keep the assertion pure.
     const calledPaths = mockServerHonoRequest.mock.calls.map(([p]) => String(p));
     expect(calledPaths.some((p) => p.startsWith('/api/reports/monthly'))).toBe(true);
     expect(calledPaths.some((p) => p.startsWith('/api/reports/breakdown'))).toBe(true);
+    // /api/accounts is fetched (for the picker).
+    expect(calledPaths.some((p) => p.startsWith('/api/accounts'))).toBe(true);
   });
 });

@@ -1,18 +1,15 @@
-// smoke-minimal, not production
 /**
- * /accounts/[id] — Server Component.
+ * /accounts/[id] — Server Component production render.
  *
  * BR-ACC-14: missing session → redirect to
  * `/auth/signin?callbackUrl=/accounts/[id]`.
  * BR-ACC-19: API `404` → redirect to
- * `/accounts?toast=not-found` (the list page mounts the
- * EphemeralToast and renders "Account not found or no
- * access" for ~3 s).
+ * `/accounts?toast=not-found`.
  *
- * The detail page renders the full row in a `<dl>` via
- * the `AccountDetail` pure render component, and embeds
- * the `BalanceWidget` Client Component for the FX
- * conversion form.
+ * Per design §7.3 the detail page renders a PageHeader +
+ * Card + AccountDetail. The BalanceWidget Client Component
+ * is reused unchanged (no logic change — it owns the FX
+ * conversion form for the detail).
  *
  * The Hono API call is in-process via `serverHonoRequest`.
  */
@@ -20,6 +17,9 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/modules/auth/nextauth';
 import { serverHonoRequest } from '@/lib/server-hono';
+import { PageContainer } from '../../_ui/layout/page-container';
+import { PageHeader } from '../../_ui/layout/page-header';
+import { Link } from '../../_ui/primitives/link';
 import { AccountDetail } from './account-detail';
 import { BalanceWidget } from './balance-widget';
 import type { ErrorEnvelope, FinancialAccountWire } from '../../_lib/account-types';
@@ -28,12 +28,11 @@ export const dynamic = 'force-dynamic';
 
 export default async function AccountDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
+  const { id } = await params;
   if (!session?.user) {
-    const { id } = await params;
     redirect('/auth/signin?callbackUrl=' + encodeURIComponent(`/accounts/${id}`));
   }
 
-  const { id } = await params;
   const res = await serverHonoRequest(`/api/accounts/${id}`);
   if (res.status === 401) {
     redirect('/auth/signin?callbackUrl=' + encodeURIComponent(`/accounts/${id}`));
@@ -50,21 +49,26 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
   const account = body.data;
 
   return (
-    <main className="p-6">
-      <header className="mb-4 flex justify-between items-center">
-        <h1 className="text-2xl font-semibold">{account.name}</h1>
-        <a href="/accounts" className="text-sm text-blue-600 hover:underline">
-          ← Back to accounts
-        </a>
-      </header>
-
-      <AccountDetail account={account} />
-
-      <BalanceWidget
-        accountId={account.id}
-        nativeAmount={account.openingBalanceMinor}
-        nativeCurrency={account.currency as 'ARS' | 'USD' | 'EUR'}
+    <PageContainer>
+      <PageHeader
+        title={account.name}
+        actions={
+          <Link
+            href="/accounts"
+            className="rounded-ui-md border border-ui-border bg-ui-bg px-ui-space-3 py-ui-space-1 text-ui-text-sm text-ui-fg hover:bg-ui-bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-accent"
+          >
+            ← Back to accounts
+          </Link>
+        }
       />
-    </main>
+      <div className="flex flex-col gap-ui-space-6">
+        <AccountDetail account={account} />
+        <BalanceWidget
+          accountId={account.id}
+          nativeAmount={account.openingBalanceMinor}
+          nativeCurrency={account.currency as 'ARS' | 'USD' | 'EUR'}
+        />
+      </div>
+    </PageContainer>
   );
 }

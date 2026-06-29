@@ -1,0 +1,62 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`visual snapshot — Button primitive (T-UI-415) > renders Button in primary + loading states > disabled 1`] = `
+<button
+  class="inline-flex items-center justify-center gap-2 rounded-ui-md px-ui-space-4 py-ui-space-2 text-ui-text-sm font-ui-font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-accent focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-ui-accent text-ui-accent-fg hover:bg-ui-accent/90"
+  disabled=""
+  type="button"
+>
+  Cancel
+</button>
+`;
+
+exports[`visual snapshot — Button primitive (T-UI-415) > renders Button in primary + loading states > loading 1`] = `
+<button
+  aria-busy="true"
+  class="inline-flex items-center justify-center gap-2 rounded-ui-md px-ui-space-4 py-ui-space-2 text-ui-text-sm font-ui-font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-accent focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-ui-accent text-ui-accent-fg hover:bg-ui-accent/90"
+  disabled=""
+  type="button"
+>
+  <span
+    aria-label="Loading"
+    class="animate-spin text-ui-accent"
+    data-testid="ui-spinner"
+    role="status"
+    style="display: inline-block; width: 16px; height: 16px;"
+  >
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="16"
+      viewBox="0 0 24 24"
+      width="16"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        stroke-opacity="0.25"
+        stroke-width="3"
+      />
+      <path
+        d="M22 12a10 10 0 0 1-10 10"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-width="3"
+      />
+    </svg>
+  </span>
+  Saving…
+</button>
+`;
+
+exports[`visual snapshot — Button primitive (T-UI-415) > renders Button in primary + loading states > primary 1`] = `
+<button
+  class="inline-flex items-center justify-center gap-2 rounded-ui-md px-ui-space-4 py-ui-space-2 text-ui-text-sm font-ui-font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-accent focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-ui-accent text-ui-accent-fg hover:bg-ui-accent/90"
+  type="button"
+>
+  Save
+</button>
+`;

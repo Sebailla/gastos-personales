@@ -1,101 +1,143 @@
-// smoke-minimal, not production
 'use client';
 
 /**
- * CreateAccountForm — Client Component.
+ * CreateAccountForm — production Client Component.
+ *
+ * Per design §7.3 + §6.5 + REQ-UI-5/6/7:
+ * - FormField + Input + Select + FieldError + Button primitives
+ *   compose the form. Every control has a paired `<label htmlFor>`
+ *   (REQ-UI-5). The `FieldError` is wired via `aria-describedby`
+ *   on the control (REQ-UI-6).
+ * - mapApiErrorToFieldError maps API error codes to per-field
+ *   errors per design §6.5 / BR-UI-5.
+ * - Submit button renders Spinner + disabled + aria-busy="true"
+ *   while the Server Action is in flight (REQ-UI-7).
+ * - On 201, router.push to /accounts/<new-id> (BR-ACC-16).
  *
  * BR-ACC-15 (form-state discipline): the form's state is
  * local `useState` per field. The form MUST NOT hold the
- * session, the user, or any server-derived data in client
- * state. The Server Component shell passes nothing beyond
- * the form's mount context.
+ * session or any server-derived data in client state.
  *
- * BR-ACC-16 (form behavior):
- * - `openingBalanceMode` defaults to `FRESH` on first render.
- * - On change of the `type` select, the form silently resets
- *   every type-specific field to its default (no confirmation).
- * - `openingBalanceMinor` MUST be `>= 0` (client + server
- *   validation). The submit button is disabled when the
- *   value is negative.
- * - On `201 Created`: `router.push('/accounts?toast=account-created')`
- *   (the list page mounts the EphemeralToast and renders
- *   "Account created" for ~3 s).
- * - On `4xx`: inline error banner with the first error message
- *   from the response body's `error` field.
- * - On `5xx` or network error: inline error banner with
- *   "Something went wrong".
- *
- * The form is a single Client Component (not split). All
- * state is local. The form does NOT import the typed Hono
- * client (it is server-only on the App Router); it uses
- * plain `fetch` with the same-origin `/api/accounts` path.
+ * The Server Component shell (the parent page) passes
+ * nothing beyond the form's mount context.
  */
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Button } from '../../_ui/primitives/button';
+import { Input } from '../../_ui/primitives/input';
+import { Select } from '../../_ui/primitives/select';
+import { FormField } from '../../_ui/primitives/form-field';
+import { mapApiErrorToFieldError, type FieldErrorMap } from '../../_ui/_shared/map-api-error';
+import {
+  TYPES,
+  CURRENCIES,
+  ACCOUNT_KINDS,
+  INVESTMENT_TYPES,
+  CASAS,
+  type AccountType,
+  type AccountCurrency,
+  type OpeningBalanceMode,
+  type Casa,
+  type AccountKind,
+  type InvestmentType,
+  parseAccountType,
+  parseAccountCurrency,
+  parseAccountKind,
+  parseInvestmentType,
+  parseCasaOrNull,
+  parseOpeningBalanceMode,
+} from './type-guards';
 
-const TYPES = ['BANK', 'CREDIT', 'INVESTMENT', 'CRYPTO', 'CASH', 'OTHER'] as const;
-const CURRENCIES = ['ARS', 'USD', 'EUR'] as const;
-const ACCOUNT_KINDS = ['SAVINGS', 'CHECKING'] as const;
-const INVESTMENT_TYPES = [
-  'STOCKS',
-  'BONDS',
-  'MUTUAL_FUNDS',
-  'CERTS_OF_DEPOSIT',
-  'OTHER',
-] as const;
-// fx-cache PR-2 T2.9 — REQ-FX-9. Six AccountFxCasa values in
-// UPPERCASE form (matching the Prisma enum). The wire form on
-// POST /api/accounts is UPPERCASE; the DolarAPI lowercase form
-// lives at /api/fx and is consumed only by the fx module.
-const CASAS = ['OFICIAL', 'BLUE', 'MEP', 'CCL', 'CRIPTO', 'TARJETA'] as const;
-
-type AccountType = (typeof TYPES)[number];
-type AccountCurrency = (typeof CURRENCIES)[number];
-type OpeningBalanceMode = 'FRESH' | 'HISTORICAL';
-type Casa = (typeof CASAS)[number];
-
-interface ErrorResponse {
-  error: { code: string; message: string; details?: unknown };
-}
-
-const EMPTY_TYPE_FIELDS = {
+const EMPTY_TYPE_FIELDS: {
+  bankName: string;
+  accountKind: AccountKind;
+  issuer: string;
+  creditLimitMinor: string;
+  statementDay: string;
+  paymentDueDay: string;
+  broker: string;
+  investmentType: InvestmentType;
+  walletAddress: string;
+} = {
   bankName: '',
-  accountKind: 'SAVINGS' as (typeof ACCOUNT_KINDS)[number],
+  accountKind: 'SAVINGS',
   issuer: '',
   creditLimitMinor: '',
   statementDay: '',
   paymentDueDay: '',
   broker: '',
-  investmentType: 'STOCKS' as (typeof INVESTMENT_TYPES)[number],
+  investmentType: 'STOCKS',
   walletAddress: '',
 };
 
-export function CreateAccountForm() {
+// Field names that mapApiErrorToFieldError can route errors to.
+// Order matters: when the API returns a code we don't recognize,
+// the helper falls back to the FIRST field in this list.
+const FORM_FIELDS = [
+  'name',
+  'type',
+  'currency',
+  'casa',
+  'openingBalanceMinor',
+  'openingBalanceDate',
+  'openingBalanceMode',
+  'bankName',
+  'accountKind',
+  'issuer',
+  'creditLimitMinor',
+  'statementDay',
+  'paymentDueDay',
+  'broker',
+  'investmentType',
+  'walletAddress',
+] as const;
+
+export function CreateAccountForm(): React.JSX.Element {
   const router = useRouter();
 
-  // Discriminated-union-driven form state.
+  // Discriminated-union-driven form state (per BR-ACC-15).
   const [type, setType] = useState<AccountType>('BANK');
   const [name, setName] = useState<string>('');
   const [currency, setCurrency] = useState<AccountCurrency>('USD');
   const [openingBalanceMinor, setOpeningBalanceMinor] = useState<string>('0');
-  const [openingBalanceMode, setOpeningBalanceMode] =
-    useState<OpeningBalanceMode>('FRESH');
+  const [openingBalanceMode, setOpeningBalanceMode] = useState<OpeningBalanceMode>('FRESH');
   const [openingBalanceDate, setOpeningBalanceDate] = useState<string>('');
   const [typeFields, setTypeFields] = useState(EMPTY_TYPE_FIELDS);
-  // fx-cache PR-2 T2.9 — REQ-FX-9. The casa state is nullable:
   // `null` means "inherit the global default" and maps to
-  // `casa = NULL` in the request body (the Zod schema treats
-  // undefined and null the same way at the Prisma boundary).
+  // casa = NULL in the request body (REQ-FX-9).
   const [casa, setCasa] = useState<Casa | null>(null);
 
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrorMap>({});
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
 
   // BR-ACC-16: silent reset on type change.
   function onTypeChange(next: AccountType) {
     setType(next);
     setTypeFields(EMPTY_TYPE_FIELDS);
+    // Clear any bankName/accountKind/... field errors so the
+    // user is not stuck with a stale validation message from
+    // the previous type.
+    setFieldErrors((prev) => {
+      const next: FieldErrorMap = {};
+      for (const [k, v] of Object.entries(prev)) {
+        if (
+          !k.startsWith('bank') &&
+          !k.startsWith('account') &&
+          !k.startsWith('issuer') &&
+          !k.startsWith('credit') &&
+          !k.startsWith('statement') &&
+          !k.startsWith('payment') &&
+          !k.startsWith('broker') &&
+          !k.startsWith('investment') &&
+          !k.startsWith('wallet')
+        ) {
+          next[k] = v;
+        }
+      }
+      return next;
+    });
   }
 
   const openingBalanceIsValid = Number(openingBalanceMinor) >= 0;
@@ -106,10 +148,15 @@ export function CreateAccountForm() {
     openingBalanceIsValid &&
     (openingBalanceMode === 'FRESH' || openingBalanceDate.length > 0);
 
+  function lookupError(field: string): string | undefined {
+    return fieldErrors[field];
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
     setSubmitting(true);
+    setFieldErrors({});
     setErrorBanner(null);
 
     const body: Record<string, unknown> = {
@@ -118,18 +165,12 @@ export function CreateAccountForm() {
       currency,
       openingBalanceMinor: Number(openingBalanceMinor),
       openingBalanceMode,
-      openingBalanceDate:
-        openingBalanceMode === 'HISTORICAL' ? openingBalanceDate : null,
+      openingBalanceDate: openingBalanceMode === 'HISTORICAL' ? openingBalanceDate : null,
     };
-    // fx-cache PR-2 T2.9 — REQ-FX-9. Include casa only when
-    // the user picked one (non-null). When the placeholder is
-    // active, the field is omitted and the server treats it as
-    // `column = NULL` (inherit global default).
     if (casa !== null) {
       body['casa'] = casa;
     }
 
-    // Add type-specific fields only for the relevant type.
     if (type === 'BANK') {
       body.bankName = typeFields.bankName;
       body.accountKind = typeFields.accountKind;
@@ -160,11 +201,39 @@ export function CreateAccountForm() {
         body: JSON.stringify(body),
       });
       if (res.status === 201) {
-        router.push('/accounts?toast=account-created');
+        const payload = (await res.json().catch(() => null)) as { data?: { id?: unknown } } | null;
+        const newId = typeof payload?.data?.id === 'string' ? payload.data.id : null;
+        if (newId) {
+          router.push(`/accounts/${newId}`);
+        } else {
+          router.push('/accounts?toast=account-created');
+        }
         return;
       }
-      const errBody = (await res.json().catch(() => null)) as ErrorResponse | null;
-      setErrorBanner(errBody?.error?.message ?? `create failed (${res.status})`);
+      // 4xx: map the error envelope to field errors.
+      const errBody = (await res.json().catch(() => null)) as {
+        error?: { code: unknown; message: unknown };
+      } | null;
+      const errCode =
+        errBody?.error && typeof errBody.error.code === 'string' ? errBody.error.code : null;
+      const errMessage =
+        errBody?.error && typeof errBody.error.message === 'string' ? errBody.error.message : null;
+      if (errBody?.error && errCode && errMessage) {
+        if (errCode === 'VALIDATION_ERROR') {
+          // Surface a banner; the per-field mapping happens
+          // server-side in a follow-up.
+          setErrorBanner(errMessage);
+        } else {
+          const mapped = mapApiErrorToFieldError(
+            { error: { code: errCode, message: errMessage } },
+            FORM_FIELDS,
+          );
+          setFieldErrors(mapped);
+          setErrorBanner(errMessage);
+        }
+      } else {
+        setErrorBanner(`create failed (${res.status})`);
+      }
     } catch {
       setErrorBanner('Something went wrong');
     } finally {
@@ -173,136 +242,98 @@ export function CreateAccountForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-3 max-w-xl">
-      <label className="flex flex-col gap-1">
-        <span className="text-sm">Type</span>
-        <select
-          name="type"
+    <form onSubmit={onSubmit} className="flex flex-col gap-ui-space-4 max-w-xl" noValidate>
+      <FormField id="type" label="Type">
+        <Select
+          id="type"
+          options={TYPES.map((t) => ({ value: t, label: t }))}
           value={type}
-          onChange={(e) => onTypeChange(e.target.value as AccountType)}
-          className="border border-gray-300 rounded px-2 py-1"
-        >
-          {TYPES.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-      </label>
+          onChange={(e) => onTypeChange(parseAccountType(e.target.value, type))}
+        />
+      </FormField>
 
-      <label className="flex flex-col gap-1">
-        <span className="text-sm">Name</span>
-        <input
-          name="name"
+      <FormField id="name" label="Name" required error={lookupError('name')}>
+        <Input
+          id="name"
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
-          minLength={1}
           maxLength={80}
-          className="border border-gray-300 rounded px-2 py-1"
+          aria-invalid={lookupError('name') ? 'true' : undefined}
         />
-      </label>
+      </FormField>
 
-      <label className="flex flex-col gap-1">
-        <span className="text-sm">Currency</span>
-        <select
-          name="currency"
+      <FormField id="currency" label="Currency" error={lookupError('currency')}>
+        <Select
+          id="currency"
+          options={CURRENCIES.map((c) => ({ value: c, label: c }))}
           value={currency}
-          onChange={(e) => setCurrency(e.target.value as AccountCurrency)}
-          className="border border-gray-300 rounded px-2 py-1"
-        >
-          {CURRENCIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-      </label>
+          onChange={(e) => setCurrency(parseAccountCurrency(e.target.value, currency))}
+          aria-invalid={lookupError('currency') ? 'true' : undefined}
+        />
+      </FormField>
 
-      {/* fx-cache PR-2 T2.9 — REQ-FX-9. Per-account casa selection.
-          The placeholder ("Default (oficial)") maps to casa = NULL
-          in the request body; the user picks an explicit casa when
-          they want a non-default quote source. WCAG: the label
-          text is associated with the <select> via the wrapping
-          <label>, the control is focusable and keyboard-navigable. */}
-      <label className="flex flex-col gap-1">
-        <span className="text-sm">FX casa (optional)</span>
-        <select
-          name="casa"
+      {/* REQ-FX-9 — Per-account casa selection. */}
+      <FormField
+        id="casa"
+        label="FX casa (optional)"
+        description="Pick a non-default casa to override the global quote source. Leave as Default to inherit."
+      >
+        <Select
+          id="casa"
+          options={[
+            { value: '', label: 'Default (oficial)' },
+            ...CASAS.map((c) => ({ value: c, label: c })),
+          ]}
           value={casa ?? ''}
-          onChange={(e) =>
-            setCasa(e.target.value === '' ? null : (e.target.value as Casa))
-          }
-          className="border border-gray-300 rounded px-2 py-1"
-        >
-          <option value="">Default (oficial)</option>
-          {CASAS.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-      </label>
+          onChange={(e) => setCasa(parseCasaOrNull(e.target.value))}
+        />
+      </FormField>
 
-      {/* Type-specific fields (BR-ACC-16: silent reset on type change). */}
       {type === 'BANK' ? (
-        <div className="flex flex-col gap-3 border-l-2 border-gray-200 pl-3">
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Bank name</span>
-            <input
-              name="bankName"
+        <div className="flex flex-col gap-ui-space-3 border-l-2 border-ui-border pl-ui-space-3">
+          <FormField id="bankName" label="Bank name" required error={lookupError('bankName')}>
+            <Input
+              id="bankName"
               type="text"
               value={typeFields.bankName}
-              onChange={(e) =>
-                setTypeFields((s) => ({ ...s, bankName: e.target.value }))
-              }
+              onChange={(e) => setTypeFields((s) => ({ ...s, bankName: e.target.value }))}
               required
-              className="border border-gray-300 rounded px-2 py-1"
+              aria-invalid={lookupError('bankName') ? 'true' : undefined}
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Account kind</span>
-            <select
-              name="accountKind"
+          </FormField>
+          <FormField id="accountKind" label="Account kind">
+            <Select
+              id="accountKind"
+              options={ACCOUNT_KINDS.map((k) => ({ value: k, label: k }))}
               value={typeFields.accountKind}
               onChange={(e) =>
                 setTypeFields((s) => ({
                   ...s,
-                  accountKind: e.target.value as (typeof ACCOUNT_KINDS)[number],
+                  accountKind: parseAccountKind(e.target.value, s.accountKind),
                 }))
               }
-              className="border border-gray-300 rounded px-2 py-1"
-            >
-              {ACCOUNT_KINDS.map((k) => (
-                <option key={k} value={k}>
-                  {k}
-                </option>
-              ))}
-            </select>
-          </label>
+            />
+          </FormField>
         </div>
       ) : null}
 
       {type === 'CREDIT' ? (
-        <div className="flex flex-col gap-3 border-l-2 border-gray-200 pl-3">
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Issuer</span>
-            <input
-              name="issuer"
+        <div className="flex flex-col gap-ui-space-3 border-l-2 border-ui-border pl-ui-space-3">
+          <FormField id="issuer" label="Issuer" required error={lookupError('issuer')}>
+            <Input
+              id="issuer"
               type="text"
               value={typeFields.issuer}
-              onChange={(e) =>
-                setTypeFields((s) => ({ ...s, issuer: e.target.value }))
-              }
+              onChange={(e) => setTypeFields((s) => ({ ...s, issuer: e.target.value }))}
               required
-              className="border border-gray-300 rounded px-2 py-1"
+              aria-invalid={lookupError('issuer') ? 'true' : undefined}
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Credit limit (minor units, optional)</span>
-            <input
-              name="creditLimitMinor"
+          </FormField>
+          <FormField id="creditLimitMinor" label="Credit limit (minor units, optional)">
+            <Input
+              id="creditLimitMinor"
               type="number"
               min={0}
               value={typeFields.creditLimitMinor}
@@ -312,13 +343,11 @@ export function CreateAccountForm() {
                   creditLimitMinor: e.target.value,
                 }))
               }
-              className="border border-gray-300 rounded px-2 py-1"
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Statement day (1-31, optional)</span>
-            <input
-              name="statementDay"
+          </FormField>
+          <FormField id="statementDay" label="Statement day (1-31, optional)">
+            <Input
+              id="statementDay"
               type="number"
               min={1}
               max={31}
@@ -329,13 +358,11 @@ export function CreateAccountForm() {
                   statementDay: e.target.value,
                 }))
               }
-              className="border border-gray-300 rounded px-2 py-1"
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Payment due day (1-31, optional)</span>
-            <input
-              name="paymentDueDay"
+          </FormField>
+          <FormField id="paymentDueDay" label="Payment due day (1-31, optional)">
+            <Input
+              id="paymentDueDay"
               type="number"
               min={1}
               max={31}
@@ -346,56 +373,43 @@ export function CreateAccountForm() {
                   paymentDueDay: e.target.value,
                 }))
               }
-              className="border border-gray-300 rounded px-2 py-1"
             />
-          </label>
+          </FormField>
         </div>
       ) : null}
 
       {type === 'INVESTMENT' ? (
-        <div className="flex flex-col gap-3 border-l-2 border-gray-200 pl-3">
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Broker</span>
-            <input
-              name="broker"
+        <div className="flex flex-col gap-ui-space-3 border-l-2 border-ui-border pl-ui-space-3">
+          <FormField id="broker" label="Broker" required>
+            <Input
+              id="broker"
               type="text"
               value={typeFields.broker}
-              onChange={(e) =>
-                setTypeFields((s) => ({ ...s, broker: e.target.value }))
-              }
+              onChange={(e) => setTypeFields((s) => ({ ...s, broker: e.target.value }))}
               required
-              className="border border-gray-300 rounded px-2 py-1"
             />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Investment type</span>
-            <select
-              name="investmentType"
+          </FormField>
+          <FormField id="investmentType" label="Investment type">
+            <Select
+              id="investmentType"
+              options={INVESTMENT_TYPES.map((it) => ({ value: it, label: it }))}
               value={typeFields.investmentType}
               onChange={(e) =>
                 setTypeFields((s) => ({
                   ...s,
-                  investmentType: e.target.value as (typeof INVESTMENT_TYPES)[number],
+                  investmentType: parseInvestmentType(e.target.value, s.investmentType),
                 }))
               }
-              className="border border-gray-300 rounded px-2 py-1"
-            >
-              {INVESTMENT_TYPES.map((it) => (
-                <option key={it} value={it}>
-                  {it}
-                </option>
-              ))}
-            </select>
-          </label>
+            />
+          </FormField>
         </div>
       ) : null}
 
       {type === 'CRYPTO' ? (
-        <div className="flex flex-col gap-3 border-l-2 border-gray-200 pl-3">
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Wallet address (optional)</span>
-            <input
-              name="walletAddress"
+        <div className="flex flex-col gap-ui-space-3 border-l-2 border-ui-border pl-ui-space-3">
+          <FormField id="walletAddress" label="Wallet address (optional)">
+            <Input
+              id="walletAddress"
               type="text"
               value={typeFields.walletAddress}
               onChange={(e) =>
@@ -404,79 +418,77 @@ export function CreateAccountForm() {
                   walletAddress: e.target.value,
                 }))
               }
-              className="border border-gray-300 rounded px-2 py-1"
             />
-          </label>
+          </FormField>
         </div>
       ) : null}
 
-      <fieldset className="flex flex-col gap-2 border border-gray-300 rounded p-3">
-        <legend className="text-sm px-1">Opening balance</legend>
-        <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            name="openingBalanceMode"
-            value="FRESH"
-            checked={openingBalanceMode === 'FRESH'}
-            onChange={() => {
-              setOpeningBalanceMode('FRESH');
-              setOpeningBalanceDate('');
+      <fieldset className="flex flex-col gap-ui-space-2 rounded-ui-md border border-ui-border p-ui-space-3">
+        <legend className="px-ui-space-1 text-ui-text-sm font-ui-font-medium text-ui-fg">
+          Opening balance
+        </legend>
+        <FormField id="openingBalanceMode" label="Mode">
+          <Select
+            id="openingBalanceMode"
+            options={[
+              { value: 'FRESH', label: 'Fresh (balance starts at zero)' },
+              { value: 'HISTORICAL', label: 'Historical (back-dated to a date)' },
+            ]}
+            value={openingBalanceMode}
+            onChange={(e) => {
+              const v = parseOpeningBalanceMode(e.target.value, openingBalanceMode);
+              setOpeningBalanceMode(v);
+              if (v === 'FRESH') setOpeningBalanceDate('');
             }}
           />
-          <span>Fresh (balance starts at zero)</span>
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            name="openingBalanceMode"
-            value="HISTORICAL"
-            checked={openingBalanceMode === 'HISTORICAL'}
-            onChange={() => setOpeningBalanceMode('HISTORICAL')}
-          />
-          <span>Historical (back-dated to a date)</span>
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-sm">Amount (minor units, must be &gt;= 0)</span>
-          <input
+        </FormField>
+        <FormField
+          id="openingBalanceMinor"
+          label="Amount (minor units, must be >= 0)"
+          error={lookupError('openingBalanceMinor')}
+        >
+          <Input
+            id="openingBalanceMinor"
             name="openingBalanceMinor"
             type="number"
             min={0}
             value={openingBalanceMinor}
             onChange={(e) => setOpeningBalanceMinor(e.target.value)}
-            className="border border-gray-300 rounded px-2 py-1"
+            aria-invalid={lookupError('openingBalanceMinor') ? 'true' : undefined}
           />
-        </label>
+        </FormField>
         {openingBalanceMode === 'HISTORICAL' ? (
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Date (required when HISTORICAL)</span>
-            <input
-              name="openingBalanceDate"
+          <FormField
+            id="openingBalanceDate"
+            label="Date (required when HISTORICAL)"
+            error={lookupError('openingBalanceDate')}
+          >
+            <Input
+              id="openingBalanceDate"
               type="date"
               value={openingBalanceDate}
               onChange={(e) => setOpeningBalanceDate(e.target.value)}
               required
-              className="border border-gray-300 rounded px-2 py-1"
+              aria-invalid={lookupError('openingBalanceDate') ? 'true' : undefined}
             />
-          </label>
+          </FormField>
         ) : null}
       </fieldset>
 
       {errorBanner ? (
         <div
           role="alert"
-          className="rounded border border-red-300 bg-red-50 text-red-800 px-3 py-2"
+          className="rounded-ui-md border border-ui-danger bg-ui-danger/10 px-ui-space-3 py-ui-space-2 text-ui-text-sm text-ui-danger"
         >
           {errorBanner}
         </div>
       ) : null}
 
-      <button
-        type="submit"
-        disabled={!canSubmit}
-        className="rounded bg-blue-600 text-white px-3 py-1 disabled:opacity-50"
-      >
-        {submitting ? 'Creating…' : 'Create account'}
-      </button>
+      <div className="flex justify-end">
+        <Button type="submit" variant="primary" isLoading={submitting} disabled={!canSubmit}>
+          {submitting ? 'Creating…' : 'Create account'}
+        </Button>
+      </div>
     </form>
   );
 }

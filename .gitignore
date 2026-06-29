@@ -23,6 +23,7 @@ tsconfig.tsbuildinfo
 .atl/
 .pi/
 .arl/
+.opencode/
 .tmp/
 .worktrees/
 

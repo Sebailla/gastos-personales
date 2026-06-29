@@ -5,6 +5,118 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.4.0] - 2026-06-29
+
+### Added
+
+- **`ui` capability end-to-end** (#98 #99 #100 #101 #102 #103, slice 6 of
+  `transactions-ui`): the new design-system reference + production
+  render layer. The capability is hand-built on Tailwind v4 + React
+  19 with **zero new top-level dependencies** (`pnpm-lock.yaml`
+  unchanged from v0.3.0). Scope:
+  - **18 design-system primitives** at `app/_ui/primitives/`:
+    `Button`, `Input`, `Textarea`, `Select`, `Checkbox`,
+    `RadioGroup`, `Combobox` (Client), `FieldError`, `FormField`,
+    `Card` + sub-components, `Table` + sub-components, `Badge`,
+    `EmptyState`, `Spinner`, `Skeleton`, `Pagination`, `Dialog`
+    (Client), `Breadcrumb`, `Link`. Each primitive has a unit test
+    asserting its a11y contract (`role` attributes, `aria-*`
+    pass-through, label / control pairing).
+  - **5 layout-shell primitives** at `app/_ui/layout/`:
+    `PageHeader`, `PageContainer`, `BreadcrumbBar`, `Sidebar`
+    (forward-declared, unused in v1), `Topbar` (forward-declared,
+    unused in v1).
+  - **Token table** at `app/_ui/tokens.css` declaring the v1
+    light-theme tokens as CSS custom properties plus the dark-mode
+    scope under `[data-theme='dark']` for non-breaking forward
+    compatibility (REQ-UI-9 / BR-UI-8).
+  - **Production UI surfaces** replacing the three smoke pages:
+    `/accounts`, `/accounts/:id`, `/accounts/new`,
+    `/transactions`, `/transactions/:id`, `/transactions/new`,
+    `/dashboard`. Each surface covers the four UI states (empty,
+    loading, error, success) per REQ-UI-3 and keeps the `auth()`
+    Server Component gate.
+  - **User-facing error boundaries** per route segment:
+    `app/error.tsx`, `app/dashboard/error.tsx`,
+    `app/accounts/error.tsx`, `app/transactions/error.tsx`.
+  - **Two additive query flags** on existing GET endpoints:
+    `?include=lastActivity` on `GET /api/accounts` (REQ-UI-1) and
+    `?include=accountName` on `GET /api/transactions` (REQ-UI-2).
+    The endpoints WITHOUT the flag remain byte-identical to the
+    pre-`transactions-ui` contract — additive only.
+  - **Two Client Components for dashboard query-param state**:
+    `app/_components/dashboard-account-picker.tsx` (navigates to
+    `?accountId=<id>`) and `app/_components/dashboard-month-switcher.tsx`
+    (renders `<Link>`s for previous / current / next month).
+  - **axe-core integration test suite** at `tests/a11y/`: one
+    `vitest-axe` test per production page asserting zero `critical`
+    or `serious` violations (WCAG 2.2 AA floor).
+  - **Visual snapshot test suite** at `tests/visual/`: golden-file
+    snapshots for the static presentational primitives (`Card`,
+    `Badge`, `EmptyState`, `Skeleton`, `Breadcrumb`).
+  - **E2E happy-path test suite** at `tests/e2e/`: full user
+    journeys (list → detail → create → submit; dashboard account
+    picker + month switcher).
+  - **Design-system reference** at `docs/architecture/ui.md` (the
+    public catalog codifying REQ-UI-10): token table (light + dark
+    CSS scope), 18-row primitive inventory with props shape + a11y
+    contract per primitive, 5-row layout-shell inventory, and
+    cross-cutting contracts (focus indicator, label pairing,
+    inline errors, submit loading state, table caption / scope /
+    aria-sort, no dark variants, path-based imports).
+  - **Manual QA checklist** at `docs/qa/transactions-ui.md`
+    (codifying REQ-UI-11): per-page keyboard sweep, cross-page
+    keyboard contract, form error surfacing, screen-reader pass
+    on VoiceOver (macOS) + NVDA (Windows), cross-user isolation
+    manual check, dark-mode follow-up note, axe-core informational
+    section, and a user-owned sign-off section. Runnable in 30–45
+    minutes.
+  - **Perf budget verification** at `docs/perf/transactions-ui.md`:
+    the Lighthouse CLI commands, the simulated 4G + Moto G4
+    throttling profile, the p95 page load < 2s budget on `/`,
+    `/dashboard`, and `/transactions`, JSON summary placeholders
+    for the three pages, and the budget-failure mitigation from
+    `design.md §16.5`.
+
+### Changed
+
+- **`transactions` spec** (`openspec/specs/transactions/spec.md`):
+  REQ-TX-15 (the original "Three smoke pages mirror the accounts
+  slice" requirement) is **REPLACED** by a thin pointer to the new
+  `ui` capability (`openspec/specs/ui/spec.md` REQ-UI-1 to
+  REQ-UI-11). All other requirements (REQ-TX-1 to REQ-TX-14) are
+  preserved verbatim. The replacement is non-breaking: no BR
+  changes, no Hono route changes, no data model changes, no new
+  top-level dependencies.
+- **4R cleanup landed in this release** (#104): the top-5 findings
+  from the post-merge 4R review of `transactions-ui` were fixed in
+  a single PR — removal of `as` casts, `Suspense` boundary
+  addition, `'use client'` directive correction, UUID format
+  switch, and `docs/architecture/ui.md` primitive count alignment
+  with the source.
+
+### Notes
+
+- The v1 production UI ships a **single light theme** (REQ-UI-9).
+  Dark-mode tokens are declared but unused; the follow-up
+  `ui-dark-mode` change activates them by setting
+  `data-theme="dark"` on the document root.
+- i18n (English / Spanish) is mixed EN/ES copy following the
+  pre-existing project convention (Spanish dashboard copy, English
+  component-level UI text). The follow-up `ui-i18n` change
+  introduces a message catalog.
+- **User-owned post-release follow-ups** (T-UI-505 Lighthouse
+  p95 < 2s sweep on `/`, `/dashboard`, `/transactions`; T-UI-506
+  manual QA sign-off per `docs/qa/transactions-ui.md`) are
+  intentionally **deferred to after the v0.4.0 tag is cut**. The
+  JSON summaries in `docs/perf/transactions-ui.md` and the
+  sign-off section in `docs/qa/transactions-ui.md` are pending
+  until the user runs them post-release. Neither is a release
+  blocker — both are observability + sign-off artifacts the
+  maintainer can execute at any time against the v0.4.0 tag.
+
 ## [0.2.1] - 2026-06-25
 
 ### Changed
@@ -61,3 +173,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.2.0]: https://github.com/Sebailla/gastos-personales/releases/tag/v0.2.0
 [0.2.1]: https://github.com/Sebailla/gastos-personales/releases/tag/v0.2.1
 [0.3.0]: https://github.com/Sebailla/gastos-personales/releases/tag/v0.3.0
+[0.4.0]: https://github.com/Sebailla/gastos-personales/releases/tag/v0.4.0

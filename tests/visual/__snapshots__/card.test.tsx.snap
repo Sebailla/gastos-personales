@@ -1,0 +1,41 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`visual snapshot — Card primitive (T-UI-407) > renders the empty Card + populated Card compound > empty 1`] = `
+<article
+  aria-label="Empty card"
+  class="rounded-ui-lg border border-ui-border bg-ui-bg shadow-ui-shadow-sm overflow-hidden"
+>
+  content
+</article>
+`;
+
+exports[`visual snapshot — Card primitive (T-UI-407) > renders the empty Card + populated Card compound > populated 1`] = `
+<article
+  aria-labelledby="card-title"
+  class="rounded-ui-lg border border-ui-border bg-ui-bg shadow-ui-shadow-sm overflow-hidden"
+>
+  <header
+    class="flex items-center justify-between gap-ui-space-3 border-b border-ui-border px-ui-space-4 py-ui-space-3"
+  >
+    <div
+      class="flex items-center gap-ui-space-2"
+    >
+      <h2
+        class="text-ui-text-lg font-ui-font-semibold text-ui-fg"
+      >
+        Summary
+      </h2>
+    </div>
+  </header>
+  <div
+    class="px-ui-space-4 py-ui-space-4"
+  >
+    Body content
+  </div>
+  <footer
+    class="flex items-center justify-end gap-ui-space-2 border-t border-ui-border px-ui-space-4 py-ui-space-3 bg-ui-bg-muted"
+  >
+    Footer content
+  </footer>
+</article>
+`;

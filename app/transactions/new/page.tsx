@@ -1,27 +1,24 @@
-// smoke-minimal, not production
 /**
- * /transactions/new — Server Component shell.
+ * /transactions/new — Server Component production render.
  *
- * The form embeds `CreateTransactionForm` (this file's
- * default export, a Client Component). The shell:
- * 1. Resolves the session via `auth()`.
- * 2. Redirects to `/auth/signin?callbackUrl=/transactions/new`
- *    when no session.
- * 3. Loads the live (non-archived) accounts via
- *    `GET /api/accounts?archivedAt=null&limit=100` to populate
- *    the `<select name="accountId">` dropdown.
- * 4. Renders the form with the account options.
+ * Per design §7.3 + REQ-TX-15:
+ * - The Server Component shell resolves the session via `auth()`.
+ * - Missing session → redirect to
+ *   `/auth/signin?callbackUrl=/transactions/new` (URL-encoded).
+ * - Loads the live (non-archived) accounts via
+ *   `GET /api/accounts?archivedAt=null&limit=100` to populate
+ *   the form's Combobox.
+ * - Renders `PageHeader` + `CreateTransactionForm`.
  *
- * The Server Action is `createTransactionServerAction`
- * (`app/_actions/transactions-server-actions.ts`). It posts
- * to `/api/transactions` via `serverHonoRequest` (API-first).
- * On 201 → redirect to `/transactions/<id>?toast=created`.
- * On 4xx/5xx → the form throws with the API's error message.
+ * The form is API-first; it POSTs to `/api/transactions` from
+ * the Client Component (BR-TX-15 + design §9.1).
  */
 
 import { redirect } from 'next/navigation';
 import { auth } from '@/modules/auth/nextauth';
 import { serverHonoRequest } from '@/lib/server-hono';
+import { PageContainer } from '../../_ui/layout/page-container';
+import { PageHeader } from '../../_ui/layout/page-header';
 import { CreateTransactionForm } from './create-transaction-form';
 import type { ErrorEnvelope } from '../../_lib/account-types';
 
@@ -39,8 +36,10 @@ export default async function NewTransactionPage() {
     redirect('/auth/signin?callbackUrl=' + encodeURIComponent('/transactions/new'));
   }
 
-  // Load live accounts for the <select name="accountId"> dropdown.
-  const accountsRes = await serverHonoRequest('/api/accounts?archivedAt=null&limit=100');
+  // Load live accounts for the Combobox.
+  const accountsRes = await serverHonoRequest(
+    '/api/accounts?archivedAt=null&limit=100',
+  );
   if (accountsRes.status === 401) {
     redirect('/auth/signin?callbackUrl=' + encodeURIComponent('/transactions/new'));
   }
@@ -53,11 +52,12 @@ export default async function NewTransactionPage() {
   };
 
   return (
-    <main className="p-6">
-      <header className="mb-4">
-        <h1 className="text-2xl font-semibold">New transaction</h1>
-      </header>
+    <PageContainer>
+      <PageHeader
+        title="New transaction"
+        description="Record an income or expense. The FX snapshot is computed at write time and is immutable thereafter."
+      />
       <CreateTransactionForm accounts={accountsBody.data} />
-    </main>
+    </PageContainer>
   );
 }

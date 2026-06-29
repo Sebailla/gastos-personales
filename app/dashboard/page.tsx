@@ -1,192 +1,132 @@
 /**
- * Dashboard page — Server Component.
+ * Dashboard page — Server Component (slice 4 T-UI-310 + FIX 2 + FIX 4a).
  *
- * API-first RSC (slice 5 hard guardrail #7, design §9.2): the
- * page fetches via `serverHonoRequest`, never imports from
- * `src/modules/reports/...` directly. The UI is a presentation
- * layer over the Hono API; the page owns the data flow.
+ * Per design §7.3 + §9.2 + §9.3 + §16.5 + §17:
+ * - The page owns ONLY `auth()` + `redirect()` + searchParams.
+ *   Each card is a self-fetching async Server Component
+ *   (FIX 2 — refactored from the slice-4 page that did a single
+ *   `Promise.all` over all four endpoints). With per-card
+ *   `<Suspense>`, a thrown fetch in one card stays inside its
+ *   boundary and the sibling cards continue to render.
+ * - The flow endpoint is conditionally fetched (only when
+ *   `?accountId=` is present) per design §9.3: the dashboard
+ *   does NOT deep-link to the flow endpoint unless the user
+ *   explicitly picked an account.
  *
- * Per design §9.2, the dashboard calls the monthly + breakdown
- * endpoints in parallel (both keyed on `month=YYYY-MM`). The
- * flow endpoint is intentionally NOT called in v1 — the
- * dashboard does NOT deep-link to an account (see design §9.2
- * and tasks.md §Slice 4). The `AccountFlowCard` renders the
- * empty state in every visit; a future SDD change adds the
- * account picker.
+ * The accounts list is fetched inside `AccountFlowCard` (which
+ * also renders the picker). Lifting it to the page would couple
+ * all three cards to a list only one of them uses; the per-card
+ * boundary absorbs the fetch latency.
  *
- * Auth gate (REQ-RPT-7 / Next.js standard pattern): missing
- * session → redirect to `/auth/signin?callbackUrl=/dashboard`.
- * The session presence check lives in the Server Component
- * because Next.js Server Components ARE the route handler;
- * the §10.5 "Auth in domain" rule applies to domain business
- * permissions (e.g. "can this user edit this transaction?"),
- * not to session routing. The Hono routes already enforce
- * the per-user authorization at the wire boundary (the
- * cross-user 404 path in `routes.test.ts`); the page just
- * gates on session presence so anonymous requests never
- * reach the API.
+ * Month derivation: `currentUtcMonth` (per BR-RPT-3) is the
+ * UTC `YYYY-MM` for "now". `?month=` overrides when it matches
+ * `/^\d{4}-\d{2}$/`; otherwise the page defaults to the current
+ * UTC month.
  *
- * Month derivation: the page computes `currentMonth` as the
- * UTC `YYYY-MM` for "now". The Month value object lives in
- * `src/modules/reports/domain/value-objects/month.ts`; the
- * UI cannot import it (architecture-standards rule: UI does
- * not import domain), so the same shape is hand-derived here.
- * Both the API call and the card label use the same string
- * so the bucket boundary matches.
+ * FIX 4a — defense-in-depth UUID validation for `?accountId=`.
+ * A malformed value is sanitized to `null` BEFORE reaching the
+ * `AccountFlowCard` (which would otherwise concatenate it into
+ * `/api/reports/accounts/<id>/flow?month=<month>`). The regex
+ * matches the canonical UUID format (8-4-4-4-12 hex). Blast
+ * radius today is small (the API returns 404 on bad IDs), but
+ * the regex gates the format at the edge so a path-injection
+ * attempt cannot leak into the URL.
  *
- * Response validation (§10.5 "All input validated with
- * schema"): the response body is parsed through Zod before
- * being passed to the cards. The local schemas are declared
- * next to this file (the UI does not import from
- * `src/modules/reports/...` per the API-first rule); drift
- * surfaces as a Zod parse error here, not as a silent type
- * mismatch on the consumer.
+ * Layout: PageContainer + PageHeader + DashboardMonthSwitcher
+ * + the three cards in a 1+2 grid (`lg:grid-cols-3`).
  *
- * Locale: per tasks.md §Slice 4 the dashboard copy is
- * Spanish ("Resumen mensual", "Por categoría", "Flujo por
- * cuenta", "Sin datos", "Registrar primera transacción"). The
- * cards already use Spanish; the CTA copy here matches. The
- * `<h1>Dashboard</h1>` header and the `(UTC)` marker stay in
- * English as universal terms; the project mixes locales
- * across pages (transactions page is English, account
- * balance widget is Spanish).
+ * Spanish copy: dashboard copy is Spanish per tasks.md
+ * §Slice 4.
  */
 
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
-import { z } from 'zod';
 import { auth } from '@/modules/auth/nextauth';
-import { serverHonoRequest } from '@/lib/server-hono';
+import { PageContainer } from '../_ui/layout/page-container';
+import { PageHeader } from '../_ui/layout/page-header';
+import { Skeleton } from '../_ui/primitives/skeleton';
 import { MonthlySummaryCard } from '../_components/dashboard-monthly-summary';
 import { CategoryBreakdownCard } from '../_components/dashboard-category-breakdown';
 import { AccountFlowCard } from '../_components/dashboard-account-flow';
-import type { MonthlySummaryDTO, CategoryBreakdownDTO, ErrorEnvelope } from '../_lib/report-types';
-
-// Local response schemas — mirrors `app/_lib/report-types.ts`.
-// The UI cannot import the application DTOs from
-// `src/modules/reports/...` (architecture-standards rule), so
-// the schemas are hand-maintained here. Drift between the
-// DTO mapper and these schemas surfaces as a Zod parse error
-// on every page load, not as a silent type mismatch.
-const monthlySummaryResponseSchema: z.ZodType<MonthlySummaryDTO> = z.object({
-  totals: z.array(
-    z.object({
-      convertedCurrency: z.string(),
-      incomeMinor: z.number(),
-      expenseMinor: z.number(),
-      netMinor: z.number(),
-      count: z.number(),
-    }),
-  ),
-  generatedAt: z.string(),
-});
-
-const categoryBreakdownResponseSchema: z.ZodType<CategoryBreakdownDTO> = z.object({
-  buckets: z.array(
-    z.object({
-      category: z.string().nullable(),
-      categoryNormalized: z.string(),
-      convertedCurrency: z.string(),
-      amountMinor: z.number(),
-      txCount: z.number(),
-    }),
-  ),
-  generatedAt: z.string(),
-});
-
-const errorEnvelopeSchema: z.ZodType<ErrorEnvelope> = z.object({
-  error: z.object({
-    code: z.string(),
-    message: z.string(),
-    details: z.unknown().optional(),
-  }),
-});
+import { DashboardMonthSwitcher } from '../_components/dashboard-month-switcher';
 
 export const dynamic = 'force-dynamic';
 
 function currentUtcMonth(now: Date = new Date()): string {
   // UTC YYYY-MM. Matches the Month value object's UTC bucketing
   // (src/modules/reports/domain/value-objects/month.ts) and the
-  // Prisma adapter's UTC month window
-  // (src/modules/reports/infrastructure/repositories/reports.repository.prisma.ts).
+  // Prisma adapter's UTC month window.
   const year = now.getUTCFullYear();
   const month = String(now.getUTCMonth() + 1).padStart(2, '0');
   return `${year}-${month}`;
 }
 
-export default async function DashboardPage() {
+// FIX 4a — canonical UUID v4-ish regex. 8-4-4-4-12 hex. Case-
+// insensitive so the test fixtures can use uppercase. We do
+// NOT use the full RFC 4122 variant+version check (it would
+// reject some legitimate IDs in the seed fixtures that have
+// "u1" + random hex in the variant nibbles); the goal here
+// is structural validation at the URL boundary, not full
+// UUID semantics.
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+interface DashboardPageProps {
+  // Next.js 15+ types searchParams as a Promise. The compat
+  // shim accepts both shapes (see app/auth/signin/page.tsx for
+  // the precedent).
+  searchParams:
+    | Promise<{ accountId?: string; month?: string }>
+    | {
+        accountId?: string;
+        month?: string;
+      };
+}
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const session = await auth();
   if (!session?.user) {
     redirect('/auth/signin?callbackUrl=' + encodeURIComponent('/dashboard'));
   }
 
-  const month = currentUtcMonth();
-
-  // Parallel fetch (monthly + breakdown). The flow endpoint
-  // is intentionally omitted in v1 — see design §9.2.
-  const [monthlyRes, breakdownRes] = await Promise.all([
-    serverHonoRequest(`/api/reports/monthly?month=${month}`),
-    serverHonoRequest(`/api/reports/breakdown?month=${month}`),
-  ]);
-
-  if (monthlyRes.status === 401 || breakdownRes.status === 401) {
-    redirect('/auth/signin?callbackUrl=' + encodeURIComponent('/dashboard'));
-  }
-  if (!monthlyRes.ok) {
-    const rawErr = await monthlyRes.json().catch(() => null);
-    const errBody = errorEnvelopeSchema.safeParse(rawErr);
-    const message = errBody.success
-      ? errBody.data.error.message
-      : `monthly failed (${monthlyRes.status})`;
-    throw new Error(message);
-  }
-  if (!breakdownRes.ok) {
-    const rawErr = await breakdownRes.json().catch(() => null);
-    const errBody = errorEnvelopeSchema.safeParse(rawErr);
-    const message = errBody.success
-      ? errBody.data.error.message
-      : `breakdown failed (${breakdownRes.status})`;
-    throw new Error(message);
-  }
-
-  const summary = monthlySummaryResponseSchema.parse(await monthlyRes.json());
-  const breakdown = categoryBreakdownResponseSchema.parse(await breakdownRes.json());
-
-  // Empty-state CTA path: when both the monthly totals and
-  // the breakdown buckets are empty AND the totals count is
-  // zero, surface the CTA linking to /transactions/new per
-  // design §9.2. The cards still render — the CTA sits
-  // above the grid as a nudge to seed the first transaction.
-  const isEmpty = summary.totals.length === 0 && breakdown.buckets.length === 0;
+  const params = searchParams instanceof Promise ? await searchParams : searchParams;
+  // FIX 4a — sanitize `?accountId=` to a UUID-format string or
+  // null. A non-UUID value (path injection, garbage, etc.) MUST
+  // NOT reach `AccountFlowCard`'s URL builder.
+  const requestedAccountId =
+    typeof params.accountId === 'string' && UUID_REGEX.test(params.accountId)
+      ? params.accountId
+      : null;
+  // `?month=` is OPTIONAL; default to the current UTC month
+  // (per design §9.3 + tasks.md §Slice 4 §Files touched).
+  const month =
+    typeof params.month === 'string' && /^\d{4}-\d{2}$/.test(params.month)
+      ? params.month
+      : currentUtcMonth();
 
   return (
-    <main className="p-6">
-      <header className="mb-4">
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <p className="text-sm text-gray-600">{month} (UTC)</p>
-      </header>
-
-      {isEmpty ? (
-        // Empty-state CTA: nudge the user toward their first
-        // transaction. Per design section 9.2 the CTA links to
-        // /transactions/new (the create form), not /transactions
-        // (the list); the copy mirrors the form's submit intent
-        // ("Registrar primera transacción").
-        <div className="mb-4 rounded border border-blue-300 bg-blue-50 p-4">
-          <p className="mb-2 text-sm text-blue-900">Aún no tenés transacciones registradas.</p>
-          <a
-            href="/transactions/new"
-            className="inline-block rounded bg-blue-600 px-3 py-1 text-white"
-          >
-            Registrar primera transacción
-          </a>
+    <PageContainer>
+      <PageHeader
+        title="Dashboard"
+        description={`Resumen del mes ${month} (UTC).`}
+        actions={
+          <DashboardMonthSwitcher currentMonth={month} currentAccountId={requestedAccountId} />
+        }
+      />
+      <div className="grid grid-cols-1 gap-ui-space-4 lg:grid-cols-3">
+        <div className="lg:col-span-1">
+          <Suspense fallback={<Skeleton width="100%" height={200} className="rounded-ui-lg" />}>
+            <MonthlySummaryCard month={month} />
+          </Suspense>
         </div>
-      ) : null}
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <MonthlySummaryCard summary={summary} month={month} />
-        <CategoryBreakdownCard breakdown={breakdown} month={month} />
-        <AccountFlowCard month={month} />
+        <div className="lg:col-span-2 lg:grid lg:grid-cols-2 lg:gap-ui-space-4 lg:space-y-0 space-y-ui-space-4">
+          <Suspense fallback={<Skeleton width="100%" height={200} className="rounded-ui-lg" />}>
+            <CategoryBreakdownCard month={month} />
+          </Suspense>
+          <Suspense fallback={<Skeleton width="100%" height={200} className="rounded-ui-lg" />}>
+            <AccountFlowCard currentAccountId={requestedAccountId} month={month} />
+          </Suspense>
+        </div>
       </div>
-    </main>
+    </PageContainer>
   );
 }

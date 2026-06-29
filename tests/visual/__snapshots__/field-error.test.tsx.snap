@@ -1,0 +1,13 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`visual snapshot — FieldError primitive (T-UI-415) > renders the FieldError primitive 1`] = `
+<div
+  aria-atomic="true"
+  aria-live="polite"
+  class="text-ui-text-sm text-ui-danger"
+  id="snap-error"
+  role="alert"
+>
+  Amount is required
+</div>
+`;

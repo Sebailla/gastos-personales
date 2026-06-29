@@ -1,0 +1,161 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`visual snapshot — Pagination primitive (T-UI-412) > renders Pagination at first / middle / last page > first 1`] = `
+<nav
+  aria-label="Pagination"
+  class="flex items-center gap-ui-space-2"
+>
+  <a
+    aria-current="page"
+    aria-label="Page 1"
+    class="rounded-ui-md bg-ui-accent px-ui-space-3 py-ui-space-1 text-ui-text-sm text-ui-accent-fg"
+    href="/transactions?page=1"
+  >
+    1
+  </a>
+  <a
+    aria-label="Page 2"
+    class="rounded-ui-md border border-ui-border bg-ui-bg px-ui-space-3 py-ui-space-1 text-ui-text-sm text-ui-fg hover:bg-ui-bg-muted focus-visible:ring-2 focus-visible:ring-ui-accent"
+    href="/transactions?page=2"
+  >
+    2
+  </a>
+  <a
+    aria-label="Page 3"
+    class="rounded-ui-md border border-ui-border bg-ui-bg px-ui-space-3 py-ui-space-1 text-ui-text-sm text-ui-fg hover:bg-ui-bg-muted focus-visible:ring-2 focus-visible:ring-ui-accent"
+    href="/transactions?page=3"
+  >
+    3
+  </a>
+  <a
+    aria-label="Page 4"
+    class="rounded-ui-md border border-ui-border bg-ui-bg px-ui-space-3 py-ui-space-1 text-ui-text-sm text-ui-fg hover:bg-ui-bg-muted focus-visible:ring-2 focus-visible:ring-ui-accent"
+    href="/transactions?page=4"
+  >
+    4
+  </a>
+  <a
+    aria-label="Page 5"
+    class="rounded-ui-md border border-ui-border bg-ui-bg px-ui-space-3 py-ui-space-1 text-ui-text-sm text-ui-fg hover:bg-ui-bg-muted focus-visible:ring-2 focus-visible:ring-ui-accent"
+    href="/transactions?page=5"
+  >
+    5
+  </a>
+  <a
+    aria-label="Next page"
+    class="rounded-ui-md border border-ui-border bg-ui-bg px-ui-space-3 py-ui-space-1 text-ui-text-sm text-ui-fg hover:bg-ui-bg-muted focus-visible:ring-2 focus-visible:ring-ui-accent"
+    href="/transactions?page=2"
+  >
+    Next ›
+  </a>
+</nav>
+`;
+
+exports[`visual snapshot — Pagination primitive (T-UI-412) > renders Pagination at first / middle / last page > last 1`] = `
+<nav
+  aria-label="Pagination"
+  class="flex items-center gap-ui-space-2"
+>
+  <a
+    aria-label="Previous page"
+    class="rounded-ui-md border border-ui-border bg-ui-bg px-ui-space-3 py-ui-space-1 text-ui-text-sm text-ui-fg hover:bg-ui-bg-muted focus-visible:ring-2 focus-visible:ring-ui-accent"
+    href="/transactions?page=4"
+  >
+    ‹ Previous
+  </a>
+  <a
+    aria-label="Page 1"
+    class="rounded-ui-md border border-ui-border bg-ui-bg px-ui-space-3 py-ui-space-1 text-ui-text-sm text-ui-fg hover:bg-ui-bg-muted focus-visible:ring-2 focus-visible:ring-ui-accent"
+    href="/transactions?page=1"
+  >
+    1
+  </a>
+  <a
+    aria-label="Page 2"
+    class="rounded-ui-md border border-ui-border bg-ui-bg px-ui-space-3 py-ui-space-1 text-ui-text-sm text-ui-fg hover:bg-ui-bg-muted focus-visible:ring-2 focus-visible:ring-ui-accent"
+    href="/transactions?page=2"
+  >
+    2
+  </a>
+  <a
+    aria-label="Page 3"
+    class="rounded-ui-md border border-ui-border bg-ui-bg px-ui-space-3 py-ui-space-1 text-ui-text-sm text-ui-fg hover:bg-ui-bg-muted focus-visible:ring-2 focus-visible:ring-ui-accent"
+    href="/transactions?page=3"
+  >
+    3
+  </a>
+  <a
+    aria-label="Page 4"
+    class="rounded-ui-md border border-ui-border bg-ui-bg px-ui-space-3 py-ui-space-1 text-ui-text-sm text-ui-fg hover:bg-ui-bg-muted focus-visible:ring-2 focus-visible:ring-ui-accent"
+    href="/transactions?page=4"
+  >
+    4
+  </a>
+  <a
+    aria-current="page"
+    aria-label="Page 5"
+    class="rounded-ui-md bg-ui-accent px-ui-space-3 py-ui-space-1 text-ui-text-sm text-ui-accent-fg"
+    href="/transactions?page=5"
+  >
+    5
+  </a>
+</nav>
+`;
+
+exports[`visual snapshot — Pagination primitive (T-UI-412) > renders Pagination at first / middle / last page > middle 1`] = `
+<nav
+  aria-label="Pagination"
+  class="flex items-center gap-ui-space-2"
+>
+  <a
+    aria-label="Previous page"
+    class="rounded-ui-md border border-ui-border bg-ui-bg px-ui-space-3 py-ui-space-1 text-ui-text-sm text-ui-fg hover:bg-ui-bg-muted focus-visible:ring-2 focus-visible:ring-ui-accent"
+    href="/transactions?page=2"
+  >
+    ‹ Previous
+  </a>
+  <a
+    aria-label="Page 1"
+    class="rounded-ui-md border border-ui-border bg-ui-bg px-ui-space-3 py-ui-space-1 text-ui-text-sm text-ui-fg hover:bg-ui-bg-muted focus-visible:ring-2 focus-visible:ring-ui-accent"
+    href="/transactions?page=1"
+  >
+    1
+  </a>
+  <a
+    aria-label="Page 2"
+    class="rounded-ui-md border border-ui-border bg-ui-bg px-ui-space-3 py-ui-space-1 text-ui-text-sm text-ui-fg hover:bg-ui-bg-muted focus-visible:ring-2 focus-visible:ring-ui-accent"
+    href="/transactions?page=2"
+  >
+    2
+  </a>
+  <a
+    aria-current="page"
+    aria-label="Page 3"
+    class="rounded-ui-md bg-ui-accent px-ui-space-3 py-ui-space-1 text-ui-text-sm text-ui-accent-fg"
+    href="/transactions?page=3"
+  >
+    3
+  </a>
+  <a
+    aria-label="Page 4"
+    class="rounded-ui-md border border-ui-border bg-ui-bg px-ui-space-3 py-ui-space-1 text-ui-text-sm text-ui-fg hover:bg-ui-bg-muted focus-visible:ring-2 focus-visible:ring-ui-accent"
+    href="/transactions?page=4"
+  >
+    4
+  </a>
+  <a
+    aria-label="Page 5"
+    class="rounded-ui-md border border-ui-border bg-ui-bg px-ui-space-3 py-ui-space-1 text-ui-text-sm text-ui-fg hover:bg-ui-bg-muted focus-visible:ring-2 focus-visible:ring-ui-accent"
+    href="/transactions?page=5"
+  >
+    5
+  </a>
+  <a
+    aria-label="Next page"
+    class="rounded-ui-md border border-ui-border bg-ui-bg px-ui-space-3 py-ui-space-1 text-ui-text-sm text-ui-fg hover:bg-ui-bg-muted focus-visible:ring-2 focus-visible:ring-ui-accent"
+    href="/transactions?page=4"
+  >
+    Next ›
+  </a>
+</nav>
+`;

@@ -7,15 +7,54 @@ export default defineConfig({
   },
   test: {
     globals: true,
+    // Node environment for non-component tests (src/modules, test/, proxy).
     environment: 'node',
-    setupFiles: ['./test/setup.ts'],
+    setupFiles: ['./test/setup.ts', './test/axe-setup.ts'],
     include: [
       'src/**/*.{test,spec}.ts',
       'test/**/*.{test,spec}.ts',
       'app/**/*.{test,spec}.{ts,tsx}',
       'proxy.{test,spec}.ts',
+      // Slice 5 (`ui-integration-tests`, design §13.4 + §13.5 +
+      // §13.6): the page-level axe-core suite (`tests/a11y/`),
+      // the visual snapshot suite (`tests/visual/`), and the
+      // E2E happy paths (`tests/e2e/`) all live under
+      // `tests/` and are picked up by Vitest here.
+      'tests/**/*.{test,spec}.{ts,tsx}',
     ],
     exclude: ['node_modules', 'dist', '.next'],
+    // App-router React component tests need a DOM. Configure per-file
+    // with `// @vitest-environment jsdom` so non-component tests stay
+    // on the Node environment (faster, no jsdom bootstrap).
+    environmentMatchGlobs: [
+      ['app/_ui/**/*.{test,spec}.tsx', 'jsdom'],
+      ['app/accounts/**/*.{test,spec}.tsx', 'jsdom'],
+      ['app/transactions/**/*.{test,spec}.tsx', 'jsdom'],
+      ['app/_components/**/*.{test,spec}.tsx', 'jsdom'],
+      ['app/dashboard/**/*.{test,spec}.tsx', 'jsdom'],
+      // Slice 5 (`ui-integration-tests`): the page-level tests
+      // render full Server Components (auth + Hono composition
+      // root + Client Component children) through
+      // `@testing-library/react`; jsdom is required.
+      ['tests/a11y/**/*.{test,spec}.tsx', 'jsdom'],
+      ['tests/visual/**/*.{test,spec}.tsx', 'jsdom'],
+      ['tests/e2e/**/*.{test,spec}.tsx', 'jsdom'],
+    ],
+    // Slice 5 visual snapshot directory — keeps the
+    // `tests/visual/__snapshots__/` folder separate from the
+    // existing per-file snapshot files (Vitest default would
+    // co-locate them; the design §13.5 contract asks for the
+    // separate shared `__snapshots__/` folder).
+    resolveSnapshotPath: (testPath, snapshotExtension) => {
+      const visualDir = path.resolve(__dirname, 'tests/visual');
+      const testAbs = path.resolve(testPath);
+      if (testAbs.startsWith(visualDir + path.sep)) {
+        const basename = path.basename(testAbs);
+        return path.join(visualDir, '__snapshots__', `${basename}${snapshotExtension}`);
+      }
+      // Other tests fall back to the Vitest default (co-located).
+      return testAbs + snapshotExtension;
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'json'],
@@ -31,14 +70,64 @@ export default defineConfig({
         'src/shared/errors/**',
         'src/shared/events/**',
         'src/shared/crypto/**',
+        'app/_ui/**',
+        // Slice 2 (`accounts-ui`): the production renders for the
+        // accounts pages + their co-located components. Slice 3
+        // (`transactions-ui`) adds `app/transactions/**` and
+        // `app/_components/transactions-list-table.tsx`. Slice 4
+        // (`dashboard-ui-refactor`) adds `app/dashboard/**` (the
+        // Client Components + co-located sub-components) + the
+        // two new dashboard Client Components in `app/_components`.
+        'app/accounts/**',
+        'app/transactions/**',
+        'app/dashboard/**',
+        'app/_components/transactions-list-table.tsx',
+        'app/_components/dashboard-account-picker.tsx',
+        'app/_components/dashboard-month-switcher.tsx',
+        'app/_components/dashboard-monthly-summary.tsx',
+        'app/_components/dashboard-category-breakdown.tsx',
+        'app/_components/dashboard-account-flow.tsx',
       ],
       exclude: [
-        // Pure type interfaces (ports): contracts, no executable code.
         'src/modules/**/domain/interfaces/**/*.ts',
-        // Barrel re-exports: pure imports + exports, no logic.
         'src/**/index.ts',
-        // Event type definitions: pure state, dispatched by infrastructure.
         'src/shared/events/user-events.ts',
+        'app/_ui/index.ts',
+        'app/_ui/**/*.css',
+        // Forward-declared per design §2.1; NOT used in v1. Follow-up
+        // changes will exercise them.
+        'app/_ui/layout/sidebar.tsx',
+        'app/_ui/layout/topbar.tsx',
+        // Slice 2 (`accounts-ui`): Server Component page shells that
+        // depend on NextAuth + the Hono composition root. The shell
+        // logic (auth gate + data fetch redirect) is covered by the
+        // Server Component contract tests in slice 5
+        // (`feat/ui-integration-tests`); excluding here keeps the
+        // 80% gate on the testable units (the Client Components +
+        // co-located sub-components).
+        'app/accounts/page.tsx',
+        'app/accounts/[[]id]/page.tsx',
+        'app/accounts/new/page.tsx',
+        // `BalanceWidget` is a Client Component with a complex fetch
+        // state machine; it is pinned by the smoke StaleChip test
+        // (12.6% covered). The full Client Component contract lives
+        // in the integration suite (slice 5).
+        'app/accounts/[[]id]/balance-widget.tsx',
+        // Slice 3 (`transactions-ui`): mirror of slice 2's
+        // exclusion — the three Server Component shells depend
+        // on NextAuth + the Hono composition root and are covered
+        // at the integration layer in slice 5.
+        'app/transactions/page.tsx',
+        'app/transactions/[[]id]/page.tsx',
+        'app/transactions/new/page.tsx',
+        // Slice 4 (`dashboard-ui-refactor`): the Server Component
+        // page shell (`app/dashboard/page.tsx`) is covered by the
+        // Server Component contract tests (the 5 tests in
+        // `page.test.tsx` + `page.seeded.test.tsx`); the shell
+        // depends on NextAuth + the Hono composition root +
+        // parallel Promise.all over optional flow fetch. The
+        // exclude pattern matches the slice 2/3 precedent.
+        'app/dashboard/page.tsx',
       ],
       thresholds: {
         lines: 80,

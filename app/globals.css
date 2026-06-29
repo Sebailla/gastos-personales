@@ -9,10 +9,33 @@
  *
  * This file is imported ONCE in `app/layout.tsx` so the
  * utility classes are available in every page of the App
- * Router. The smoke UI under `app/accounts/*` uses
- * utility classes directly; the production `ui-accounts`
- * change will extend the design system via
- * `@theme`/`@layer` directives in this file.
+ * Router.
  */
 
 @import "tailwindcss";
+@import "./_ui/tokens.css";
+
+/*
+ * Tailwind v4 CSS-first theme — exposes the token CSS custom
+ * properties as utility classes. Each `--color-*` entry below
+ * becomes a `bg-*`, `text-*`, `border-*` utility consumed by the
+ * primitives in `app/_ui/primitives/`. No hex value is hard-coded
+ * in any primitive; tokens are the single source of styling
+ * (BR-UI-9).
+ */
+@theme inline {
+  --color-ui-bg: var(--ui-bg);
+  --color-ui-bg-muted: var(--ui-bg-muted);
+  --color-ui-bg-subtle: var(--ui-bg-subtle);
+  --color-ui-fg: var(--ui-fg);
+  --color-ui-fg-muted: var(--ui-fg-muted);
+  --color-ui-border: var(--ui-border);
+  --color-ui-accent: var(--ui-accent);
+  --color-ui-accent-fg: var(--ui-accent-fg);
+  --color-ui-danger: var(--ui-danger);
+  --color-ui-danger-fg: var(--ui-danger-fg);
+  --color-ui-success: var(--ui-success);
+  --color-ui-success-fg: var(--ui-success-fg);
+  --color-ui-warning: var(--ui-warning);
+  --color-ui-warning-fg: var(--ui-warning-fg);
+}
