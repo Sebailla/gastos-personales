@@ -77,3 +77,22 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/*
+ * `prefers-reduced-transparency: reduce` (REQ-UI-15) — the WCAG
+ * 2.2 fallback that drops the `backdrop-filter: blur(...)` glass
+ * effect and replaces the alpha-blended `--ui-glass-bg` with the
+ * solid alpha-1.0 `--ui-glass-bg-solid`. The user with the OS
+ * "reduce transparency" preference set sees a flat high-contrast
+ * surface that preserves the ≥ 4.5:1 text contrast on every
+ * glass surface. The `!important` wins over the Tailwind
+ * `backdrop-blur-[var(--ui-glass-blur-sm)]` arbitrary utility
+ * the chrome (PR 3) uses.
+ */
+@media (prefers-reduced-transparency: reduce) {
+  .bg-ui-glass-1,
+  .bg-ui-glass-2 {
+    backdrop-filter: none !important;
+    background-color: var(--ui-glass-bg-solid) !important;
+  }
+}
