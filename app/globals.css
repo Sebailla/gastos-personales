@@ -40,4 +40,21 @@
   --color-ui-success-fg: var(--ui-success-fg);
   --color-ui-warning: var(--ui-warning);
   --color-ui-warning-fg: var(--ui-warning-fg);
+
+  /* Glass + gradient + shadow tokens from `app/_ui/tokens.css`
+     (REQ-UI-19). Exposed as Tailwind v4 utilities so the chrome
+     (PR 3) and the landing (PR 4) can use `bg-ui-glass-1`,
+     `shadow-glass`, `from-ui-gradient-from`, etc. directly. The
+     glass-1 / glass-2 utilities both map to `--ui-glass-bg` in
+     this PR; the visual opacity difference is owned by the
+     `GlassCard` primitive in PR 3 (uses `color-mix(in oklch, ...)`
+     to layer higher alpha on top of `--ui-glass-bg`). */
+  --color-ui-glass-1: var(--ui-glass-bg);
+  --color-ui-glass-2: var(--ui-glass-bg);
+  --color-ui-glass-border: var(--ui-glass-border);
+  --color-ui-glass-bg-solid: var(--ui-glass-bg-solid);
+  --color-ui-gradient-from: var(--ui-gradient-from);
+  --color-ui-gradient-via: var(--ui-gradient-via);
+  --color-ui-gradient-to: var(--ui-gradient-to);
+  --shadow-glass: var(--ui-shadow-glass);
 }
