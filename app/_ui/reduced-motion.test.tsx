@@ -27,13 +27,23 @@
  *      without booting a real browser.
  */
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { render, cleanup } from '@testing-library/react';
 
 import { Spinner } from './primitives/spinner';
+
+// The Spinner uses `useTranslations` from `next-intl` (T-PR2-10
+// added a reduced-motion text fallback that resolves the
+// "Cargando…" / "Loading…" copy via the i18n context). Tests
+// that render the Spinner outside a `NextIntlClientProvider`
+// need a stub so the hook returns the key verbatim (which is
+// the documented next-intl fallback).
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}));
 
 const GLOBALS_CSS_PATH = resolve(process.cwd(), 'app/globals.css');
 
