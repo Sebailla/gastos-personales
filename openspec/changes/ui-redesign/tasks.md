@@ -54,35 +54,35 @@ Adds the i18n scaffold (`next-intl` + `i18n.ts` + `src/i18n/request.ts` + `middl
 
 **Why now:** every later PR depends on `next-intl` being available, on `app/layout.tsx` having a typed locale, and on `prefers-reduced-motion`/`prefers-reduced-transparency` being addressable from the same `<head>`. Without the i18n+font foundation in place first, every subsequent PR would need a stub re-write.
 
-- **T-PR1-01** — **Add `next-intl` to `dependencies` in `package.json` (pinned, no caret per project lockfile policy) and regenerate `pnpm-lock.yaml` in the same commit.**
+- **T-PR1-01** — ~~Add `next-intl` to `dependencies` in `package.json` (pinned, no caret per project lockfile policy) and regenerate `pnpm-lock.yaml` in the same commit.~~ DONE (commit `59c9027`).
 
   - **Path**: `package.json`, `pnpm-lock.yaml`
   - **TDD state**: N/A (config)
   - **Verify**: `pnpm install --ignore-workspace` (per `AGENTS.md` §9.7 hijack workaround) leaves a clean tree; `cat pnpm-lock.yaml | grep -c '^  next-intl@'` returns `1`; `git diff --stat pnpm-lock.yaml` shows a deterministic diff against the previous commit (no surprise transitive bumps).
   - **Rollback**: `git revert <sha>` restores the lockfile + the `dependencies` entry in one shot.
 
-- **T-PR1-02** — **Create `i18n.ts` exporting `locales`, `defaultLocale = 'en'`, and `localePrefix = 'as-needed'`.**
+- **T-PR1-02** — ~~Create `i18n.ts` exporting `locales`, `defaultLocale = 'en'`, and `localePrefix = 'as-needed'`.~~ DONE (commit `276852a`).
 
   - **Path**: `i18n.ts` (new, root)
   - **TDD state**: N/A (config export)
   - **Verify**: `pnpm typecheck` — `import { locales, defaultLocale, localePrefix } from './i18n';` resolves from `src/i18n/request.ts` and from `middleware.ts`; runtime unit test asserts `defaultLocale === 'en'`.
   - **Rollback**: delete `i18n.ts`; no other file imports it yet.
 
-- **T-PR1-03** — **Create `src/i18n/request.ts` with `getRequestConfig` that reads the active locale from `next/headers` (`x-locale` header set by middleware) and dynamic-imports `messages/${locale}.json`.**
+- **T-PR1-03** — ~~Create `src/i18n/request.ts` with `getRequestConfig` that reads the active locale from `next/headers` (`x-locale` header set by middleware) and dynamic-imports `messages/${locale}.json`.~~ DONE (commit `177707e`).
 
   - **Path**: `src/i18n/request.ts` (new)
   - **TDD state**: RED → GREEN
   - **Verify**: unit test with a mocked `next/headers` `headers().get('x-locale')` returns `'es'` asserts the resolved messages object is the `messages/es.json` contents; `pnpm typecheck`.
   - **Rollback**: delete `src/i18n/request.ts`; referenced only by `next.config.ts` in PR 1 and by layouts in PR 3.
 
-- **T-PR1-04** — **Create `middleware.ts` combining `createMiddleware(routing)` from `next-intl/middleware` with `x-pathname` and `x-locale` header injection (via `NextResponse.next({ headers })`) for the server-side `<AppShell>` decision.**
+- **T-PR1-04** — ~~Create `middleware.ts` combining `createMiddleware(routing)` from `next-intl/middleware` with `x-pathname` and `x-locale` header injection (via `NextResponse.next({ headers })`) for the server-side `<AppShell>` decision.~~ DONE (commit `65dccdb`).
 
   - **Path**: `middleware.ts` (new, root)
   - **TDD state**: RED → GREEN → TRIANGULATE
   - **Verify**: unit/integration test with `Accept-Language: es-AR,es;q=0.9,en;q=0.8` asserts `x-locale === 'es'` on the response headers; same test with `Accept-Language: en-US,en;q=0.9` asserts `'en'`; `Accept-Language: ja,fr;q=0.8` asserts `'en'` (locked Q1 default); `NEXT_LOCALE=en` cookie + `Accept-Language: es-AR` asserts `'en'` (cookie wins); `x-pathname === '/'` for `GET /` and `x-pathname === '/auth/signin'` for `GET /auth/signin`.
   - **Rollback**: delete `middleware.ts`; no page depends on `x-locale`/`x-pathname` until PR 3 mounts `<AppShell>`.
 
-- **T-PR1-05** — **Create empty message catalogs `messages/en.json` and `messages/es.json` (objects with the seven namespaces: `topbar`, `sidebar`, `bottomTabBar`, `themeToggle`, `languageSwitcher`, `landing`, `notFound`, `error` — keys can be absent, the `getRequestConfig` fallback returns the key string verbatim per REQ-UI-24).**
+- **T-PR1-05** — ~~Create empty message catalogs `messages/en.json` and `messages/es.json` (objects with the seven namespaces: `topbar`, `sidebar`, `bottomTabBar`, `themeToggle`, `languageSwitcher`, `landing`, `notFound`, `error` — keys can be absent, the `getRequestConfig` fallback returns the key string verbatim per REQ-UI-24).~~ DONE (commit `909344d`).
 
   - **Path**: `messages/en.json` (new), `messages/es.json` (new)
   - **TDD state**: N/A (seed data)
