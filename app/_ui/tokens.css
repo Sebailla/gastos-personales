@@ -91,13 +91,14 @@
     --ui-gradient-to: oklch(0.7 0.12 320);
   }
 
-  /* Dark-mode tokens — declared but unused in v1 (BR-UI-8, REQ-UI-9).
-     PR 2 of `ui-redesign` (T-PR2-02) renames the selector to
-     `.dark` (the modern Tailwind v4 / shadcn convention) without
-     changing any of the 14 color values. The 7 new glass/
-     gradient/shadow tokens also receive dark-mode overrides
-     below. */
-  [data-theme='dark'] {
+  /* Dark-mode tokens — activated by the `<html class="dark">` class
+     that the FOUC inline script in `app/layout.tsx` (T-PR2-07) and
+     the `ThemeProvider` (T-PR2-06) write. The selector was renamed
+     from `[data-theme='dark']` → `.dark` in PR 2 of `ui-redesign`
+     (REQ-UI-9 MODIFIED) to match the modern Tailwind v4 / shadcn
+     convention; the 14 color values and the 7 new glass/gradient/
+     shadow overrides inside the block are byte-for-byte unchanged. */
+  .dark {
     --ui-bg: #0a0a0a;
     --ui-bg-muted: #171717;
     --ui-bg-subtle: #262626;
