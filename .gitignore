@@ -40,3 +40,7 @@ progress.md
 # AGENTS.md §9.7). The repo does not need a .npmrc — pnpm reads
 # pnpm-workspace.yaml if any, otherwise its built-in defaults.
 .npmrc
+
+# Local Playwright MCP server cache (dev-only artifact directory
+# created when running the playwright MCP tool; not a deliverable).
+.playwright-mcp/

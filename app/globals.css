@@ -24,6 +24,8 @@
  * (BR-UI-9).
  */
 @theme inline {
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jb-mono);
   --color-ui-bg: var(--ui-bg);
   --color-ui-bg-muted: var(--ui-bg-muted);
   --color-ui-bg-subtle: var(--ui-bg-subtle);

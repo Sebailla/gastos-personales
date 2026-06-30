@@ -19,18 +19,28 @@
 
 import { describe, it, expect, vi } from 'vitest';
 
-// proxy.ts imports `auth` from `@/modules/auth/nextauth`
-// (which transitively pulls in `next-auth` → `next/server`,
-// unavailable in plain Vitest) and `NextResponse` directly
-// from `next/server`. Both must be mocked so the module can
-// load. The exported `isPublicPath` and `config` we test
-// below are pure data — they do not need either dependency
-// at call time.
+// proxy.ts imports three bare-spec modules that each pull in
+// `next/server` at load time and fail in plain Vitest:
+//   - `@/modules/auth/nextauth` → next-auth → next/server
+//   - `next-intl/middleware`    → next/server
+//   - `next/server`             → direct
+//
+// Mock all three with the minimum surface proxy.ts actually uses
+// at *module load* time. The exported `isPublicPath` and `config`
+// below are pure data and never touch the mocks at call time, so
+// the stubs need only exist (not be functional).
 vi.mock('@/modules/auth/nextauth', () => ({
   auth: () => () => undefined,
 }));
+vi.mock('next-intl/middleware', () => ({
+  default: () => () => undefined,
+}));
 vi.mock('next/server', () => ({
-  NextResponse: { redirect: () => undefined },
+  NextRequest: class {},
+  NextResponse: {
+    next: () => ({ headers: { set: () => undefined } }),
+    redirect: () => undefined,
+  },
 }));
 
 import { isPublicPath, config } from './proxy';
