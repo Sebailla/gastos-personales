@@ -58,3 +58,22 @@
   --color-ui-gradient-to: var(--ui-gradient-to);
   --shadow-glass: var(--ui-shadow-glass);
 }
+
+/*
+ * `prefers-reduced-motion: reduce` (REQ-UI-16) — collapses every
+ * animation + transition to 0.01ms so the user with the OS
+ * "reduce motion" preference set sees no motion. The override is
+ * global (applies to `*, *::before, *::after`) and uses
+ * `!important` to win over the Tailwind `animate-*` utilities
+ * the Spinner + Skeleton primitives use. The Spinner renders
+ * its literal "Cargando…" / "Loading…" copy (T-PR2-10) so the
+ * loading state stays accessible even when the ring is still.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
