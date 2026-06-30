@@ -96,7 +96,7 @@ Adds the i18n scaffold (`next-intl` + `i18n.ts` + `src/i18n/request.ts` + `middl
   - **Verify**: `fonts.test.tsx` (new) asserts the rendered HTML contains zero `<link rel="stylesheet" href="https://fonts.googleapis.com/...">` (REQ-UI-18 scenario 1); asserts `getComputedStyle(documentElement).getPropertyValue('--font-inter')` is non-empty; `pnpm typecheck`; `pnpm build` succeeds (Next.js emits the `@font-face` style block only when the font is referenced from a page).
   - **Rollback**: revert the two layout changes; the `font-sans` mapping in `app/globals.css` becomes a no-op (Tailwind falls back to its default family).
 
-- **T-PR1-07** — **Create `app/_ui/layout/skip-link.tsx` (server component): a single `<a href="#main-content">` visually hidden until focus, with a localized `label` prop.**
+- **T-PR1-07** — ~~Create `app/_ui/layout/skip-link.tsx` (server component): a single `<a href="#main-content">` visually hidden until focus, with a localized `label` prop.~~ DONE (commit `fa2f988`).
 
   - **Path**: `app/_ui/layout/skip-link.tsx` (new)
   - **TDD state**: RED → GREEN

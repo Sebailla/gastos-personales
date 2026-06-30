@@ -14,9 +14,25 @@
  */
 
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// Mock the next/font/google loaders so the layout renders
+// deterministically without booting the Google Fonts download.
+vi.mock('next/font/google', () => ({
+  Inter: (_options: unknown) => ({
+    variable: '__mock_font_inter',
+    className: '__mock_class_inter',
+    style: { fontFamily: '__inter_family__' },
+  }),
+  JetBrains_Mono: (_options: unknown) => ({
+    variable: '__mock_font_jb_mono',
+    className: '__mock_class_jb_mono',
+    style: { fontFamily: '__jb_mono_family__' },
+  }),
+}));
 
 const { SkipLink } = await import('./skip-link');
+const RootLayout = (await import('../../layout')).default;
 
 function render(label: string): string {
   return renderToStaticMarkup(<SkipLink label={label} />);
@@ -62,5 +78,29 @@ describe('SkipLink (REQ-UI-22)', () => {
 
     // Assert
     expect(html).toContain('href="#primary-nav"');
+  });
+});
+
+describe('SkipLink mounted as first body child (T-PR1-08, REQ-UI-22)', () => {
+  it('renders <SkipLink> as the first child of <body>', () => {
+    // Arrange + Act — render the root layout with a sentinel child.
+    const html = renderToStaticMarkup(
+      <RootLayout>
+        <span data-sentinel="child" />
+      </RootLayout>,
+    );
+
+    // Assert — the skip link must come before the page content in
+    // document order so the first Tab from the address bar lands
+    // on it. The simplest stable assertion: find the `<body>` open
+    // tag and the position of the skip link; the link must precede
+    // the sentinel span.
+    const bodyOpenIndex = html.indexOf('<body');
+    const skipLinkIndex = html.indexOf('href="#main-content"');
+    const sentinelIndex = html.indexOf('data-sentinel="child"');
+
+    expect(bodyOpenIndex).toBeGreaterThanOrEqual(0);
+    expect(skipLinkIndex).toBeGreaterThan(bodyOpenIndex);
+    expect(sentinelIndex).toBeGreaterThan(skipLinkIndex);
   });
 });

@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import type { ReactNode } from 'react';
 
+import { SkipLink } from './_ui/layout/skip-link';
+
 import './globals.css';
 
 // Inter Variable (REQ-UI-18) — display + body text. `weight: 'variable'`
@@ -35,7 +37,15 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }): React.JSX.Element {
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
-      <body>{children}</body>
+      <body>
+        {/* REQ-UI-22 — first focusable element on every page.
+            The `<main id="main-content">` target lands in PR 3
+            with `<AppShell>`; for PR 1 the link's href resolves
+            to a non-existing anchor, which is fine — a static
+            href is the spec. */}
+        <SkipLink label="Skip to main content" />
+        {children}
+      </body>
     </html>
   );
 }
