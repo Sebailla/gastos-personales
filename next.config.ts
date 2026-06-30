@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
+import createNextIntlPlugin from 'next-intl/plugin';
 
 // React in dev mode uses eval() for HMR and to reconstruct
 // callstacks from a different environment, which a strict CSP
@@ -72,7 +73,19 @@ const nextConfig: NextConfig = {
 // guard `Sentry.init()` on the DSN being present). We pass the
 // config unconditionally so the project can opt in to Sentry by
 // setting the env vars without code changes.
-export default withSentryConfig(nextConfig, {
+//
+// `createNextIntlPlugin('./src/i18n/request.ts')` is the next-intl
+// build-time plugin that wires `src/i18n/request.ts`'s
+// `getRequestConfig` into the Next.js bundler so Server Components
+// can `await getTranslations()` synchronously. Without this plugin,
+// `next-intl`'s tree-shaking cannot statically resolve which
+// messages are referenced, and the build emits a warning. The
+// plugin takes only the path to the request config; it does NOT
+// alter runtime behavior (the middleware handles locale resolution
+// at request time).
+const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
+
+export default withSentryConfig(withNextIntl(nextConfig), {
   // Hide Sentry's source maps by default in dev. Production builds
   // upload via the Sentry CLI at release time.
   sourcemaps: { disable: process.env.NODE_ENV !== 'production' },
