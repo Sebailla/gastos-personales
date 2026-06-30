@@ -71,12 +71,21 @@ function isThemeMode(value: string | null): value is ThemeMode {
 
 function readInitialMode(): ThemeMode {
   if (typeof window === 'undefined') return 'system';
-  const stored = window.localStorage.getItem(STORAGE_KEY);
+  // `localStorage` may be undefined in non-DOM environments
+  // (static render, server-side, jsdom without
+  // `--localstorage-file`). Fall through to the system default
+  // in that case rather than throwing.
+  const stored = window.localStorage?.getItem(STORAGE_KEY) ?? null;
   return isThemeMode(stored) ? stored : 'system';
 }
 
 function readSystemPrefersDark(): boolean {
   if (typeof window === 'undefined') return false;
+  // `matchMedia` may be undefined in non-DOM environments
+  // (static render, server-side, jsdom before the test shim
+  // installs it). Fall through to the light default in that
+  // case rather than throwing.
+  if (typeof window.matchMedia !== 'function') return false;
   return window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
 

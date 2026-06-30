@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from 'next/font/google';
 import type { ReactNode } from 'react';
 
 import { SkipLink } from './_ui/layout/skip-link';
+import { ThemeProvider } from './_ui/providers/theme-provider';
 
 import './globals.css';
 
@@ -70,7 +71,7 @@ export default function RootLayout({ children }: { children: ReactNode }): React
             to a non-existing anchor, which is fine — a static
             href is the spec. */}
         <SkipLink label="Skip to main content" />
-        {children}
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );
