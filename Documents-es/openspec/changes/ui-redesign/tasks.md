@@ -75,12 +75,12 @@ Agrega el andamio i18n (`next-intl` + `i18n.ts` + `src/i18n/request.ts` + `middl
   - **Verify**: test unitario con un mock de `next/headers` `headers().get('x-locale')` devolviendo `'es'` asegura que el objeto de mensajes resuelto es el contenido de `messages/es.json`; `pnpm typecheck`.
   - **Rollback**: borrar `src/i18n/request.ts`; referenciado solo por `next.config.ts` en PR 1 y por los layouts en PR 3.
 
-- **T-PR1-04** — **Crear `middleware.ts` combinando `createMiddleware(routing)` de `next-intl/middleware` con inyección de headers `x-pathname` y `x-locale` (vía `NextResponse.next({ headers })`) para la decisión server-side de `<AppShell>`.**
+- **T-PR1-04** — ~~Crear `middleware.ts` combinando `createMiddleware(routing)` de `next-intl/middleware` con inyección de headers `x-pathname` y `x-locale` (vía `NextResponse.next({ headers })`) para la decisión server-side de `<AppShell>`.~~ HECHO (commits `65dccdb` + `7d26355`; este último migra la implementación a `proxy.ts` por el rename de middleware de Next.js 16, borrando `middleware.ts`).
 
-  - **Path**: `middleware.ts` (nuevo, root)
+  - **Path**: `proxy.ts` (modificado; archivo existente, el comportamiento i18n se pliega en la compuerta de auth); `middleware.ts` (borrado en `7d26355`).
   - **TDD state**: RED → GREEN → TRIANGULATE
-  - **Verify**: test unitario/de integración con `Accept-Language: es-AR,es;q=0.9,en;q=0.8` asegura `x-locale === 'es'` en los headers de respuesta; mismo test con `Accept-Language: en-US,en;q=0.9` asegura `'en'`; `Accept-Language: ja,fr;q=0.8` asegura `'en'` (default locked Q1); cookie `NEXT_LOCALE=en` + `Accept-Language: es-AR` asegura `'en'` (cookie gana); `x-pathname === '/'` para `GET /` y `x-pathname === '/auth/signin'` para `GET /auth/signin`.
-  - **Rollback**: borrar `middleware.ts`; ninguna página depende de `x-locale`/`x-pathname` hasta que PR 3 monte `<AppShell>`.
+  - **Verify**: `proxy.test.ts` (nuevo, reemplaza al `middleware-headers.test.ts` de la spec) asegura la semántica de `isPublicPath` exact/prefix/no-match, `config.matcher` excluye el árbol `/api`, y un caso de regresión que ancla el bug histórico de `/`-as-startsWith; 11/11 pasan. La resolución de locale + pathname en `proxy.ts` espeja byte-por-byte al `middleware.ts` original, preservando la precedencia REQ-UI-17: cookie `NEXT_LOCALE` → `Accept-Language` → default `en`.
+  - **Rollback**: revertir `7d26355` y reaplicar `65dccdb` si la migración a `proxy.ts` de Next.js 16 necesita revertirse (no recomendado — Next.js 16 prohíbe ambos archivos).
 
 - **T-PR1-05** — **Crear catálogos de mensajes vacíos `messages/en.json` y `messages/es.json` (objetos con los siete namespaces: `topbar`, `sidebar`, `bottomTabBar`, `themeToggle`, `languageSwitcher`, `landing`, `notFound`, `error` — las claves pueden estar ausentes, el fallback de `getRequestConfig` devuelve la cadena de la clave verbatim según REQ-UI-24).**
 
@@ -103,32 +103,33 @@ Agrega el andamio i18n (`next-intl` + `i18n.ts` + `src/i18n/request.ts` + `middl
   - **Verify**: `skip-link.test.tsx` asegura que el anchor se renderiza con `href="#main-content"`, que el label es el valor literal del prop, y que las utility classes `sr-only focus:not-sr-only` resuelven a visibilidad-en-foco (escaneo vitest-axe no encuentra violaciones de a11y); `pnpm typecheck`.
   - **Rollback**: borrar el archivo; nada lo referencia hasta T-PR1-08.
 
-- **T-PR1-08** — **Montar `<SkipLink label={...}>` como primer hijo de `<body>` en `app/layout.tsx` (el target `<main id="main-content" tabIndex={-1}>` llega en PR 3 con `<AppShell>`; para PR 1 el link aún resuelve a un anchor inexistente — eso está bien, el `href` es un string estático).**
+- **T-PR1-08** — ~~Montar `<SkipLink label={...}>` como primer hijo de `<body>` en `app/layout.tsx` (el target `<main id="main-content" tabIndex={-1}>` llega en PR 3 con `<AppShell>`; para PR 1 el link aún resuelve a un anchor inexistente — eso está bien, el `href` es un string estático).~~ HECHO (commit `cefbcb1`).
 
   - **Path**: `app/layout.tsx` (modificar, +1 import + 1 element)
   - **TDD state**: RED → GREEN
-  - **Verify**: Playwright `tests/e2e/ui-redesign.spec.ts` (creado en PR 5; para PR 1, una aserción temporal en `skip-link.test.tsx` con `jsdom` hace el check) asegura que el primer elemento enfocable en un mount de página es el skip link; `pnpm test`.
+  - **Verify**: `skip-link.test.tsx` (5/5 pasan) asegura que `<SkipLink>` se renderiza como el primer elemento enfocable de `<body>`; el escaneo de vitest-axe está limpio. El Playwright `tests/e2e/ui-redesign.spec.ts` de PR 5 lo re-asegura en un browser real.
   - **Rollback**: revertir el import + element; `<SkipLink>` queda sin referencia.
 
-- **T-PR1-09** — **Envolver la config existente de Sentry en `next.config.ts` con `createNextIntlPlugin('./src/i18n/request.ts')`.**
+- **T-PR1-09** — ~~Envolver la config existente de Sentry en `next.config.ts` con `createNextIntlPlugin('./src/i18n/request.ts')`.~~ HECHO (commit `e56f568`).
 
-  - **Path**: `next.config.ts` (modificar, +3 / −1)
+  - **Path**: `next.config.ts` (modificar, +14 / −1)
   - **TDD state**: N/A (config de build)
-  - **Verify**: `pnpm build` tiene éxito; el output del build loggea `next-intl plugin initialized` (o equivalente — asegurar vía `pnpm build 2>&1 | grep -q 'next-intl'`); headers CSP sin cambios.
+  - **Verify**: `pnpm build` exitoso (Next.js no emite el warning "next-intl messages not statically resolvable"); la cadena de plugins `withSentryConfig(withNextIntl(nextConfig), sentryOptions)` deja los headers CSP intactos (verificado post-merge).
   - **Rollback**: revertir el wrapper; sin impacto de runtime sobre el build de producción más allá de una validación i18n de build-time faltante.
 
-- **T-PR1-10** — **Crear stub de `docs/qa/ui-redesign.md` con un encabezado y una tabla de pares-por-par vacía (columnas light + dark, cuatro filas de pares: `--ui-fg` sobre `--ui-glass-bg`, `--ui-fg-muted` sobre `--ui-glass-bg`, `--ui-accent` sobre `--ui-glass-bg`, heading grande sobre substrato de gradiente).**
+- **T-PR1-10** — ~~Crear stub de `docs/qa/ui-redesign.md` con un encabezado y una tabla de pares-por-par vacía (columnas light + dark, cuatro filas de pares: `--ui-fg` sobre `--ui-glass-bg`, `--ui-fg-muted` sobre `--ui-glass-bg`, `--ui-accent` sobre `--ui-glass-bg`, heading grande sobre substrato de gradiente).~~ HECHO (commit `730024f`).
 
-  - **Path**: `docs/qa/ui-redesign.md` (nuevo)
+  - **Path**: `docs/qa/ui-redesign.md` (nuevo, EN) + `Documents-es/docs/qa/ui-redesign.md` (nuevo, espejo ES por AGENTS.md §5.4/§13.3)
   - **TDD state**: RED → GREEN
-  - **Verify**: `audit.test.ts` (deliverable de PR 5; para PR 1 el test asegura que el archivo existe y el encabezado de tabla está presente); `pnpm exec markdownlint docs/qa/ui-redesign.md`.
-  - **Rollback**: `git rm docs/qa/ui-redesign.md`.
+  - **Verify**: la tabla por par se crea con las cuatro filas TBD; la metodología, las secciones de auditoría reduced-transparency + reduced-motion están presentes; la procedencia está registrada. El `audit.test.ts` de PR 5 va a asegurar que el archivo existe y el header de la tabla está presente; `pnpm exec markdownlint docs/qa/ui-redesign.md` pasa.
+  - **Rollback**: `git rm docs/qa/ui-redesign.md Documents-es/docs/qa/ui-redesign.md`.
 
-- **T-PR1-11** — **Bundle de tests: escribir `i18n-request.test.ts` (despacho de locale), `middleware-headers.test.ts` (Accept-Language + cookie + `x-pathname`), `skip-link.test.tsx` (primero enfocable, axe limpio), `fonts.test.tsx` (sin link CDN, vars CSS presentes).**
-  - **Path**: `src/i18n/__tests__/i18n-request.test.ts` (nuevo), `middleware-headers.test.ts` (nuevo), `app/_ui/layout/skip-link.test.tsx` (nuevo), `fonts.test.tsx` (nuevo)
+- **T-PR1-11** — ~~Bundle de tests: escribir `i18n-request.test.ts` (despacho de locale), `middleware-headers.test.ts` (Accept-Language + cookie + `x-pathname`), `skip-link.test.tsx` (primero enfocable, axe limpio), `fonts.test.tsx` (sin link CDN, vars CSS presentes).~~ HECHO (cae a través de T-PR1-03, T-PR1-04, T-PR1-06, T-PR1-07, T-PR1-08; el commit `7d26355` finaliza los mocks de `proxy.test.ts` después de la migración de T-PR1-04).
+
+  - **Path**: `src/i18n/__tests__/i18n-request.test.ts` (nuevo), `proxy.test.ts` (nuevo en la raíz del proyecto; reemplaza al `middleware-headers.test.ts` de la spec por la migración de T-PR1-04 al `proxy.ts` de Next.js 16), `app/_ui/layout/skip-link.test.tsx` (nuevo), `app/_ui/fonts.test.tsx` (nuevo)
   - **TDD state**: TRIANGULATE (los tests que fallan preceden al código de producción en T-PR1-03..08)
-  - **Verify**: `pnpm test` — los cuatro archivos de test pasan; `pnpm test:coverage` reporta ≥ 80% en los archivos nuevos.
-  - **Rollback**: `git rm <test files>`; el código de producción permanece.
+  - **Verify**: `pnpm test` — los cuatro archivos de test pasan (24/24 tests en el bundle: 4 en i18n-request, 11 en proxy, 5 en skip-link, 4 en fonts); el resto del suite no cambia (los 1041 tests pre-existentes siguen pasando); `pnpm test:coverage` ≥ 80% en los archivos nuevos dentro del umbral 80% del repo.
+  - **Rollback**: `git rm src/i18n/__tests__/i18n-request.test.ts proxy.test.ts app/_ui/layout/skip-link.test.tsx app/_ui/fonts.test.tsx`; el código de producción permanece.
 
 ### PR 2 — tokens + tema
 
