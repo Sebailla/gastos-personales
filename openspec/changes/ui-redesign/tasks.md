@@ -89,7 +89,7 @@ Adds the i18n scaffold (`next-intl` + `i18n.ts` + `src/i18n/request.ts` + `middl
   - **Verify**: `pnpm test` — the `next-intl` fallback test from T-PR1-03 renders a key present only in `es.json` for an English user and asserts the literal key string appears (no throw); `pnpm exec jsonlint messages/en.json messages/es.json` passes.
   - **Rollback**: `git rm messages/{en,es}.json`.
 
-- **T-PR1-06** — **Wire `next/font/google` in `app/layout.tsx`: load Inter Variable (weights 400, 500, 600, 700, `display: 'swap'`, `preload: true`) and JetBrains Mono (weights 400, 500, same options), assign to CSS variables `--font-inter` and `--font-jb-mono` on the root `<html>`, and add `--font-sans: var(--font-inter)` + `--font-mono: var(--font-jb-mono)` to the existing `@theme inline` block in `app/globals.css`.**
+- **T-PR1-06** — ~~Wire `next/font/google` in `app/layout.tsx`: load Inter Variable (weights 400, 500, 600, 700, `display: 'swap'`, `preload: true`) and JetBrains Mono (weights 400, 500, same options), assign to CSS variables `--font-inter` and `--font-jb-mono` on the root `<html>`, and add `--font-sans: var(--font-inter)` + `--font-mono: var(--font-jb-mono)` to the existing `@theme inline` block in `app/globals.css`.~~ DONE (commit `9fb2344`).
 
   - **Path**: `app/layout.tsx` (modify), `app/globals.css` (modify, append 2 lines inside `@theme inline`)
   - **TDD state**: RED → GREEN → TRIANGULATE
