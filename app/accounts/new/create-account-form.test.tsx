@@ -1,3 +1,11 @@
+// The Spinner (rendered when isLoading=true) uses
+// `useTranslations` from `next-intl`. Tests that render the
+// form outside a `NextIntlClientProvider` need a stub so the
+// hook returns the key verbatim.
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
 /**
  * Tests for CreateAccountForm — slice 2 T-UI-105/106/110.
  *

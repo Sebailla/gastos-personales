@@ -19,13 +19,13 @@ exports[`visual snapshot — Button primitive (T-UI-415) > renders Button in pri
 >
   <span
     aria-label="Loading"
-    class="animate-spin text-ui-accent"
     data-testid="ui-spinner"
     role="status"
-    style="display: inline-block; width: 16px; height: 16px;"
+    style="display: inline-flex; align-items: center; gap: 8px;"
   >
     <svg
       aria-hidden="true"
+      class="motion-safe:animate-spin text-ui-accent shrink-0"
       fill="none"
       height="16"
       viewBox="0 0 24 24"

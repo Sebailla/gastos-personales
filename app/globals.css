@@ -40,4 +40,59 @@
   --color-ui-success-fg: var(--ui-success-fg);
   --color-ui-warning: var(--ui-warning);
   --color-ui-warning-fg: var(--ui-warning-fg);
+
+  /* Glass + gradient + shadow tokens from `app/_ui/tokens.css`
+     (REQ-UI-19). Exposed as Tailwind v4 utilities so the chrome
+     (PR 3) and the landing (PR 4) can use `bg-ui-glass-1`,
+     `shadow-glass`, `from-ui-gradient-from`, etc. directly. The
+     glass-1 / glass-2 utilities both map to `--ui-glass-bg` in
+     this PR; the visual opacity difference is owned by the
+     `GlassCard` primitive in PR 3 (uses `color-mix(in oklch, ...)`
+     to layer higher alpha on top of `--ui-glass-bg`). */
+  --color-ui-glass-1: var(--ui-glass-bg);
+  --color-ui-glass-2: var(--ui-glass-bg);
+  --color-ui-glass-border: var(--ui-glass-border);
+  --color-ui-glass-bg-solid: var(--ui-glass-bg-solid);
+  --color-ui-gradient-from: var(--ui-gradient-from);
+  --color-ui-gradient-via: var(--ui-gradient-via);
+  --color-ui-gradient-to: var(--ui-gradient-to);
+  --shadow-glass: var(--ui-shadow-glass);
+}
+
+/*
+ * `prefers-reduced-motion: reduce` (REQ-UI-16) — collapses every
+ * animation + transition to 0.01ms so the user with the OS
+ * "reduce motion" preference set sees no motion. The override is
+ * global (applies to `*, *::before, *::after`) and uses
+ * `!important` to win over the Tailwind `animate-*` utilities
+ * the Spinner + Skeleton primitives use. The Spinner renders
+ * its literal "Cargando…" / "Loading…" copy (T-PR2-10) so the
+ * loading state stays accessible even when the ring is still.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/*
+ * `prefers-reduced-transparency: reduce` (REQ-UI-15) — the WCAG
+ * 2.2 fallback that drops the `backdrop-filter: blur(...)` glass
+ * effect and replaces the alpha-blended `--ui-glass-bg` with the
+ * solid alpha-1.0 `--ui-glass-bg-solid`. The user with the OS
+ * "reduce transparency" preference set sees a flat high-contrast
+ * surface that preserves the ≥ 4.5:1 text contrast on every
+ * glass surface. The `!important` wins over the Tailwind
+ * `backdrop-blur-[var(--ui-glass-blur-sm)]` arbitrary utility
+ * the chrome (PR 3) uses.
+ */
+@media (prefers-reduced-transparency: reduce) {
+  .bg-ui-glass-1,
+  .bg-ui-glass-2 {
+    backdrop-filter: none !important;
+    background-color: var(--ui-glass-bg-solid) !important;
+  }
 }

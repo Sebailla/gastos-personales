@@ -1,4 +1,12 @@
 // @vitest-environment jsdom
+// The Spinner (used in the delete Dialog) and the
+// transaction-detail page itself use `useTranslations` from
+// `next-intl`. This test renders outside a
+// `NextIntlClientProvider`, so the mock is required.
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
 /**
  * Tests for `TransactionDetailForms` — slice 3 T-UI-204 / T-UI-205.
  *

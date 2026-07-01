@@ -7,14 +7,19 @@
  * `ui-dark-mode` change activates it by setting
  * `data-theme="dark"` on the document root).
  *
+ * `ui-redesign` (PR 2) APPENDED 7 glass/gradient/shadow tokens
+ * (REQ-UI-19) inside the same `@layer base { :root { ... } }` block.
+ * The 14 pre-existing color variables are byte-for-byte unchanged
+ * (the append is the only diff in this file from the v1 baseline).
+ *
  * Tailwind v4 reads these custom properties via the `@theme inline`
  * directive in `app/globals.css` and exposes them as utility
- * classes (`bg-ui-bg`, `text-ui-fg`, `rounded-ui-md`, etc.).
+ * classes (`bg-ui-bg`, `text-ui-fg`, `bg-ui-glass-1`, `shadow-glass`,
+ * `rounded-ui-md`, etc.).
  *
- * Spec: openspec/changes/transactions-ui/specs/ui/spec.md
- *   REQ-UI-9 — v1 ships a single light theme; dark tokens declared.
- * Design: openspec/changes/transactions-ui/design.md §3.1
- *   Token table (light + dark CSS scope).
+ * Spec: openspec/changes/ui-redesign/specs/ui/spec.md REQ-UI-19.
+ * Design: openspec/changes/ui-redesign/design.md §3.1 Token table
+ *   (light + dark CSS scope) + §3.1.2 Glass + gradient + shadow.
  */
 
 @layer base {
@@ -68,10 +73,32 @@
     --ui-font-medium: 500;
     --ui-font-semibold: 600;
     --ui-font-bold: 700;
+
+    /* Glass + gradient + shadow (REQ-UI-19) — APPENDED in PR 2
+       of the `ui-redesign` change. Light-theme values; the dark
+       scope block below overrides for `.dark`. The solid variant
+       (`--ui-glass-bg-solid`) is the alpha-1.0 fallback used by
+       the `prefers-reduced-transparency` media query in
+       `app/globals.css`. */
+    --ui-glass-bg: oklch(0.99 0.005 250 / 0.6);
+    --ui-glass-bg-solid: oklch(0.99 0.005 250);
+    --ui-glass-border: oklch(1 0 0 / 0.4);
+    --ui-glass-blur-sm: 12px;
+    --ui-glass-blur-lg: 20px;
+    --ui-shadow-glass: 0 8px 32px 0 rgb(0 0 0 / 0.18);
+    --ui-gradient-from: oklch(0.7 0.15 250);
+    --ui-gradient-via: oklch(0.75 0.12 280);
+    --ui-gradient-to: oklch(0.7 0.12 320);
   }
 
-  /* Dark-mode tokens — declared but unused in v1 (BR-UI-8, REQ-UI-9). */
-  [data-theme='dark'] {
+  /* Dark-mode tokens — activated by the `<html class="dark">` class
+     that the FOUC inline script in `app/layout.tsx` (T-PR2-07) and
+     the `ThemeProvider` (T-PR2-06) write. The selector was renamed
+     from `[data-theme='dark']` → `.dark` in PR 2 of `ui-redesign`
+     (REQ-UI-9 MODIFIED) to match the modern Tailwind v4 / shadcn
+     convention; the 14 color values and the 7 new glass/gradient/
+     shadow overrides inside the block are byte-for-byte unchanged. */
+  .dark {
     --ui-bg: #0a0a0a;
     --ui-bg-muted: #171717;
     --ui-bg-subtle: #262626;
@@ -86,5 +113,16 @@
     --ui-success-fg: #ffffff;
     --ui-warning: #f59e0b;
     --ui-warning-fg: #ffffff;
+
+    /* Dark overrides for the 7 glass/gradient/shadow tokens
+       (REQ-UI-19). Dark glass uses higher alpha to keep the
+       contrast against `--ui-fg` ≥ 12:1 (design §3.1.2). */
+    --ui-glass-bg: oklch(0.18 0.02 250 / 0.72);
+    --ui-glass-bg-solid: oklch(0.18 0.02 250);
+    --ui-glass-border: oklch(1 0 0 / 0.08);
+    --ui-shadow-glass: 0 8px 32px 0 rgb(0 0 0 / 0.5);
+    --ui-gradient-from: oklch(0.32 0.14 250);
+    --ui-gradient-via: oklch(0.36 0.11 280);
+    --ui-gradient-to: oklch(0.32 0.10 320);
   }
 }

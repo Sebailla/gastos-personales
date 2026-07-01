@@ -27,7 +27,7 @@ export function Skeleton({
     <span
       aria-hidden="true"
       style={{ display: 'inline-block', width: toSize(width), height: toSize(height) }}
-      className={cx('animate-pulse rounded-ui-md bg-ui-bg-subtle', className)}
+      className={cx('motion-safe:animate-pulse rounded-ui-md bg-ui-bg-subtle', className)}
     />
   );
 }

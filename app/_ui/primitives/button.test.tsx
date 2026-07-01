@@ -9,9 +9,17 @@
  * - forwards all standard button attrs + className override
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { Button } from './button';
+
+// The Spinner (rendered when isLoading=true) uses
+// `useTranslations` from `next-intl`. Tests that render
+// the Button outside a `NextIntlClientProvider` need a
+// stub so the hook returns the key verbatim.
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}));
 
 describe('Button', () => {
   it('renders children inside a <button> element', () => {

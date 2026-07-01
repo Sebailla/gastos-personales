@@ -1,8 +1,15 @@
 // @vitest-environment jsdom
 // Slice 5 — visual snapshot for the Button primitive (T-UI-415).
+// The Button renders the Spinner when isLoading=true; the
+// Spinner uses `useTranslations` from `next-intl`; this test
+// renders outside a `NextIntlClientProvider`, so the mock
+// is required.
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}));
 
 import { render } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 import { Button } from '../../app/_ui/primitives/button';
 
