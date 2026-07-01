@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
+import { headers } from 'next/headers';
 import type { ReactNode } from 'react';
 
+import { AppShell } from './_ui/layout/app-shell';
 import { SkipLink } from './_ui/layout/skip-link';
 import { ThemeProvider } from './_ui/providers/theme-provider';
 
@@ -58,20 +60,34 @@ export const metadata: Metadata = {
  */
 const themeBootstrapScript = `(function(){try{var s=localStorage.getItem('ui.theme');var d=s==='dark'||(s!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList[d?'add':'remove']('dark');}catch(e){}})();`;
 
-export default function RootLayout({ children }: { children: ReactNode }): React.JSX.Element {
+export default async function RootLayout({
+  children,
+}: {
+  children: ReactNode;
+}): Promise<React.JSX.Element> {
+  // PR 3 (T-PR3-07) — read the active locale from the
+  // `x-locale` request header (set by `proxy.ts` in PR 1) so
+  // the `<html lang>` attribute matches the active next-intl
+  // locale. The header is `null` on the very first request
+  // (before the proxy writes it) and on static prerender;
+  // we fall back to `'en'` in that case.
+  const headerList = await headers();
+  const xLocale = headerList.get('x-locale');
+  const htmlLang: 'en' | 'es' = xLocale === 'es' ? 'es' : 'en';
+
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang={htmlLang} className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
       </head>
       <body>
-        {/* REQ-UI-22 — first focusable element on every page.
-            The `<main id="main-content">` target lands in PR 3
-            with `<AppShell>`; for PR 1 the link's href resolves
-            to a non-existing anchor, which is fine — a static
-            href is the spec. */}
+        {/* REQ-UI-22 — first focusable element on every page. The
+            `<main id="main-content">` target is mounted by
+            `<AppShell>` (T-PR3-06) below. */}
         <SkipLink label="Skip to main content" />
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <AppShell>{children}</AppShell>
+        </ThemeProvider>
       </body>
     </html>
   );
