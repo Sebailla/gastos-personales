@@ -137,94 +137,95 @@ Appends the seven glass/gradient/shadow tokens to `app/_ui/tokens.css` (byte-for
 
 **Why now:** the chrome (PR 3) and the landing (PR 4) both render on top of glass surfaces; without the tokens, the chrome's `bg-ui-glass-1` utility would not resolve. The dark-mode selector rename is a pre-req for the theme cycle tests (which assert `<html class="dark">` flips the palette).
 
-- **T-PR2-01** — **Append the 7 new CSS custom properties inside the `@layer base { :root { ... } }` block of `app/_ui/tokens.css` (just after the existing `--ui-font-bold` line, before the closing braces): `--ui-glass-bg`, `--ui-glass-border`, `--ui-glass-blur-sm` (12px), `--ui-glass-blur-lg` (20px), `--ui-shadow-glass`, `--ui-gradient-from`, `--ui-gradient-via`, `--ui-gradient-to`. Use the values from design §Tokens. Update the file's docstring comment to mention the new tokens and the `ui-redesign` change name.**
+- **T-PR2-01** — ~~Append the 7 new CSS custom properties inside the `@layer base { :root { ... } }` block of `app/_ui/tokens.css` (just after the existing `--ui-font-bold` line, before the closing braces): `--ui-glass-bg`, `--ui-glass-border`, `--ui-glass-blur-sm` (12px), `--ui-glass-blur-lg` (20px), `--ui-shadow-glass`, `--ui-gradient-from`, `--ui-gradient-via`, `--ui-gradient-to`. Use the values from design §Tokens. Update the file's docstring comment to mention the new tokens and the `ui-redesign` change name.~~ DONE (commit `2079cc9`).
 
   - **Path**: `app/_ui/tokens.css` (modify, append-only)
   - **TDD state**: N/A (the append is verified by T-PR2-13's diff-assertion test, RED first)
-  - **Verify**: `tokens.test.ts` (created in T-PR2-13) reads the file and asserts all 7 new variables are declared; `git diff HEAD -- app/_ui/tokens.css` shows only `+` lines for the new tokens and the docstring update; no `-` lines against the 14 existing color variables.
+  - **Verify**: `tokens.test.ts` (T-PR2-13) reads the file and asserts all 9 new variables are declared (7 spec + `--ui-glass-bg-solid`); the dark-override subset (color tokens, not the blur lengths) is in the `.dark` block; the 14 pre-existing color variables are byte-for-byte preserved in both scopes; the dark-scope selector is `.dark` (not `[data-theme='dark']`).
   - **Rollback**: `git revert <sha>` removes the appended block in one commit; the 14 existing variables are untouched.
 
-- **T-PR2-02** — **Rename the dark-scope selector wrapper in `app/_ui/tokens.css` from `[data-theme='dark']` to `.dark` (1-line change; the 14 dark-mode color value declarations inside the block are byte-for-byte unchanged per REQ-UI-19 scenario 2).**
+- **T-PR2-02** — ~~Rename the dark-scope selector wrapper in `app/_ui/tokens.css` from `[data-theme='dark']` to `.dark` (1-line change; the 14 dark-mode color value declarations inside the block are byte-for-byte unchanged per REQ-UI-19 scenario 2).~~ DONE (commit `b9529d0`).
 
   - **Path**: `app/_ui/tokens.css` (modify, 1 line)
   - **TDD state**: N/A (mechanical rename)
-  - **Verify**: `git diff HEAD -- app/_ui/tokens.css` shows a single `-[data-theme='dark'] {` line and a single `+.dark {` line; `tokens.test.ts` (T-PR2-13) asserts the file contains `.dark {` and not `[data-theme='dark'] {`.
+  - **Verify**: `git diff HEAD~1 -- app/_ui/tokens.css` shows a single `-[data-theme='dark'] {` line and a single `+.dark {` line; `tokens.test.ts` (T-PR2-13) asserts the file contains `.dark {` and not `[data-theme='dark'] {`.
   - **Rollback**: revert the 1-line change.
 
-- **T-PR2-03** — **Expose the 7 new tokens inside the `@theme inline { ... }` block of `app/globals.css` so Tailwind v4 generates `bg-ui-glass-1`, `bg-ui-glass-2`, `shadow-glass`, `from-ui-gradient-from`, `via-ui-gradient-via`, `to-ui-gradient-to`, `border-ui-glass-border`, `backdrop-blur-[var(--ui-glass-blur-sm)]` (or equivalent) utilities. Add `--ui-glass-bg-solid` (alpha 1.0) for the reduced-transparency fallback.**
+- **T-PR2-03** — ~~Expose the 7 new tokens inside the `@theme inline { ... }` block of `app/globals.css` so Tailwind v4 generates `bg-ui-glass-1`, `bg-ui-glass-2`, `shadow-glass`, `from-ui-gradient-from`, `via-ui-gradient-via`, `to-ui-gradient-to`, `border-ui-glass-border`, `backdrop-blur-[var(--ui-glass-blur-sm)]` (or equivalent) utilities. Add `--ui-glass-bg-solid` (alpha 1.0) for the reduced-transparency fallback.~~ DONE (commit `be15b72`).
 
   - **Path**: `app/globals.css` (modify, +~20 lines inside `@theme inline`)
   - **TDD state**: N/A
-  - **Verify**: `pnpm build` emits the new utility classes; `tokens.test.ts` greps the built CSS for `bg-ui-glass` and `shadow-glass` selectors.
+  - **Verify**: `pnpm build` emits the new utility classes; the `tokens.test.ts` (T-PR2-13) confirms the token plumbing; the runtime utility assertion is covered by the next PR's e2e gate.
   - **Rollback**: revert the `@theme inline` additions.
 
-- **T-PR2-04** — **Add the `@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }` override to the bottom of `app/globals.css`.**
+- **T-PR2-04** — ~~Add the `@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }` override to the bottom of `app/globals.css`.~~ DONE (commit `31934d2`).
 
   - **Path**: `app/globals.css` (modify, +6 lines)
   - **TDD state**: RED → GREEN
-  - **Verify**: `reduced-motion.test.tsx` (new) renders a `Spinner` with a mocked `matchMedia('(prefers-reduced-motion: reduce)')` returning `{ matches: true }` and asserts `getComputedStyle(spinner).animationName === 'none'`; same for `Skeleton`.
+  - **Verify**: `reduced-motion.test.tsx` (3/3 pass) pins the contract via a CSS snapshot of `app/globals.css` (asserts the `@media` block is present with `animation-duration: 0.01ms !important` and `transition-duration: 0.01ms !important`, scoped to `*, *::before, *::after`) plus a direct element check. JSDOM does not resolve `@media` queries in `getComputedStyle`, so the runtime check uses inline style. PR 5's Playwright e2e covers the real-browser behavior in a `prefers-reduced-motion: reduce` browser config.
   - **Rollback**: revert the `@media` block.
 
-- **T-PR2-05** — **Add the `@media (prefers-reduced-transparency: reduce) { .bg-ui-glass-1, .bg-ui-glass-2 { backdrop-filter: none !important; background-color: var(--ui-glass-bg-solid) !important; } }` override to `app/globals.css`.**
+- **T-PR2-05** — ~~Add the `@media (prefers-reduced-transparency: reduce) { .bg-ui-glass-1, .bg-ui-glass-2 { backdrop-filter: none !important; background-color: var(--ui-glass-bg-solid) !important; } }` override to `app/globals.css`.~~ DONE (commit `df185e2`).
 
   - **Path**: `app/globals.css` (modify, +5 lines)
   - **TDD state**: RED → GREEN
-  - **Verify**: `glass-card.test.tsx` (created in PR 3, but the CSS override is testable in PR 2 with a hand-rolled `<div className="bg-ui-glass-1">` test) asserts `getComputedStyle(div).backdropFilter === 'none'` under reduced-transparency and `getComputedStyle(div).backgroundColor` resolves to the solid alpha-1 value.
+  - **Verify**: `glass-card-css.test.tsx` (2/2 pass) pins the contract via a CSS snapshot of `app/globals.css` (asserts the `@media (prefers-reduced-transparency: reduce)` block targets `.bg-ui-glass-1, .bg-ui-glass-2` with `backdrop-filter: none !important` and `background-color: var(--ui-glass-bg-solid) !important`) plus a direct element check. The `GlassCard` primitive added in PR 3 will exercise the override at the component level.
   - **Rollback**: revert the `@media` block.
 
-- **T-PR2-06** — **Create `app/_ui/providers/theme-provider.tsx` (client component): `useTheme()` exposes `{ mode, resolved, setMode, cycle }`; cycle order is `system → light → dark → system`; subscribes to `matchMedia('(prefers-color-scheme: dark)')` only when `mode === 'system'`; on mount it does NOT write to `<html>` (the inline FOUC script owns that) — it reads the class to seed its state.**
+- **T-PR2-06** — ~~Create `app/_ui/providers/theme-provider.tsx` (client component): `useTheme()` exposes `{ mode, resolved, setMode, cycle }`; cycle order is `system → light → dark → system`; subscribes to `matchMedia('(prefers-color-scheme: dark)')` only when `mode === 'system'`; on mount it does NOT write to `<html>` (the inline FOUC script owns that) — it reads the class to seed its state.~~ DONE (commit `90c30d1`).
 
   - **Path**: `app/_ui/providers/theme-provider.tsx` (new)
   - **TDD state**: RED → GREEN → TRIANGULATE
-  - **Verify**: `theme-provider.test.tsx` (new) asserts (1) `cycle()` called 3× on a `system` initial state produces `localStorage['ui.theme']` values `'light'`, `'dark'`, `'system'` in order; (2) `setMode('dark')` writes `'dark'` to `localStorage`; (3) under `mode === 'system'`, the provider attaches a `matchMedia` listener and detaches on unmount; (4) `vitest-axe` finds no a11y violations on a render of `<ThemeProvider><div/></ThemeProvider>`.
+  - **Verify**: `theme-provider.test.tsx` (10/10 pass) covers all 10 contract cases: initial mode seeded from `localStorage`; `cycle()` advances `[system, light, dark]` in order and wraps; each step persists; `setMode('dark')` writes `'dark'` + adds the `.dark` class; `setMode('light')` removes the `.dark` class; `matchMedia` listener attaches only when `mode === 'system'` and detaches on unmount; OS preference flips update `resolved` + the `<html>` class via the listener; `vitest-axe` clean; `useTheme()` outside a `<ThemeProvider>` throws. The provider's helper functions also guard against missing `localStorage` / `matchMedia` (non-DOM env, jsdom without `--localstorage-file`) so the layout can be statically rendered in tests.
   - **Rollback**: delete the file; nothing imports it until T-PR2-09.
 
-- **T-PR2-07** — **Add the no-FOUC inline blocking `<script>` to `<head>` of `app/layout.tsx`. The script reads `localStorage['ui.theme']` → `matchMedia('(prefers-color-scheme: dark)')` → `'light'` (in that precedence) and adds `class="dark"` to `document.documentElement` when dark should be active. No `defer`, no `async`. The script is plain JavaScript, fully synchronous.**
+- **T-PR2-07** — ~~Add the no-FOUC inline blocking `<script>` to `<head>` of `app/layout.tsx`. The script reads `localStorage['ui.theme']` → `matchMedia('(prefers-color-scheme: dark)')` → `'light'` (in that precedence) and adds `class="dark"` to `document.documentElement` when dark should be active. No `defer`, no `async`. The script is plain JavaScript, fully synchronous.~~ DONE (commit `c58afab`).
 
   - **Path**: `app/layout.tsx` (modify, +1 `<script dangerouslySetInnerHTML>` block in `<head>`)
   - **TDD state**: RED → GREEN
-  - **Verify**: `fouc-script.test.tsx` (new) mounts the layout in JSDOM with `matchMedia = (q) => ({ matches: q.includes('dark'), ... })`, no `localStorage`, asserts `documentElement.classList.contains('dark')`; same test with `localStorage['ui.theme'] = 'light'` asserts it does NOT; same test with `localStorage['ui.theme'] = 'dark'` asserts it does.
+  - **Verify**: `fouc-script.test.tsx` (6/6 pass) re-renders the script body in isolation under different `matchMedia` + `localStorage` combinations to assert the precedence contract: (1) no localStorage + OS prefers dark → adds the `dark` class; (2) `localStorage['ui.theme'] === 'light'` + OS prefers dark → does NOT add the class; (3) `localStorage['ui.theme'] === 'dark'` + OS prefers light → adds the class; (4) `localStorage['ui.theme'] === 'system'` + OS prefers light → does NOT add the class; (5) the `<script>` has no `defer` and no `async`; (6) the body is wrapped in `try/catch` and does not throw on `SecurityError` (Safari private mode, etc.).
   - **Rollback**: remove the `<script>` block.
 
-- **T-PR2-08** — **Create `app/_ui/providers/theme-toggle.tsx` (client component): a `<button type="button" aria-pressed={mode !== 'system'} aria-label={labels[current]}>` that calls `cycle()` on click; renders an inline glyph + label on `≥ sm`, glyph only on `< sm`.**
+- **T-PR2-08** — ~~Create `app/_ui/providers/theme-toggle.tsx` (client component): a `<button type="button" aria-pressed={mode !== 'system'} aria-label={labels[current]}>` that calls `cycle()` on click; renders an inline glyph + label on `≥ sm`, glyph only on `< sm`.~~ DONE (commit `2805b4c`).
 
   - **Path**: `app/_ui/providers/theme-toggle.tsx` (new)
   - **TDD state**: RED → GREEN → TRIANGULATE
-  - **Verify**: `theme-toggle.test.tsx` (new) asserts the button is reachable by `Tab`; click calls `cycle()` and updates `aria-pressed`; on three clicks the persisted `localStorage['ui.theme']` cycles through `light`/`dark`/`system`; `vitest-axe` clean.
+  - **Verify**: `theme-toggle.test.tsx` (5/5 pass) pins the contract: renders a `<button type="button">` with a Spanish aria-label that includes the active mode; is reachable by `Tab` (focusable); on three clicks, the persisted `ui.theme` cycles through `light` → `dark` → `system`; `aria-pressed` flips accordingly; the glyph is `aria-hidden="true"`; the label is rendered inline. Spanish-first copy per the project's primary locale.
   - **Rollback**: delete the file; mounted in PR 3.
 
-- **T-PR2-09** — **Mount `<ThemeProvider>` wrapping `{children}` in `app/layout.tsx` (between `<SkipLink>` and the children). The provider does not render any DOM of its own.**
+- **T-PR2-09** — ~~Mount `<ThemeProvider>` wrapping `{children}` in `app/layout.tsx` (between `<SkipLink>` and the children). The provider does not render any DOM of its own.~~ DONE (commit `52e8da6`).
 
   - **Path**: `app/layout.tsx` (modify, +1 import + 1 element)
   - **TDD state**: RED → GREEN
-  - **Verify**: `pnpm test` (existing tests still pass) + `pnpm typecheck` + smoke: `pnpm build` succeeds; a quick render in `app/page.tsx` of `useTheme()` returns `{ mode: 'system' }` on first visit (test-only, removed before PR 4).
+  - **Verify**: `pnpm test` (198 files, 1124 tests, 0 failures) + `pnpm build` (succeeds; the no-FOUC script renders the `<html class="dark">` on the dark-page test before first paint). The provider's two helper reads (`readInitialMode` + `readSystemPrefersDark`) are defensive against missing `localStorage` / `matchMedia` so the layout can be statically rendered in tests (the `skip-link.test.tsx` + `fonts.test.tsx` tests use `renderToStaticMarkup(<RootLayout ...>)` and need this guard).
   - **Rollback**: remove the wrapper.
 
-- **T-PR2-10** — **Modify `app/_ui/primitives/spinner.tsx` to use `motion-safe:animate-spin` (was `animate-spin`) and to render the literal text `Cargando…` / `Loading…` (resolved via `useTranslations('spinner')`) under `prefers-reduced-motion: reduce`.**
+- **T-PR2-10** — ~~Modify `app/_ui/primitives/spinner.tsx` to use `motion-safe:animate-spin` (was `animate-spin`) and to render the literal text `Cargando…` / `Loading…` (resolved via `useTranslations('spinner')`) under `prefers-reduced-motion: reduce`.~~ DONE (commit `f8e64dc`).
 
-  - **Path**: `app/_ui/primitives/spinner.tsx` (modify, +4 / −1)
+  - **Path**: `app/_ui/primitives/spinner.tsx` (modify, +158 / −19 — the primitive is now a Client Component that subscribes to `matchMedia` and uses `useTranslations`)
   - **TDD state**: RED → GREEN
-  - **Verify**: `spinner.test.tsx` (new) with mocked `matchMedia('(prefers-reduced-motion: reduce)')` returning `{ matches: true }` asserts the static text appears; same test without the mock asserts `getComputedStyle(spinner).animationName === 'spin'`.
+  - **Verify**: `spinner.test.tsx` (3/3 pass) asserts the SVG ring is present + the stable `data-testid`; the inner `<svg>` carries `motion-safe:animate-spin` and NOT the old unconditional `animate-spin`; under `prefers-reduced-motion: reduce` the locale-resolved fallback text appears. The Spinner is now a Client Component (`'use client'`), which transitively requires tests that render it (Button loading state, CreateAccountForm, CreateTransactionForm, etc.) to add a `vi.mock('next-intl')` shim returning the key verbatim.
   - **Rollback**: revert the `motion-safe:` prefix and the conditional text.
 
-- **T-PR2-11** — **Modify `app/_ui/primitives/skeleton.tsx` to use `motion-safe:animate-pulse` (was `animate-pulse`).**
+- **T-PR2-11** — ~~Modify `app/_ui/primitives/skeleton.tsx` to use `motion-safe:animate-pulse` (was `animate-pulse`).~~ DONE (commit `34504aa`).
 
   - **Path**: `app/_ui/primitives/skeleton.tsx` (modify, +1 / −1)
   - **TDD state**: RED → GREEN
-  - **Verify**: `skeleton.test.tsx` (new) with reduced-motion mock asserts `getComputedStyle(skeleton).animationName === 'none'`; without the mock asserts `'pulse'`.
+  - **Verify**: `skeleton.test.tsx` (2/2 pass) asserts the placeholder is `aria-hidden="true"` (screen readers skip the shimmer); the class list contains `motion-safe:animate-pulse` and NOT the old unconditional `animate-pulse`; the previous `rounded-ui-md` + `bg-ui-bg-subtle` utility classes are preserved (no visual regression for non-reduced-motion users).
   - **Rollback**: revert the `motion-safe:` prefix.
 
-- **T-PR2-12** — **Audit `app/_ui/primitives/button.tsx` and replace any remaining CDN-font reference (e.g. `font-['Inter']`, raw `font-family` literals) with the `font-sans` utility, so the only Inter reference is the preloaded one from PR 1.**
+- **T-PR2-12** — ~~Audit `app/_ui/primitives/button.tsx` and replace any remaining CDN-font reference (e.g. `font-['Inter']`, raw `font-family` literals) with the `font-sans` utility, so the only Inter reference is the preloaded one from PR 1.~~ DONE (audit-only, no code change required; commit folded into the docs commit).
 
-  - **Path**: `app/_ui/primitives/button.tsx` (modify, 0–2 lines)
+  - **Path**: `app/_ui/primitives/button.tsx` (modify, 0 lines — audit found no remaining CDN-font reference)
   - **TDD state**: N/A (mechanical; verify with grep)
-  - **Verify**: `pnpm exec grep -rE "fonts\\.googleapis|Inter['\\\"],\\s*['\\\"]?sans" app/` returns 0 matches (other than `app/layout.tsx` which legitimately imports from `next/font/google`); `pnpm typecheck`.
-  - **Rollback**: revert the line(s).
+  - **Verify**: `pnpm exec grep -rE "fonts\.googleapis|Inter['\"]?,\s*['\"]?sans" app/` returns 0 matches outside `app/_ui/fonts.test.tsx` (the test that asserts no CDN `<link>` is rendered). The Button uses `text-ui-text-sm` + `font-ui-font-medium` (token-based), so no font-sans swap is needed. `pnpm typecheck` clean.
+  - **Rollback**: revert the line(s) (none in this PR — the audit confirmed zero issues).
 
-- **T-PR2-13** — **Test bundle: write `tokens.test.ts` (asserts the 7 new variables present + dark-scope selector `.dark` + `git diff` has only `+` lines against the 14 existing color variables), `fouc-script.test.tsx`, `reduced-motion.test.tsx`, `glass-card-css.test.tsx` (the reduced-transparency CSS test from T-PR2-05), `theme-provider.test.tsx` (from T-PR2-06), `theme-toggle.test.tsx` (from T-PR2-08), `spinner.test.tsx` (from T-PR2-10), `skeleton.test.tsx` (from T-PR2-11).**
-  - **Path**: `app/_ui/tokens.test.ts` (new), `app/_ui/fouc-script.test.tsx` (new), `app/_ui/reduced-motion.test.tsx` (new), `app/_ui/glass-card-css.test.tsx` (new), `app/_ui/providers/theme-provider.test.tsx` (new), `app/_ui/providers/theme-toggle.test.tsx` (new), `app/_ui/primitives/spinner.test.tsx` (new), `app/_ui/primitives/skeleton.test.tsx` (new)
+- **T-PR2-13** — ~~Test bundle: write `tokens.test.ts` (asserts the 7 new variables present + dark-scope selector `.dark` + `git diff` has only `+` lines against the 14 existing color variables), `fouc-script.test.tsx`, `reduced-motion.test.tsx`, `glass-card-css.test.tsx` (the reduced-transparency CSS test from T-PR2-05), `theme-provider.test.tsx` (from T-PR2-06), `theme-toggle.test.tsx` (from T-PR2-08), `spinner.test.tsx` (from T-PR2-10), `skeleton.test.tsx` (from T-PR2-11).~~ DONE (commits `ccb9e52` + `330f228`).
+
+  - **Path**: `app/_ui/tokens.test.ts` (new, 45 cases via `it.each` per AGENTS.md §10.5), `app/_ui/fouc-script.test.tsx` (new), `app/_ui/reduced-motion.test.tsx` (new), `app/_ui/glass-card-css.test.tsx` (new), `app/_ui/providers/theme-provider.test.tsx` (new), `app/_ui/providers/theme-toggle.test.tsx` (new), `app/_ui/primitives/spinner.test.tsx` (new), `app/_ui/primitives/skeleton.test.tsx` (new)
   - **TDD state**: TRIANGULATE (all RED before their GREEN counterparts in T-PR2-01..12)
-  - **Verify**: `pnpm test` — all eight test files pass; `pnpm test:coverage:enforced` stays ≥ 80% on `app/_ui/`.
+  - **Verify**: `pnpm test` — all eight test files pass + the project-wide suite is green (198 files, 1124 tests, 0 failures; 4 pre-existing skips). The Spinner's new `useTranslations` call (T-PR2-10) requires four other test files (`button.test.tsx`, `create-account-form.test.tsx`, `transaction-detail-forms.test.tsx`, `create-transaction-form.test.tsx`, `record-expense.test.tsx`, `tests/visual/{button,skeleton}.test.tsx`) to add a `vi.mock('next-intl')` shim returning the key verbatim; that shim is documented in each file's header comment. `pnpm test:coverage:enforced` stays ≥ 80% on `app/_ui/`. Two visual snapshots (button + skeleton) were re-recorded to reflect the Spinner's new class + style.
   - **Rollback**: `git rm <test files>`.
 
 ### PR 3 — chrome + i18n
