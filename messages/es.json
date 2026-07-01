@@ -1,9 +1,53 @@
 {
-  "topbar": {},
-  "sidebar": {},
-  "bottomTabBar": {},
-  "themeToggle": {},
-  "languageSwitcher": {},
+  "topbar": {
+    "brand": "gastos-personales",
+    "userNav": {
+      "aria": "Navegación de usuario"
+    }
+  },
+  "sidebar": {
+    "primary": {
+      "aria": "Navegación principal"
+    },
+    "collapse": {
+      "aria": "Colapsar barra lateral"
+    },
+    "links": {
+      "dashboard": "Panel",
+      "accounts": "Cuentas",
+      "transactions": "Transacciones"
+    }
+  },
+  "bottomTabBar": {
+    "primary": {
+      "aria": "Navegación principal"
+    },
+    "links": {
+      "dashboard": "Panel",
+      "accounts": "Cuentas",
+      "transactions": "Transacciones",
+      "reserved1": "Reportes",
+      "reserved2": "Ajustes"
+    }
+  },
+  "themeToggle": {
+    "labels": {
+      "system": "Sistema",
+      "light": "Claro",
+      "dark": "Oscuro"
+    },
+    "aria": "Cambiar tema de color"
+  },
+  "languageSwitcher": {
+    "labels": {
+      "es": "Español",
+      "en": "Inglés"
+    },
+    "aria": "Cambiar idioma",
+    "popover": {
+      "aria": "Opciones de idioma"
+    }
+  },
   "landing": {},
   "notFound": {},
   "error": {}

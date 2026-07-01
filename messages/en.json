@@ -1,9 +1,53 @@
 {
-  "topbar": {},
-  "sidebar": {},
-  "bottomTabBar": {},
-  "themeToggle": {},
-  "languageSwitcher": {},
+  "topbar": {
+    "brand": "gastos-personales",
+    "userNav": {
+      "aria": "User navigation"
+    }
+  },
+  "sidebar": {
+    "primary": {
+      "aria": "Primary navigation"
+    },
+    "collapse": {
+      "aria": "Collapse sidebar"
+    },
+    "links": {
+      "dashboard": "Dashboard",
+      "accounts": "Accounts",
+      "transactions": "Transactions"
+    }
+  },
+  "bottomTabBar": {
+    "primary": {
+      "aria": "Primary navigation"
+    },
+    "links": {
+      "dashboard": "Dashboard",
+      "accounts": "Accounts",
+      "transactions": "Transactions",
+      "reserved1": "Reports",
+      "reserved2": "Settings"
+    }
+  },
+  "themeToggle": {
+    "labels": {
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "aria": "Toggle color theme"
+  },
+  "languageSwitcher": {
+    "labels": {
+      "es": "Spanish",
+      "en": "English"
+    },
+    "aria": "Change language",
+    "popover": {
+      "aria": "Language options"
+    }
+  },
   "landing": {},
   "notFound": {},
   "error": {}
