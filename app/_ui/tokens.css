@@ -123,6 +123,6 @@
     --ui-shadow-glass: 0 8px 32px 0 rgb(0 0 0 / 0.5);
     --ui-gradient-from: oklch(0.32 0.14 250);
     --ui-gradient-via: oklch(0.36 0.11 280);
-    --ui-gradient-to: oklch(0.32 0.10 320);
+    --ui-gradient-to: oklch(0.32 0.1 320);
   }
 }
