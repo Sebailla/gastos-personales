@@ -32,7 +32,7 @@ import { Spinner } from './spinner';
 
 vi.mock('next-intl', () => ({
   useTranslations: (_namespace: string) => {
-    const dict: Record<string, Record<string, string>> = {
+    const dict: { spinner: { es: { loading: string }; en: { loading: string } } } = {
       spinner: {
         es: { loading: 'Cargando…' },
         en: { loading: 'Loading…' },
@@ -40,7 +40,8 @@ vi.mock('next-intl', () => ({
     };
     return (key: string) => {
       const locale = process.env.NEXT_LOCALE === 'es' ? 'es' : 'en';
-      return dict.spinner[locale][key] ?? key;
+      const entry = dict.spinner[locale] as Record<string, string>;
+      return entry[key] ?? key;
     };
   },
 }));
@@ -67,15 +68,17 @@ describe('Spinner (T-PR2-10)', () => {
     // The `motion-safe:animate-spin` utility is on the inner
     // `<svg>`, not the wrapper span.
     const svg = container.querySelector('[data-testid="ui-spinner"] svg');
-    expect(svg?.className.baseVal ?? svg?.getAttribute('class')).toMatch(
-      /motion-safe:animate-spin/,
-    );
+    // JSDOM exposes `className` as a plain string (not
+    // `SVGAnimatedString` like real browsers); use
+    // `getAttribute('class')` to read the rendered class list
+    // portably across both environments.
+    const classAttr = svg?.getAttribute('class') ?? '';
+    expect(classAttr).toMatch(/motion-safe:animate-spin/);
     // The class list is space-separated; the bare
     // `animate-spin` (without the `motion-safe:` prefix) must
     // NOT appear independently. If the source still had the
     // old unconditional `animate-spin`, it would appear as a
     // separate class.
-    const classAttr = svg?.getAttribute('class') ?? '';
     const classList = classAttr.split(/\s+/);
     expect(classList).not.toContain('animate-spin');
   });
