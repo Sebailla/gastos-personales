@@ -1,5 +1,8 @@
 // @vitest-environment jsdom
 // Slice 5 — visual snapshot for the Skeleton primitive (T-UI-410).
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}));
 
 import { render } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';

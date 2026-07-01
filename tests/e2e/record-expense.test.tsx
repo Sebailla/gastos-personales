@@ -1,3 +1,11 @@
+// The Spinner (rendered when the form is in flight) uses
+// `useTranslations` from `next-intl`. This E2E renders
+// outside a `NextIntlClientProvider`, so the mock is
+// required.
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
 /**
  * Slice 5 — E2E happy path #1: record an expense.
  *
@@ -53,7 +61,10 @@ vi.mock('next/navigation', () => ({
   }),
 }));
 
-import { CreateTransactionForm, type AccountOption } from '../../app/transactions/new/create-transaction-form';
+import {
+  CreateTransactionForm,
+  type AccountOption,
+} from '../../app/transactions/new/create-transaction-form';
 
 const ACCOUNTS: ReadonlyArray<AccountOption> = [
   { id: 'acc-ars', name: 'Main ARS', currency: 'ARS' },
@@ -133,8 +144,6 @@ describe('E2E happy path #1 — record an expense (slice 5 T-UI-416)', () => {
     // test in tests/a11y/dashboard.test.tsx which renders the
     // populated dashboard with the converted amount).
     expect(pushMock).toHaveBeenCalledTimes(1);
-    expect(pushMock.mock.calls[0]![0]).toBe(
-      `/transactions/${NEW_TX_ID}?toast=created`,
-    );
+    expect(pushMock.mock.calls[0]![0]).toBe(`/transactions/${NEW_TX_ID}?toast=created`);
   });
 });
