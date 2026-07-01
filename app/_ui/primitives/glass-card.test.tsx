@@ -8,7 +8,8 @@
  * `as` prop lets consumers pick the semantic tag.
  *
  * The runtime check on the rendered class list confirms the
- * `bg-ui-glass-{1,2}` + `backdrop-blur-[var(--ui-glass-blur-{sm,lg})]`
+ * `bg-ui-glass-1` (or `bg-ui-glass-2`) +
+ * `backdrop-blur-[var(--ui-glass-blur-sm)]` (or `-[lg]`)
  * classes are applied. The reduced-transparency override
  * (T-PR2-05) is covered by `app/_ui/glass-card-css.test.tsx`
  * at the CSS-snapshot level.
