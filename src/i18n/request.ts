@@ -58,6 +58,14 @@ function resolveLocale(value: string | undefined): AppLocale {
 /**
  * `next-intl` factory. Reads the `x-locale` header set by the
  * middleware and returns the matching message catalog.
+ *
+ * Exported as BOTH a named export (`getRequestConfig`,
+ * consumed by the `next-intl` runtime via the
+ * `createNextIntlPlugin` build-time instrumentation) AND a
+ * default export (the legacy `next-intl` Server Component
+ * resolution path that some plugin code paths still
+ * require). The two exports reference the same function so
+ * the behavior is identical.
  */
 export async function getRequestConfig(): Promise<RequestConfig> {
   const headerStore = await headers();
@@ -68,3 +76,5 @@ export async function getRequestConfig(): Promise<RequestConfig> {
     messages: loadCatalog(locale),
   };
 }
+
+export default getRequestConfig;

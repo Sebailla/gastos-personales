@@ -1,6 +1,5 @@
 import { type ReactNode } from 'react';
 import { headers } from 'next/headers';
-import { getTranslations } from 'next-intl/server';
 
 import { BottomTabBar } from './bottom-tab-bar';
 import { Sidebar } from './sidebar';
@@ -74,13 +73,6 @@ export async function AppShell({ children }: AppShellProps): Promise<React.JSX.E
   const headerList = await headers();
   const xPathname = headerList.get('x-pathname') ?? '/';
   const variant = pickChromeVariant(xPathname);
-
-  // Pre-resolve the i18n strings the AppShell needs. The
-  // Topbar + Sidebar + BottomTabBar each resolve their own
-  // strings; this is just for the empty-state copy on the
-  // 'none' variant (no chrome — no copy needed; this is
-  // here for future extension).
-  await getTranslations('topbar');
 
   return (
     <>
