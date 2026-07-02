@@ -302,7 +302,7 @@ client'`) because it owns local state (`isOpen`). The
             └─ error.tsx
 
             app/_components/ (dashboard-specific Client Components)
-            └─ dashboard-{monthly-summary,category-breakdown,account-flow}.tsx
+            └─ dashboard-monthly-summary (or -category-breakdown, -account-flow).tsx
                 Server Component; pure props
 
 src/modules/api/ (additive changes only)

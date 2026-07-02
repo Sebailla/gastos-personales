@@ -6,7 +6,7 @@
 **Status**: draft · **Created**: 2026-06-21 · **Last sync**: 2026-06-21 (fx-cache)
 **Stack**: v3 — Next.js 16 + Node 20 + Hono catch-all + Auth.js v5 + Prisma 6 + PostgreSQL (Neon) + Zod + Vitest + pnpm + Tailwind v4
 **Source change**: fx-cache
-**Chained PRs**: 3 (`feat/fx-cache-{1,2,3}` → `develop`)
+**Chained PRs**: 3 (`feat/fx-cache-1 (or -2, -3)` → `develop`)
 **Source artifacts**: `openspec/changes/fx-cache/proposal.md` (v1.1, 635 lines) · `openspec/changes/fx-cache/specs/fx/spec.md` (667 lines, REQ-FX-1 to REQ-FX-9) · `openspec/changes/fx-cache/design.md` (1098 lines, 22 sections) · `docs/adr/0010-dolar-api-provider.md` (290 lines, accepted 2026-06-21)
 **Preflight values**: interactive · `hybrid` (OpenSpec + Engram) · `auto-chain` · 400-line review budget
 **Strict TDD**: enabled per `openspec/config.yaml`; runner `pnpm test`; cycle RED → GREEN → TRIANGULATE → REFACTOR

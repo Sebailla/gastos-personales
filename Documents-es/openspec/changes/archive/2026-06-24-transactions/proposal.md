@@ -1,6 +1,6 @@
 # Propuesta — `transactions`
 
-**Estado**: implementado · **Autor**: Sebastián Illa · **Creado**: 2026-06-22 · **Implementado**: 2026-06-24 (slices 1-5 de `feat/transactions-{entity,fx-snapshot,actions,persistence,api}` mergeados en `develop` vía #59, #60, #61, #62, #63; archivado como 2026-06-24-transactions)
+**Estado**: implementado · **Autor**: Sebastián Illa · **Creado**: 2026-06-22 · **Implementado**: 2026-06-24 (slices 1-5 de `feat/transactions-entity (or -fx-snapshot, -actions, -persistence, -api)` mergeados en `develop` vía #59, #60, #61, #62, #63; archivado como 2026-06-24-transactions)
 **Slice objetivo**: MVP-2 (libro mayor de transacciones)
 **Upstream**: `openspec/changes/transactions/explore.md` (2026-06-22)
 **Upstream**: preflight SDD global (interactive, both, auto-forecast, 400 líneas)

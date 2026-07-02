@@ -77,9 +77,9 @@ recomendación de la propuesta.
   tokens de v1 cubren: escala de spacing (`ui-space-{1..8}`), roles de color
   (`ui-bg`, `ui-bg-muted`, `ui-bg-subtle`, `ui-fg`, `ui-fg-muted`,
   `ui-border`, `ui-accent`, `ui-danger`, `ui-success`, `ui-warning`),
-  escala de radius (`ui-rounded-{sm,md,lg,full}`), elevación
-  (`ui-shadow-{sm,md,lg}`), escala de tipografía (`ui-text-{xs,sm,base,lg,
-xl,2xl,3xl}` + los `ui-font-{normal,medium,semibold,bold}`
+  escala de radius (`ui-rounded-sm (or -md, -lg, -full)`), elevación
+  (`ui-shadow-sm (or -md, -lg)`), escala de tipografía (`ui-text-{xs,sm,base,lg,
+xl,2xl,3xl}` + los `ui-font-normal (or -medium, -semibold, -bold)`
   correspondientes). **Sin nueva paleta de colores** — la paleta de Tailwind
   v4 existente se consume vía CSS custom properties, no hard-codeada.
 - **Componentes base** en `app/_ui/` (Server Component por default, Client
@@ -409,7 +409,7 @@ UI de producción. La fase de spec escribe los Scenarios completos.
 | `app/_components/transactions-list-table.tsx`                                                       | Modified        | Componente de tabla de producción.                                                                        |
 | `app/dashboard/page.tsx`                                                                            | Modified        | Render de producción con search params `?accountId=` y `?month=`. Auth gate + fetch paralelo sin cambios. |
 | `app/_components/dashboard-account-picker.tsx`, `dashboard-month-switcher.tsx`                      | New             | Client Components para state de query params del dashboard.                                               |
-| `app/_components/dashboard-{monthly-summary,category-breakdown,account-flow}.tsx`                   | Modified        | Swap de render a primitivas Card + Table + Badge. Sin cambio en data shape.                               |
+| `app/_components/dashboard-monthly-summary (or -category-breakdown, -account-flow).tsx`             | Modified        | Swap de render a primitivas Card + Table + Badge. Sin cambio en data shape.                               |
 | `app/error.tsx`, `app/dashboard/error.tsx`, etc.                                                    | New             | Error boundaries user-facing por segmento de ruta. Reemplazan la página de error default de Next.js.      |
 | `openspec/specs/ui/spec.md`                                                                         | New (canónica)  | Creada por `sdd-archive` desde la delta spec. Reservada en `openspec/config.yaml:15`.                     |
 | `openspec/specs/transactions/spec.md`                                                               | Modified        | REQ-TX-15 se REEMPLAZA (no se extiende) por los requirements de UI de producción.                         |

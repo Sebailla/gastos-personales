@@ -83,7 +83,7 @@ página `/dashboard` (y cualquier UI futura, incluyendo
 - Una página de Next.js App Router bajo `app/dashboard/page.tsx`
   (shell Server Component que llama a los tres endpoints en
   paralelo). Tres componentes presentacionales bajo
-  `app/_components/dashboard-{monthly-summary,category-breakdown,account-flow}.tsx`.
+  `app/_components/dashboard-monthly-summary (or -category-breakdown, -account-flow).tsx`.
 - Tests: tests unitarios para las tres entidades de dominio y los
   tres servicios puros de agregación; tests de actions para
   empty state, multi-currency y aislamiento cross-user; tests de

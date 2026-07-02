@@ -1,6 +1,6 @@
 # Proposal — `fx-cache`
 
-**Status**: implemented · **Author**: Sebastián Illa · **Created**: 2026-06-21 · **Implemented**: 2026-06-22 (PR-1 + PR-2 + PR-3 of `feat/fx-cache-{1,2,3}`)
+**Status**: implemented · **Author**: Sebastián Illa · **Created**: 2026-06-21 · **Implemented**: 2026-06-22 (PR-1 + PR-2 + PR-3 of `feat/fx-cache-1 (or -2, -3)`)
 **Target slice**: MVP-1.5 (FX provider + cache) · **Supersedes**: none
 **Upstream**: global SDD preflight (interactive, both, auto-chain, 400 lines)
 **Decision gaps**: DG-FX-1 to DG-FX-5 **closed** (2026-06-21). See
@@ -83,7 +83,7 @@ USD).
 
 - New module: `src/modules/fx/` (parallel to `src/modules/accounts/`).
   - `domain/entities/fx-quote.ts` — value object: `{ casa, buy,
-    sell, fxAsOf }` plus Zod schema.
+sell, fxAsOf }` plus Zod schema.
   - `domain/ports/dolar-api.port.ts` — port for the HTTP client.
   - `domain/ports/fx-rate-provider-cache.port.ts` — port for the
     cache layer that wraps the upstream provider.
@@ -188,7 +188,7 @@ back to the global default until the user explicitly overrides).
   with values `OFICIAL`, `BLUE`, `MEP`, `CCL`, `CRIPTO`,
   `TARJETA`. New optional column `casa AccountFxCasa?` on
   `FinancialAccount`. Migration is `ALTER TABLE … ADD COLUMN
-  "casa" "AccountFxCasa" NULL` — no backfill, no default, no
+"casa" "AccountFxCasa" NULL` — no backfill, no default, no
   data loss.
 - **Validation:** new enum schema in the existing
   `update-account.schema.ts` (one file).
@@ -275,13 +275,13 @@ process.
 
 ## Users and situations
 
-| User                        | Situation                                                                   | Touchpoint                                            |
-| --------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------- |
-| Developer on `accounts-ledger` | Runs `pnpm dev`, opens an account, submits the balance widget             | Smoke UI no longer 503s; conversion renders            |
-| PM reviewing the FX surface | Picks a USD account, picks ARS, sees the converted amount and `fxAsOf`      | Smoke UI balance widget                                |
-| Future `transactions` author | Builds `getAccountBalanceAction` for the transaction list                  | Imports `FxRateProvider` from `src/modules/accounts/`  |
-| Future `reports` author      | Aggregates balances across accounts in a single display currency           | Same — `FxRateProvider` is the seam                    |
-| Authenticated user (smoke)   | Looks at a USD-denominated brokerage account, wants to see it in ARS       | Balance widget                                         |
+| User                           | Situation                                                              | Touchpoint                                            |
+| ------------------------------ | ---------------------------------------------------------------------- | ----------------------------------------------------- |
+| Developer on `accounts-ledger` | Runs `pnpm dev`, opens an account, submits the balance widget          | Smoke UI no longer 503s; conversion renders           |
+| PM reviewing the FX surface    | Picks a USD account, picks ARS, sees the converted amount and `fxAsOf` | Smoke UI balance widget                               |
+| Future `transactions` author   | Builds `getAccountBalanceAction` for the transaction list              | Imports `FxRateProvider` from `src/modules/accounts/` |
+| Future `reports` author        | Aggregates balances across accounts in a single display currency       | Same — `FxRateProvider` is the seam                   |
+| Authenticated user (smoke)     | Looks at a USD-denominated brokerage account, wants to see it in ARS   | Balance widget                                        |
 
 ## Business rules
 
@@ -293,7 +293,7 @@ modify are not re-stated here; they live in
 1. **BR-ACC-12 (carried, edit-only).** `GET /api/accounts/:id/balance?displayCurrency=…`
    is read-only. Returns
    `{ native: { amount, currency }, display?: { amount, currency,
-   fxRate, fxAsOf }, warnings?: string[] }`. Errors:
+fxRate, fxAsOf }, warnings?: string[] }`. Errors:
    `503 FX_UNAVAILABLE`, `409 FX_NOT_SUPPORTED`. Edit: the
    `FxRateProvider` is "a port declared in
    `src/modules/accounts/`; the implementation ships in the `fx`
@@ -356,26 +356,26 @@ modify are not re-stated here; they live in
 
 ## Affected areas
 
-| Area | Impact | Description |
-|------|--------|-------------|
-| `src/modules/fx/` | New | New module: domain entities, DolarAPI client, Upstash cache layer, stampede lock, `FxRateProvider` implementation. |
-| `src/modules/accounts/infrastructure/external/fx-rate-provider.unconfigured.ts` | Removed | Stub deleted; replaced by the real provider in `fx`. |
-| `src/modules/accounts/infrastructure/di.ts` (or equivalent DI graph) | Modified | Swaps the stub for the real provider. |
-| `src/modules/accounts/application/actions/get-account-balance.action.ts` | Modified | Now resolves `account.casa ?? env.FX_DEFAULT_CASA` and passes the casa to the provider. |
-| `src/modules/accounts/application/dto/financial-account-balance.dto.ts` | Modified | New `stale: boolean` field on the response DTO (Change 3). |
-| `src/modules/accounts/application/dto/financial-account.dto.ts` (account read DTO) | Modified | Exposes `casa: AccountFxCasa \| null` on account reads. |
-| `src/modules/accounts/application/actions/update-account.action.ts` | Modified | Accepts `casa` on the update payload; validates with Zod. |
-| `app/accounts/[id]/balance-widget.tsx` | Modified | Adds the Tailwind warning chip when `stale === true` (~15 lines). `fxAsOf` text unchanged. |
-| `app/accounts/[id]/edit-account-form.tsx` (or equivalent) | Modified | New `<select>` for `casa` with "Default (oficial)" representing `NULL`. |
-| `prisma/schema.prisma` | Modified | New `AccountFxCasa` enum + new optional `casa AccountFxCasa?` column on `FinancialAccount`. |
-| `prisma/migrations/<ts>_add_account_fx_casa/migration.sql` | New | `ALTER TABLE "FinancialAccount" ADD COLUMN "casa" "AccountFxCasa" NULL`. Non-destructive. |
-| `openspec/specs/accounts/spec.md` | Modified (delta) | One cross-link edit on BR-ACC-12; no behavioral change. New `casa` requirement added on account reads + updates. |
-| `openspec/specs/fx/spec.md` | New | New capability spec, declared by `sdd-spec`. |
-| `openspec/changes/fx-cache/proposal.md` | New | This document. |
-| `openspec/changes/fx-cache/specs/fx/spec.md` | New (delta folder) | Delta spec for the new capability, created by `sdd-spec`. |
-| `openspec/changes/fx-cache/specs/accounts/spec.md` | New (delta folder) | Delta spec for the per-account casa column, created by `sdd-spec`. |
-| `Documents-es/openspec/...` | New + Modified | Spanish mirror of every English Markdown above. Same commit. |
-| `docs/adr/0010-dolar-api-provider.md` | New | ADR for the DolarAPI choice + 1 h cache strategy + per-account casa decision (linked from the new spec). |
+| Area                                                                               | Impact             | Description                                                                                                        |
+| ---------------------------------------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `src/modules/fx/`                                                                  | New                | New module: domain entities, DolarAPI client, Upstash cache layer, stampede lock, `FxRateProvider` implementation. |
+| `src/modules/accounts/infrastructure/external/fx-rate-provider.unconfigured.ts`    | Removed            | Stub deleted; replaced by the real provider in `fx`.                                                               |
+| `src/modules/accounts/infrastructure/di.ts` (or equivalent DI graph)               | Modified           | Swaps the stub for the real provider.                                                                              |
+| `src/modules/accounts/application/actions/get-account-balance.action.ts`           | Modified           | Now resolves `account.casa ?? env.FX_DEFAULT_CASA` and passes the casa to the provider.                            |
+| `src/modules/accounts/application/dto/financial-account-balance.dto.ts`            | Modified           | New `stale: boolean` field on the response DTO (Change 3).                                                         |
+| `src/modules/accounts/application/dto/financial-account.dto.ts` (account read DTO) | Modified           | Exposes `casa: AccountFxCasa \| null` on account reads.                                                            |
+| `src/modules/accounts/application/actions/update-account.action.ts`                | Modified           | Accepts `casa` on the update payload; validates with Zod.                                                          |
+| `app/accounts/[id]/balance-widget.tsx`                                             | Modified           | Adds the Tailwind warning chip when `stale === true` (~15 lines). `fxAsOf` text unchanged.                         |
+| `app/accounts/[id]/edit-account-form.tsx` (or equivalent)                          | Modified           | New `<select>` for `casa` with "Default (oficial)" representing `NULL`.                                            |
+| `prisma/schema.prisma`                                                             | Modified           | New `AccountFxCasa` enum + new optional `casa AccountFxCasa?` column on `FinancialAccount`.                        |
+| `prisma/migrations/<ts>_add_account_fx_casa/migration.sql`                         | New                | `ALTER TABLE "FinancialAccount" ADD COLUMN "casa" "AccountFxCasa" NULL`. Non-destructive.                          |
+| `openspec/specs/accounts/spec.md`                                                  | Modified (delta)   | One cross-link edit on BR-ACC-12; no behavioral change. New `casa` requirement added on account reads + updates.   |
+| `openspec/specs/fx/spec.md`                                                        | New                | New capability spec, declared by `sdd-spec`.                                                                       |
+| `openspec/changes/fx-cache/proposal.md`                                            | New                | This document.                                                                                                     |
+| `openspec/changes/fx-cache/specs/fx/spec.md`                                       | New (delta folder) | Delta spec for the new capability, created by `sdd-spec`.                                                          |
+| `openspec/changes/fx-cache/specs/accounts/spec.md`                                 | New (delta folder) | Delta spec for the per-account casa column, created by `sdd-spec`.                                                 |
+| `Documents-es/openspec/...`                                                        | New + Modified     | Spanish mirror of every English Markdown above. Same commit.                                                       |
+| `docs/adr/0010-dolar-api-provider.md`                                              | New                | ADR for the DolarAPI choice + 1 h cache strategy + per-account casa decision (linked from the new spec).           |
 
 ## Closed decisions (DG-FX-1 to DG-FX-5 — 2026-06-21)
 
@@ -383,13 +383,13 @@ All five decision gaps are **closed**. Detail lives in the
 corresponding Change / BR section above; this is the audit
 summary.
 
-| Gap | Decision | Rationale | Where codified |
-| --- | --- | --- | --- |
-| DG-FX-1 | Default casa = `oficial` | Conservative pick; smoke widget already shows it per BR-ACC-18. | BR-FX-3 |
-| DG-FX-2 | Per-account casa in v1 | Column is additive; user picked v1 over a deferred follow-up. | Change 5, BR-FX-3 |
-| DG-FX-3 | Visible amber `stale: boolean` chip | Smallest user-visible signal that maps to one UX primitive. | Change 3, BR-FX-6 |
-| DG-FX-4 | In-process `Map<casa, Promise<void>>` lock | Cheapest defense against cold-start herd; no coordination protocol. | Change 6, BR-FX-7 |
-| DG-FX-5 | Hardcoded base URL + `DOLAR_API_BASE_URL` env override | One-line env-var cost; tests get a sandbox switch; production cannot drift. | BR-FX-8 |
+| Gap     | Decision                                               | Rationale                                                                   | Where codified    |
+| ------- | ------------------------------------------------------ | --------------------------------------------------------------------------- | ----------------- |
+| DG-FX-1 | Default casa = `oficial`                               | Conservative pick; smoke widget already shows it per BR-ACC-18.             | BR-FX-3           |
+| DG-FX-2 | Per-account casa in v1                                 | Column is additive; user picked v1 over a deferred follow-up.               | Change 5, BR-FX-3 |
+| DG-FX-3 | Visible amber `stale: boolean` chip                    | Smallest user-visible signal that maps to one UX primitive.                 | Change 3, BR-FX-6 |
+| DG-FX-4 | In-process `Map<casa, Promise<void>>` lock             | Cheapest defense against cold-start herd; no coordination protocol.         | Change 6, BR-FX-7 |
+| DG-FX-5 | Hardcoded base URL + `DOLAR_API_BASE_URL` env override | One-line env-var cost; tests get a sandbox switch; production cannot drift. | BR-FX-8           |
 
 Alternatives considered for each gap are recorded in
 `docs/adr/0010-dolar-api-provider.md` (written by `sdd-design`).
@@ -414,7 +414,7 @@ The change is done when:
    string from BR-FX-1 in `warnings`, AND the cache refreshes in
    the background.
 5. Cache key inspection: `redis-cli GET
-   gastos-personales:fx:ars-usd:oficial` returns the cached JSON
+gastos-personales:fx:ars-usd:oficial` returns the cached JSON
    after the first successful call.
 6. After 1 h, a second call returns the cached value with
    `stale: true` on the DTO, the warning string in `warnings`,
@@ -454,20 +454,20 @@ The change is done when:
 
 ## Risks
 
-| Risk                                                                                | Likelihood | Mitigation                                                                                                                                  |
-| ----------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| DolarAPI goes down with a cold cache (no stale value to serve).                     | Medium     | The widget shows the 503 inline error per BR-ACC-18. Documented behavior; not a regression. A future Cron warmup removes this entirely.    |
-| DolarAPI rate-limits us (no public SLA; free endpoint).                             | Low–Med    | The 1 h cache + the per-process refresh lock (BR-FX-7) cut upstream calls by ~99% in steady state. Fallback is the stale value.            |
-| DolarAPI changes its response shape (it is a community API).                        | Low        | Zod validation in `dolar-api.client.ts` rejects unknown shapes with `FX_UNAVAILABLE`. The shape is small (~6 fields); the risk is bounded.   |
-| `oficial` is not the right default for a personal-finance app.                      | Low        | Closed (DG-FX-1). Default is overridable per-account via the new `casa` column (BR-FX-3). Users who want `blue` set it on the account.    |
-| The cache becomes a source of staleness in high-inflation periods (ARS).            | Medium     | 1 h TTL matches DolarAPI's typical update cadence for the `oficial` and `blue` casas. The widget now also renders the stale chip.          |
-| The Upstash client duplication (rate-limit module + new cache module) drifts.       | Low        | A shared `UpstashClient` factory is a follow-up; the two consumers are tiny and identical in shape today.                                    |
-| The new capability `fx` is mistaken for a money-conversion feature, not a port.     | Low        | The proposal is explicit about scope (display-only, ARS↔USD, single source, per-account override). Spec carries the same language.         |
-| The change is ~800 lines and exceeds the 400-line review budget.                    | High       | Auto-chain across three PRs (see Forecast). PR #1 = `fx` module + tests; PR #2 = per-account schema + UI; PR #3 = DI swap + spec + ADR.     |
-| The DI swap leaves a window where neither the stub nor the real provider is wired.  | Low        | The per-account wiring is staged before the DI swap; a feature flag on `FX_DEFAULT_CASA` keeps the stub wired until PR #3 merges.            |
-| **The per-account `casa` migration runs against an existing populated database** with N FinancialAccount rows. | Low | The migration is `ADD COLUMN casa AccountFxCasa NULL` — non-destructive. No backfill, no default value. The smoke UI must show the inherited global default until the user explicitly overrides it (no auto-migration of existing rows to `oficial`). The smoke runbook includes a manual `SELECT count(*) WHERE casa IS NULL` check post-migration. |
-| **The casa enum mapping** (Prisma `OFICIAL` ↔ DolarAPI `oficial`) drifts if DolarAPI renames a casa. | Low | The mapping is centralized in one module (`dolar-api.client.ts`) and unit-tested against every casa. A casa rename requires a deliberate code + DTO + Zod edit. |
-| **The casa enum and the existing `OFICIAL` string in env vars get out of sync.** (`FX_DEFAULT_CASA=oficial` vs. `AccountFxCasa.OFICIAL`) | Low | The provider normalizes both sources through one Zod schema (`fx-casa-string.schema.ts`) that accepts the lowercase DolarAPI form and rejects anything else. Unit-tested for both code paths. |
+| Risk                                                                                                                                     | Likelihood | Mitigation                                                                                                                                                                                                                                                                                                                                           |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DolarAPI goes down with a cold cache (no stale value to serve).                                                                          | Medium     | The widget shows the 503 inline error per BR-ACC-18. Documented behavior; not a regression. A future Cron warmup removes this entirely.                                                                                                                                                                                                              |
+| DolarAPI rate-limits us (no public SLA; free endpoint).                                                                                  | Low–Med    | The 1 h cache + the per-process refresh lock (BR-FX-7) cut upstream calls by ~99% in steady state. Fallback is the stale value.                                                                                                                                                                                                                      |
+| DolarAPI changes its response shape (it is a community API).                                                                             | Low        | Zod validation in `dolar-api.client.ts` rejects unknown shapes with `FX_UNAVAILABLE`. The shape is small (~6 fields); the risk is bounded.                                                                                                                                                                                                           |
+| `oficial` is not the right default for a personal-finance app.                                                                           | Low        | Closed (DG-FX-1). Default is overridable per-account via the new `casa` column (BR-FX-3). Users who want `blue` set it on the account.                                                                                                                                                                                                               |
+| The cache becomes a source of staleness in high-inflation periods (ARS).                                                                 | Medium     | 1 h TTL matches DolarAPI's typical update cadence for the `oficial` and `blue` casas. The widget now also renders the stale chip.                                                                                                                                                                                                                    |
+| The Upstash client duplication (rate-limit module + new cache module) drifts.                                                            | Low        | A shared `UpstashClient` factory is a follow-up; the two consumers are tiny and identical in shape today.                                                                                                                                                                                                                                            |
+| The new capability `fx` is mistaken for a money-conversion feature, not a port.                                                          | Low        | The proposal is explicit about scope (display-only, ARS↔USD, single source, per-account override). Spec carries the same language.                                                                                                                                                                                                                  |
+| The change is ~800 lines and exceeds the 400-line review budget.                                                                         | High       | Auto-chain across three PRs (see Forecast). PR #1 = `fx` module + tests; PR #2 = per-account schema + UI; PR #3 = DI swap + spec + ADR.                                                                                                                                                                                                              |
+| The DI swap leaves a window where neither the stub nor the real provider is wired.                                                       | Low        | The per-account wiring is staged before the DI swap; a feature flag on `FX_DEFAULT_CASA` keeps the stub wired until PR #3 merges.                                                                                                                                                                                                                    |
+| **The per-account `casa` migration runs against an existing populated database** with N FinancialAccount rows.                           | Low        | The migration is `ADD COLUMN casa AccountFxCasa NULL` — non-destructive. No backfill, no default value. The smoke UI must show the inherited global default until the user explicitly overrides it (no auto-migration of existing rows to `oficial`). The smoke runbook includes a manual `SELECT count(*) WHERE casa IS NULL` check post-migration. |
+| **The casa enum mapping** (Prisma `OFICIAL` ↔ DolarAPI `oficial`) drifts if DolarAPI renames a casa.                                    | Low        | The mapping is centralized in one module (`dolar-api.client.ts`) and unit-tested against every casa. A casa rename requires a deliberate code + DTO + Zod edit.                                                                                                                                                                                      |
+| **The casa enum and the existing `OFICIAL` string in env vars get out of sync.** (`FX_DEFAULT_CASA=oficial` vs. `AccountFxCasa.OFICIAL`) | Low        | The provider normalizes both sources through one Zod schema (`fx-casa-string.schema.ts`) that accepts the lowercase DolarAPI form and rejects anything else. Unit-tested for both code paths.                                                                                                                                                        |
 
 ## Rollback
 
@@ -581,12 +581,12 @@ The change is done when:
 
 ## Forecast (auto-chain, 400-line budget)
 
-| PR  | Scope                                                                                                                                                | Approx. lines | Status |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ------ |
-| 1   | New `src/modules/fx/` module: DolarAPI client + Upstash cache + stampede lock + `FxRateProvider` impl + domain unit tests + integration tests       | ~600          | Auto   |
-| 2   | Per-account casa: Prisma enum + nullable column + migration + Zod validation + account edit form `<select>` + account DTO + action update         | ~300          | Auto   |
-| 3   | DI swap (stub deletion) + balance action wires `account.casa ?? FX_DEFAULT_CASA` + `stale` chip in smoke widget + `accounts` spec delta + `fx` spec + ADR-0010 + ES mirror | ~250    | Auto   |
-|     | **Total**                                                                                                                                            | **~1150**     |        |
+| PR  | Scope                                                                                                                                                                      | Approx. lines | Status |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ------ |
+| 1   | New `src/modules/fx/` module: DolarAPI client + Upstash cache + stampede lock + `FxRateProvider` impl + domain unit tests + integration tests                              | ~600          | Auto   |
+| 2   | Per-account casa: Prisma enum + nullable column + migration + Zod validation + account edit form `<select>` + account DTO + action update                                  | ~300          | Auto   |
+| 3   | DI swap (stub deletion) + balance action wires `account.casa ?? FX_DEFAULT_CASA` + `stale` chip in smoke widget + `accounts` spec delta + `fx` spec + ADR-0010 + ES mirror | ~250          | Auto   |
+|     | **Total**                                                                                                                                                                  | **~1150**     |        |
 
 PR #1 is over the 400-line review budget. The orchestrator
 auto-chains (per session preflight). PR #1 is a self-contained
@@ -594,10 +594,11 @@ slice that does not touch any consumer; PR #2 adds the
 per-account casa column and form (the provider still falls back
 to the env-var default because `account.casa` is `NULL` for all
 rows at this point); PR #3 is a DI swap + the smoke widget chip
-+ spec creation that turns the new provider on with full
-per-account selection. A reviewer can land PR #1 and PR #2
-without risk to the smoke UI; PR #3 flips the DI wire and adds
-the visible warning chip.
+
+- spec creation that turns the new provider on with full
+  per-account selection. A reviewer can land PR #1 and PR #2
+  without risk to the smoke UI; PR #3 flips the DI wire and adds
+  the visible warning chip.
 
 ## Audit trail
 
@@ -611,10 +612,10 @@ the visible warning chip.
   - DG-FX-3: visible warning chip via new `stale: boolean` DTO.
   - DG-FX-4: in-process `Map<casa, Promise<void>>` stampede lock.
   - DG-FX-5: hardcoded base URL + `DOLAR_API_BASE_URL` env override.
-  Scope grew from ~497 to ~700 lines. New BRs: BR-FX-6 to
-  BR-FX-9. New affected area: `prisma/schema.prisma` + Prisma
-  migration. Forecast grew from 2 PRs to 3 PRs (~1150 lines
-  total).
+    Scope grew from ~497 to ~700 lines. New BRs: BR-FX-6 to
+    BR-FX-9. New affected area: `prisma/schema.prisma` + Prisma
+    migration. Forecast grew from 2 PRs to 3 PRs (~1150 lines
+    total).
 
 Refs:
 
