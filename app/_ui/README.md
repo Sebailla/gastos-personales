@@ -16,9 +16,9 @@ utility class (`bg-ui-bg`, `text-ui-fg`, `rounded-ui-md`, etc.).
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Spacing    | `--ui-space-{1..8}` → `0.25rem`..`2.5rem`                                                                                                                                                                                       |
 | Colors     | `--ui-bg`, `--ui-bg-muted`, `--ui-bg-subtle`, `--ui-fg`, `--ui-fg-muted`, `--ui-border`, `--ui-accent`, `--ui-accent-fg`, `--ui-danger`, `--ui-danger-fg`, `--ui-success`, `--ui-success-fg`, `--ui-warning`, `--ui-warning-fg` |
-| Radius     | `--ui-rounded-{sm,md,lg,full}`                                                                                                                                                                                                  |
-| Elevation  | `--ui-shadow-{sm,md,lg}`                                                                                                                                                                                                        |
-| Typography | `--ui-text-{xs,sm,base,lg,xl,2xl,3xl}`, `--ui-font-{normal,medium,semibold,bold}`                                                                                                                                               |
+| Radius     | `--ui-rounded-sm (or -md, -lg, -full)`                                                                                                                                                                                          |
+| Elevation  | `--ui-shadow-sm (or -md, -lg)`                                                                                                                                                                                                  |
+| Typography | `--ui-text-xs (or -sm, -base, -lg, -xl, -2xl, -3xl)`, `--ui-font-normal (or -medium, -semibold, -bold)`                                                                                                                         |
 
 The dark-mode scope is declared under `[data-theme='dark']` but
 NOT activated in v1 (REQ-UI-9). A follow-up `ui-dark-mode` change

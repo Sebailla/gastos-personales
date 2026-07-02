@@ -334,9 +334,7 @@ import { z } from 'zod';
 //      update-account.action.ts (via toFinancialAccountDto).
 //   3. The casa query parameter on DolarAPI at the client boundary.
 // One source of truth for "what is a valid casa".
-export const fxCasaStringSchema = z.enum([
-  'oficial', 'blue', 'mep', 'ccl', 'cripto', 'tarjeta',
-]);
+export const fxCasaStringSchema = z.enum(['oficial', 'blue', 'mep', 'ccl', 'cripto', 'tarjeta']);
 export type FxCasaString = z.infer<typeof fxCasaStringSchema>;
 ```
 
@@ -537,10 +535,7 @@ concurrent cold-start fetches for the same casa.
 
 const inflight = new Map<FxCasaString, Promise<unknown>>();
 
-export async function withLock<T>(
-  casa: FxCasaString,
-  fn: () => Promise<T>,
-): Promise<T> {
+export async function withLock<T>(casa: FxCasaString, fn: () => Promise<T>): Promise<T> {
   const existing = inflight.get(casa);
   if (existing) return existing as Promise<T>;
 
@@ -599,22 +594,22 @@ Rationale:
 
 Failure modes handled:
 
-| Case | Behavior |
-| --- | --- |
-| DolarAPI 5xx on cache miss | `AppError(FX_UNAVAILABLE)` 503 (REQ-FX-2). No retry. |
-| DolarAPI 5xx on stale refresh | Captured as Sentry warning; cache stays stale (REQ-FX-1). No retry. |
-| DolarAPI timeout (3000 ms) | `AppError(FX_UNAVAILABLE)` 503. No retry. |
-| DolarAPI 4xx (malformed casa, etc.) | `AppError(FX_UNAVAILABLE)` 503. No retry. |
+| Case                                | Behavior                                                            |
+| ----------------------------------- | ------------------------------------------------------------------- |
+| DolarAPI 5xx on cache miss          | `AppError(FX_UNAVAILABLE)` 503 (REQ-FX-2). No retry.                |
+| DolarAPI 5xx on stale refresh       | Captured as Sentry warning; cache stays stale (REQ-FX-1). No retry. |
+| DolarAPI timeout (3000 ms)          | `AppError(FX_UNAVAILABLE)` 503. No retry.                           |
+| DolarAPI 4xx (malformed casa, etc.) | `AppError(FX_UNAVAILABLE)` 503. No retry.                           |
 
 ---
 
 ## 10. Error semantics (REQ-FX error table)
 
-| Code | HTTP | Trigger | Caller surface |
-| --- | --- | --- | --- |
-| `FX_UNAVAILABLE` | 503 | Cache miss + DolarAPI unreachable, non-2xx, malformed payload, or Zod parse failure. | Inline error: `"FX rate provider unavailable. Try again in a few minutes."` (BR-ACC-18). |
-| `FX_NOT_SUPPORTED` | 409 | Provider does not support the requested pair. Carried from `accounts`; never triggered by DolarAPI (all six pairs are supported). | Inline error: `"FX conversion not supported for this pair."` (BR-ACC-18). |
-| `FX_STALE` | 200 | Cache hit past TTL. The DTO body carries `stale: true` AND `warnings: ["FX rate is stale; showing last known value."]`. | Amber chip (`text-amber-600`) + `"Last updated: <ISO>"` plain text. |
+| Code               | HTTP | Trigger                                                                                                                           | Caller surface                                                                           |
+| ------------------ | ---- | --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `FX_UNAVAILABLE`   | 503  | Cache miss + DolarAPI unreachable, non-2xx, malformed payload, or Zod parse failure.                                              | Inline error: `"FX rate provider unavailable. Try again in a few minutes."` (BR-ACC-18). |
+| `FX_NOT_SUPPORTED` | 409  | Provider does not support the requested pair. Carried from `accounts`; never triggered by DolarAPI (all six pairs are supported). | Inline error: `"FX conversion not supported for this pair."` (BR-ACC-18).                |
+| `FX_STALE`         | 200  | Cache hit past TTL. The DTO body carries `stale: true` AND `warnings: ["FX rate is stale; showing last known value."]`.           | Amber chip (`text-amber-600`) + `"Last updated: <ISO>"` plain text.                      |
 
 `FX_STALE` is **not** a new HTTP code; it's a 200 with a
 warning payload. The system has exactly three states:
@@ -636,28 +631,28 @@ logger (`@/shared/logger/logger`).
 
 ### 11.1 Log events
 
-| Event | When | Fields |
-| --- | --- | --- |
-| `fx.cache.hit` | Cache hit (fresh or stale) | `casa`, `stale: boolean`, `fxAsOf` |
-| `fx.cache.miss` | Cache miss + DolarAPI fetch | `casa`, `dolarApiLatencyMs`, `fxAsOf` |
-| `fx.cache.miss.fail` | Cache miss + DolarAPI 5xx / parse failure | `casa`, `errorCode: 'FX_UNAVAILABLE'`, `dolarApiStatus?: number`, `errorMessage` |
-| `fx.stale.refresh` | Stale hit → background refresh | `casa`, `dolarApiLatencyMs`, `result: 'ok' \| 'fail'` |
-| `fx.stampede.coalesce` | Stampede lock coalesces N callers | `casa`, `concurrentCallers: number` |
-| `fx.cache.noop` | Cache init with missing env vars | `reason: 'missing_env'` (logged once at boot, not per request) |
+| Event                  | When                                      | Fields                                                                           |
+| ---------------------- | ----------------------------------------- | -------------------------------------------------------------------------------- |
+| `fx.cache.hit`         | Cache hit (fresh or stale)                | `casa`, `stale: boolean`, `fxAsOf`                                               |
+| `fx.cache.miss`        | Cache miss + DolarAPI fetch               | `casa`, `dolarApiLatencyMs`, `fxAsOf`                                            |
+| `fx.cache.miss.fail`   | Cache miss + DolarAPI 5xx / parse failure | `casa`, `errorCode: 'FX_UNAVAILABLE'`, `dolarApiStatus?: number`, `errorMessage` |
+| `fx.stale.refresh`     | Stale hit → background refresh            | `casa`, `dolarApiLatencyMs`, `result: 'ok' \| 'fail'`                            |
+| `fx.stampede.coalesce` | Stampede lock coalesces N callers         | `casa`, `concurrentCallers: number`                                              |
+| `fx.cache.noop`        | Cache init with missing env vars          | `reason: 'missing_env'` (logged once at boot, not per request)                   |
 
 ### 11.2 The 6 hand-offs from the spec — confirmed answered
 
 The spec's "Observability" section listed 6 hand-offs as
 deferred-to-design. Each is answered:
 
-| Hand-off | Answered at |
-| --- | --- |
+| Hand-off                                   | Answered at                                                                                                                               |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `fx.cache.hit` / `fx.cache.miss` (boolean) | §11.1 first two rows (`stale: boolean` is implied on hit; cache miss implies `stale: false` since the fresh value is about to be written) |
-| `fx.dolarapi.duration_ms` (number) | §11.1 `dolarApiLatencyMs` field on `fx.cache.miss` and `fx.stale.refresh` events |
-| `fx.dolarapi.status` (200/4xx/5xx) | §11.1 `dolarApiStatus?: number` field on `fx.cache.miss.fail` event (200 not logged; 4xx/5xx logged) |
-| `fx.stale` (boolean) | §11.1 `stale: boolean` field on `fx.cache.hit` event |
-| `fx.casa` (string) | §11.1 `casa` field on every event |
-| Sentry capture rules | §11.3 below |
+| `fx.dolarapi.duration_ms` (number)         | §11.1 `dolarApiLatencyMs` field on `fx.cache.miss` and `fx.stale.refresh` events                                                          |
+| `fx.dolarapi.status` (200/4xx/5xx)         | §11.1 `dolarApiStatus?: number` field on `fx.cache.miss.fail` event (200 not logged; 4xx/5xx logged)                                      |
+| `fx.stale` (boolean)                       | §11.1 `stale: boolean` field on `fx.cache.hit` event                                                                                      |
+| `fx.casa` (string)                         | §11.1 `casa` field on every event                                                                                                         |
+| Sentry capture rules                       | §11.3 below                                                                                                                               |
 
 ### 11.3 Sentry capture rules
 
@@ -824,31 +819,26 @@ is added inside that div when `body.data.stale === true`.
 
 ```tsx
 // app/accounts/[id]/balance-widget.tsx — addition (PR #3, ~15 lines)
-{result ? (
-  <div className="mt-3 rounded border border-gray-200 bg-gray-50 px-3 py-2">
-    {stale ? (
-      <p
-        role="status"
-        aria-live="polite"
-        className="mb-2 inline-block rounded bg-amber-100 px-2 py-1 text-sm text-amber-700"
-      >
-        Cotización desactualizada (hace {staleMinutes} min)
+{
+  result ? (
+    <div className="mt-3 rounded border border-gray-200 bg-gray-50 px-3 py-2">
+      {stale ? (
+        <p
+          role="status"
+          aria-live="polite"
+          className="mb-2 inline-block rounded bg-amber-100 px-2 py-1 text-sm text-amber-700"
+        >
+          Cotización desactualizada (hace {staleMinutes} min)
+        </p>
+      ) : null}
+      <p>
+        Display: <span className="font-mono">{formatMinor(result.amount, result.currency)}</span>{' '}
+        <span className="text-sm text-gray-600">@ {result.fxRate.toFixed(4)}</span>
       </p>
-    ) : null}
-    <p>
-      Display:{' '}
-      <span className="font-mono">
-        {formatMinor(result.amount, result.currency)}
-      </span>{' '}
-      <span className="text-sm text-gray-600">
-        @ {result.fxRate.toFixed(4)}
-      </span>
-    </p>
-    <p className="text-sm text-gray-600">
-      Last updated: {result.fxAsOf}
-    </p>
-  </div>
-) : null}
+      <p className="text-sm text-gray-600">Last updated: {result.fxAsOf}</p>
+    </div>
+  ) : null;
+}
 ```
 
 The `stale` and `staleMinutes` values come from the response
@@ -877,13 +867,17 @@ const [casa, setCasa] = useState<Casa>(null); // null = inherit global default
   <select
     name="casa"
     value={casa ?? ''}
-    onChange={(e) => setCasa(e.target.value === '' ? null : e.target.value as Casa)}
+    onChange={(e) => setCasa(e.target.value === '' ? null : (e.target.value as Casa))}
     className="border border-gray-300 rounded px-2 py-1"
   >
     <option value="">Default (oficial)</option>
-    {CASAS.map((c) => <option key={c} value={c}>{c}</option>)}
+    {CASAS.map((c) => (
+      <option key={c} value={c}>
+        {c}
+      </option>
+    ))}
   </select>
-</label>
+</label>;
 ```
 
 The form's `onSubmit` includes `casa` in the JSON body (or
@@ -932,17 +926,17 @@ The widget continues to render `display.fxAsOf` as plain text
 
 ## 17. Acceptance criteria (mapped 1:1 to REQ-FX-1 to REQ-FX-9)
 
-| Spec REQ | Design acceptance criterion |
-| --- | --- |
-| REQ-FX-1 (TTL + stale fallback) | Vitest unit test: cache hit within TTL returns `stale: false`; cache hit past TTL returns `stale: true` and triggers background refresh; background refresh failure is silent (no `AppError`). Vitest integration test: `UpstashFxRateCache` writes `EX 3600` on every set. |
-| REQ-FX-2 (DolarAPI miss throws) | Vitest unit test: with cache empty + DolarAPI forced to 500, `getDisplayAmount` throws `AppError(FX_UNAVAILABLE)`. Vitest unit test: with cache empty + DolarAPI malformed payload, `getDisplayAmount` throws `AppError(FX_UNAVAILABLE)`. |
-| REQ-FX-3 (casa resolution at caller) | Vitest unit test: `get-account-balance.action.ts` resolves `account.casa ?? env.FX_DEFAULT_CASA`. Three sub-scenarios: NULL → 'oficial'; explicit 'BLUE' → 'blue'; env var overrides NULL. The provider unit test confirms it never reads env or queries the DB. |
-| REQ-FX-4 (cache key) | Vitest unit test: first `cache.set('oficial', entry)` writes key `gastos-personales:fx:v1:oficial`. Two concurrent `cache.set('blue')` and `cache.set('mep')` produce two distinct keys. |
-| REQ-FX-5 (no-op without Upstash env) | Vitest unit test: with `UPSTASH_REDIS_REST_URL` unset, `cache.get` returns `null` and `cache.set` is a no-op. Vitest unit test: the Hono DI graph boots without crashing when env vars are missing. |
-| REQ-FX-6 (`stale` boolean + warnings) | Vitest unit test: `toBalanceDto` maps provider's `stale: true` to DTO's `stale: true` + `warnings: ['FX rate is stale; showing last known value.']`. Vitest unit test: `stale: false` → `warnings: undefined`. |
-| REQ-FX-7 (stampede lock) | Vitest unit test: 10 concurrent `withLock('oficial', fn)` calls invoke `fn` exactly once. Vitest unit test: concurrent calls for different casas invoke `fn` independently. |
-| REQ-FX-8 (base URL override) | Vitest unit test: with `DOLAR_API_BASE_URL` unset, client targets `https://dolarapi.com/v1`. Vitest unit test: with `DOLAR_API_BASE_URL=http://localhost:9999`, client targets `http://localhost:9999`. |
-| REQ-FX-9 (non-destructive migration) | Vitest integration test (testcontainers Postgres): apply the migration to a populated DB; assert every existing row has `casa IS NULL`. Vitest unit test: existing rows render the inherited global default (the action's casa resolution falls through `account.casa ?? env.FX_DEFAULT_CASA`). |
+| Spec REQ                              | Design acceptance criterion                                                                                                                                                                                                                                                                     |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| REQ-FX-1 (TTL + stale fallback)       | Vitest unit test: cache hit within TTL returns `stale: false`; cache hit past TTL returns `stale: true` and triggers background refresh; background refresh failure is silent (no `AppError`). Vitest integration test: `UpstashFxRateCache` writes `EX 3600` on every set.                     |
+| REQ-FX-2 (DolarAPI miss throws)       | Vitest unit test: with cache empty + DolarAPI forced to 500, `getDisplayAmount` throws `AppError(FX_UNAVAILABLE)`. Vitest unit test: with cache empty + DolarAPI malformed payload, `getDisplayAmount` throws `AppError(FX_UNAVAILABLE)`.                                                       |
+| REQ-FX-3 (casa resolution at caller)  | Vitest unit test: `get-account-balance.action.ts` resolves `account.casa ?? env.FX_DEFAULT_CASA`. Three sub-scenarios: NULL → 'oficial'; explicit 'BLUE' → 'blue'; env var overrides NULL. The provider unit test confirms it never reads env or queries the DB.                                |
+| REQ-FX-4 (cache key)                  | Vitest unit test: first `cache.set('oficial', entry)` writes key `gastos-personales:fx:v1:oficial`. Two concurrent `cache.set('blue')` and `cache.set('mep')` produce two distinct keys.                                                                                                        |
+| REQ-FX-5 (no-op without Upstash env)  | Vitest unit test: with `UPSTASH_REDIS_REST_URL` unset, `cache.get` returns `null` and `cache.set` is a no-op. Vitest unit test: the Hono DI graph boots without crashing when env vars are missing.                                                                                             |
+| REQ-FX-6 (`stale` boolean + warnings) | Vitest unit test: `toBalanceDto` maps provider's `stale: true` to DTO's `stale: true` + `warnings: ['FX rate is stale; showing last known value.']`. Vitest unit test: `stale: false` → `warnings: undefined`.                                                                                  |
+| REQ-FX-7 (stampede lock)              | Vitest unit test: 10 concurrent `withLock('oficial', fn)` calls invoke `fn` exactly once. Vitest unit test: concurrent calls for different casas invoke `fn` independently.                                                                                                                     |
+| REQ-FX-8 (base URL override)          | Vitest unit test: with `DOLAR_API_BASE_URL` unset, client targets `https://dolarapi.com/v1`. Vitest unit test: with `DOLAR_API_BASE_URL=http://localhost:9999`, client targets `http://localhost:9999`.                                                                                         |
+| REQ-FX-9 (non-destructive migration)  | Vitest integration test (testcontainers Postgres): apply the migration to a populated DB; assert every existing row has `casa IS NULL`. Vitest unit test: existing rows render the inherited global default (the action's casa resolution falls through `account.casa ?? env.FX_DEFAULT_CASA`). |
 
 The acceptance criteria are enforced via `pnpm test` (Vitest) and
 `pnpm exec tsc --noEmit` (TypeScript strict). Coverage target is
@@ -1004,46 +998,46 @@ without a new event. A future `snapshots` capability may add
 
 ## 19. File-to-requirement traceability matrix
 
-| Spec REQ | Files |
-| --- | --- |
-| REQ-FX-1 (TTL + stale fallback) | `src/modules/fx/infrastructure/external/fx-rate-provider.dolar-api.ts` (read flow + stale refresh), `src/modules/fx/infrastructure/cache/upstash-fx-rate.cache.ts` (TTL_SECONDS = 3600), `src/modules/fx/infrastructure/external/fx-rate-provider.dolar-api.test.ts` (cache hit/miss/stale scenarios). |
-| REQ-FX-2 (DolarAPI miss throws) | `src/modules/fx/infrastructure/external/dolar-api.client.ts` (Zod parse + non-2xx mapping), `src/modules/fx/infrastructure/external/dolar-api.client.test.ts` (500 + malformed scenarios). |
-| REQ-FX-3 (casa resolution at caller) | `src/modules/accounts/application/actions/get-account-balance.action.ts` (resolution rule), `src/modules/fx/domain/entities/fx-casa-string.schema.ts` (Zod normalization), `src/modules/accounts/application/actions/get-account-balance.action.test.ts` (resolution scenarios). |
-| REQ-FX-4 (cache key) | `src/modules/fx/infrastructure/cache/upstash-fx-rate.cache.ts` (`KEY_PREFIX` + `TTL_SECONDS`), `src/modules/fx/infrastructure/cache/upstash-fx-rate.cache.test.ts` (key shape assertion). |
-| REQ-FX-5 (no-op without Upstash env) | `src/modules/fx/infrastructure/cache/upstash-fx-rate.cache.ts` (env-var-gated constructor), `src/modules/api/app.ts` (DI wiring), `src/modules/fx/infrastructure/cache/upstash-fx-rate.cache.test.ts` (no-env scenarios). |
-| REQ-FX-6 (`stale` boolean + warnings) | `src/modules/accounts/application/dto/financial-account-balance.dto.ts` (DTO gain), `src/modules/accounts/application/dto/financial-account-balance.dto.test.ts` (mapping scenarios), `app/accounts/[id]/balance-widget.tsx` (chip render). |
-| REQ-FX-7 (stampede lock) | `src/modules/fx/infrastructure/stampede/stampede-lock.ts` (`Map` + `withLock`), `src/modules/fx/infrastructure/stampede/stampede-lock.test.ts` (10 concurrent callers → 1 fetch). |
-| REQ-FX-8 (base URL override) | `src/modules/fx/infrastructure/external/dolar-api.client.ts` (`baseUrl` resolution), `src/modules/fx/infrastructure/external/dolar-api.client.test.ts` (default + override scenarios). |
-| REQ-FX-9 (non-destructive migration) | `prisma/schema.prisma` (AccountFxCasa enum + casa column), `prisma/migrations/<ts>_add_account_fx_casa/migration.sql` (ALTER TABLE), `src/modules/accounts/application/actions/get-account-balance.action.ts` (resolution fallthrough). |
+| Spec REQ                              | Files                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| REQ-FX-1 (TTL + stale fallback)       | `src/modules/fx/infrastructure/external/fx-rate-provider.dolar-api.ts` (read flow + stale refresh), `src/modules/fx/infrastructure/cache/upstash-fx-rate.cache.ts` (TTL_SECONDS = 3600), `src/modules/fx/infrastructure/external/fx-rate-provider.dolar-api.test.ts` (cache hit/miss/stale scenarios). |
+| REQ-FX-2 (DolarAPI miss throws)       | `src/modules/fx/infrastructure/external/dolar-api.client.ts` (Zod parse + non-2xx mapping), `src/modules/fx/infrastructure/external/dolar-api.client.test.ts` (500 + malformed scenarios).                                                                                                             |
+| REQ-FX-3 (casa resolution at caller)  | `src/modules/accounts/application/actions/get-account-balance.action.ts` (resolution rule), `src/modules/fx/domain/entities/fx-casa-string.schema.ts` (Zod normalization), `src/modules/accounts/application/actions/get-account-balance.action.test.ts` (resolution scenarios).                       |
+| REQ-FX-4 (cache key)                  | `src/modules/fx/infrastructure/cache/upstash-fx-rate.cache.ts` (`KEY_PREFIX` + `TTL_SECONDS`), `src/modules/fx/infrastructure/cache/upstash-fx-rate.cache.test.ts` (key shape assertion).                                                                                                              |
+| REQ-FX-5 (no-op without Upstash env)  | `src/modules/fx/infrastructure/cache/upstash-fx-rate.cache.ts` (env-var-gated constructor), `src/modules/api/app.ts` (DI wiring), `src/modules/fx/infrastructure/cache/upstash-fx-rate.cache.test.ts` (no-env scenarios).                                                                              |
+| REQ-FX-6 (`stale` boolean + warnings) | `src/modules/accounts/application/dto/financial-account-balance.dto.ts` (DTO gain), `src/modules/accounts/application/dto/financial-account-balance.dto.test.ts` (mapping scenarios), `app/accounts/[id]/balance-widget.tsx` (chip render).                                                            |
+| REQ-FX-7 (stampede lock)              | `src/modules/fx/infrastructure/stampede/stampede-lock.ts` (`Map` + `withLock`), `src/modules/fx/infrastructure/stampede/stampede-lock.test.ts` (10 concurrent callers → 1 fetch).                                                                                                                      |
+| REQ-FX-8 (base URL override)          | `src/modules/fx/infrastructure/external/dolar-api.client.ts` (`baseUrl` resolution), `src/modules/fx/infrastructure/external/dolar-api.client.test.ts` (default + override scenarios).                                                                                                                 |
+| REQ-FX-9 (non-destructive migration)  | `prisma/schema.prisma` (AccountFxCasa enum + casa column), `prisma/migrations/<ts>_add_account_fx_casa/migration.sql` (ALTER TABLE), `src/modules/accounts/application/actions/get-account-balance.action.ts` (resolution fallthrough).                                                                |
 
 ---
 
 ## 20. Risks & tradeoffs
 
-| Risk | Mitigation |
-| --- | --- |
-| **DolarAPI down with a cold cache** (no stale value to serve) → 503 to the user. | The widget shows the 503 inline error per BR-ACC-18; documented behavior; not a regression. A future Cron warmup removes this entirely. |
-| **DolarAPI rate-limits us** (no public SLA; free endpoint). | The 1 h cache + per-process stampede lock cut upstream calls by ~99% in steady state. Fallback is the stale value. |
-| **DolarAPI changes its response shape** (it is a community API). | Zod validation in `dolar-api.client.ts` rejects unknown shapes with `FX_UNAVAILABLE`. The shape is small (~6 fields); the risk is bounded. |
-| **`oficial` is not the right default** for a personal-finance app. | Default is overridable per-account via the new `casa` column (REQ-FX-3). Users who want `blue` set it on the account. |
-| **High-inflation periods** (ARS) make the 1 h TTL noticeable. | The widget renders the stale chip (`text-amber-600`) so the user can judge freshness. A future Cron warmup could shorten the perceived TTL. |
-| **Upstash client duplication** (rate-limit + new cache) drifts. | A shared `UpstashClient` factory is a follow-up; the two consumers are tiny and identical in shape today. |
-| **`FxRateProvider` port change** (`casa` becomes required on `FxConversionRequest`). | The change is additive (new field, never removed); the only caller is the action layer; the action is updated in the same PR. |
-| **The per-account `casa` migration runs against an existing populated DB**. | The migration is `ADD COLUMN casa AccountFxCasa NULL` — non-destructive; no backfill, no default. The smoke UI must show the inherited global default until the user explicitly overrides (no auto-migration of existing rows to `oficial`). |
-| **The casa enum mapping** (Prisma `OFICIAL` ↔ DolarAPI `oficial`) drifts if DolarAPI renames a casa. | The mapping is centralized in `fx-casa-string.schema.ts` and unit-tested against every casa. A casa rename requires a deliberate code + DTO + Zod edit. |
-| **Bilingual drift** — the Spanish mirror may fall behind the English design. | The mirror is written in the same PR as the English source. The Husky pre-commit `check-lockfile.sh` does not enforce docs; reviewer verifies both files. |
-| **`pnpm-lock.yaml` drift** — if a future change adds a new dep to the `fx` module. | Per root `AGENTS.md` §5.3: the lockfile is a deliverable. Husky pre-commit hook fails the commit if `package.json` is staged without a corresponding `pnpm-lock.yaml` change. The `fx` module reuses existing deps (`@upstash/redis` already in the tree from `auth-foundation`); no new dep is added in v1. |
-| **The DI swap leaves a window** where neither the stub nor the real provider is wired. | PR #3 ships the swap and the stub deletion in the same commit; TypeScript compiler fails the build if the import is left dangling. |
+| Risk                                                                                                  | Mitigation                                                                                                                                                                                                                                                                                                   |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **DolarAPI down with a cold cache** (no stale value to serve) → 503 to the user.                      | The widget shows the 503 inline error per BR-ACC-18; documented behavior; not a regression. A future Cron warmup removes this entirely.                                                                                                                                                                      |
+| **DolarAPI rate-limits us** (no public SLA; free endpoint).                                           | The 1 h cache + per-process stampede lock cut upstream calls by ~99% in steady state. Fallback is the stale value.                                                                                                                                                                                           |
+| **DolarAPI changes its response shape** (it is a community API).                                      | Zod validation in `dolar-api.client.ts` rejects unknown shapes with `FX_UNAVAILABLE`. The shape is small (~6 fields); the risk is bounded.                                                                                                                                                                   |
+| **`oficial` is not the right default** for a personal-finance app.                                    | Default is overridable per-account via the new `casa` column (REQ-FX-3). Users who want `blue` set it on the account.                                                                                                                                                                                        |
+| **High-inflation periods** (ARS) make the 1 h TTL noticeable.                                         | The widget renders the stale chip (`text-amber-600`) so the user can judge freshness. A future Cron warmup could shorten the perceived TTL.                                                                                                                                                                  |
+| **Upstash client duplication** (rate-limit + new cache) drifts.                                       | A shared `UpstashClient` factory is a follow-up; the two consumers are tiny and identical in shape today.                                                                                                                                                                                                    |
+| **`FxRateProvider` port change** (`casa` becomes required on `FxConversionRequest`).                  | The change is additive (new field, never removed); the only caller is the action layer; the action is updated in the same PR.                                                                                                                                                                                |
+| **The per-account `casa` migration runs against an existing populated DB**.                           | The migration is `ADD COLUMN casa AccountFxCasa NULL` — non-destructive; no backfill, no default. The smoke UI must show the inherited global default until the user explicitly overrides (no auto-migration of existing rows to `oficial`).                                                                 |
+| **The casa enum mapping** (Prisma `OFICIAL` ↔ DolarAPI `oficial`) drifts if DolarAPI renames a casa. | The mapping is centralized in `fx-casa-string.schema.ts` and unit-tested against every casa. A casa rename requires a deliberate code + DTO + Zod edit.                                                                                                                                                      |
+| **Bilingual drift** — the Spanish mirror may fall behind the English design.                          | The mirror is written in the same PR as the English source. The Husky pre-commit `check-lockfile.sh` does not enforce docs; reviewer verifies both files.                                                                                                                                                    |
+| **`pnpm-lock.yaml` drift** — if a future change adds a new dep to the `fx` module.                    | Per root `AGENTS.md` §5.3: the lockfile is a deliverable. Husky pre-commit hook fails the commit if `package.json` is staged without a corresponding `pnpm-lock.yaml` change. The `fx` module reuses existing deps (`@upstash/redis` already in the tree from `auth-foundation`); no new dep is added in v1. |
+| **The DI swap leaves a window** where neither the stub nor the real provider is wired.                | PR #3 ships the swap and the stub deletion in the same commit; TypeScript compiler fails the build if the import is left dangling.                                                                                                                                                                           |
 
 ---
 
-## 21. Rollout (per-PR plan, 3 chained PRs, `feat/fx-cache-{1,2,3}` → `develop`)
+## 21. Rollout (per-PR plan, 3 chained PRs, `feat/fx-cache-1 (or -2, -3)` → `develop`)
 
-| PR | Branch | Scope | Approx. lines | Acceptance gate |
-| --- | --- | --- | --- | --- |
-| 1 | `feat/fx-cache-1` | New `src/modules/fx/` module: `dolar-api.client.ts` + `upstash-fx-rate.cache.ts` + `stampede-lock.ts` + `fx-rate-provider.dolar-api.ts` + `fx-quote.ts` + `fx-casa-string.schema.ts` + ports + tests. **No DI swap; the stub stays wired.** | ~600 | `pnpm test` exits 0; ≥80% coverage on `src/modules/fx/**`; DolarAPI client integration test against `http://localhost:9999` (sandbox) passes. |
-| 2 | `feat/fx-cache-2` | Per-account `casa`: `AccountFxCasa` enum + nullable column + `add_account_fx_casa` migration + Zod validation in `account-create.schema.ts` + casa `<select>` in `create-account-form.tsx` + `toFinancialAccountDto` exposes `casa` + `update-account.action.ts` accepts `casa`. **DI still wired to the stub; the FX endpoint still 503s.** | ~300 | `pnpm prisma migrate dev` succeeds; `pnpm test` exits 0; populated DB migration is non-destructive (existing rows have `casa = NULL`). |
-| 3 | `feat/fx-cache-3` | DI swap (delete `fx-rate-provider.unconfigured.ts` + new wiring in `app.ts:316`) + `get-account-balance.action.ts` wires `account.casa ?? env.FX_DEFAULT_CASA` + `stale` chip in `balance-widget.tsx` + balance DTO gains `stale: boolean` + `accounts` spec cross-link delta + `fx` spec created + `docs/adr/0010-dolar-api-provider.md` written + ES mirror. | ~250 | `pnpm test` exits 0; `pnpm dev` → sign in → `/accounts/[id]` → submit widget → `display.amount` + `display.fxRate` + `"Last updated: <ISO>"` render. With DolarAPI forced to 500 in test: 503. With cache past TTL: stale chip + warning string in DTO. |
+| PR  | Branch            | Scope                                                                                                                                                                                                                                                                                                                                                          | Approx. lines | Acceptance gate                                                                                                                                                                                                                                         |
+| --- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `feat/fx-cache-1` | New `src/modules/fx/` module: `dolar-api.client.ts` + `upstash-fx-rate.cache.ts` + `stampede-lock.ts` + `fx-rate-provider.dolar-api.ts` + `fx-quote.ts` + `fx-casa-string.schema.ts` + ports + tests. **No DI swap; the stub stays wired.**                                                                                                                    | ~600          | `pnpm test` exits 0; ≥80% coverage on `src/modules/fx/**`; DolarAPI client integration test against `http://localhost:9999` (sandbox) passes.                                                                                                           |
+| 2   | `feat/fx-cache-2` | Per-account `casa`: `AccountFxCasa` enum + nullable column + `add_account_fx_casa` migration + Zod validation in `account-create.schema.ts` + casa `<select>` in `create-account-form.tsx` + `toFinancialAccountDto` exposes `casa` + `update-account.action.ts` accepts `casa`. **DI still wired to the stub; the FX endpoint still 503s.**                   | ~300          | `pnpm prisma migrate dev` succeeds; `pnpm test` exits 0; populated DB migration is non-destructive (existing rows have `casa = NULL`).                                                                                                                  |
+| 3   | `feat/fx-cache-3` | DI swap (delete `fx-rate-provider.unconfigured.ts` + new wiring in `app.ts:316`) + `get-account-balance.action.ts` wires `account.casa ?? env.FX_DEFAULT_CASA` + `stale` chip in `balance-widget.tsx` + balance DTO gains `stale: boolean` + `accounts` spec cross-link delta + `fx` spec created + `docs/adr/0010-dolar-api-provider.md` written + ES mirror. | ~250          | `pnpm test` exits 0; `pnpm dev` → sign in → `/accounts/[id]` → submit widget → `display.amount` + `display.fxRate` + `"Last updated: <ISO>"` render. With DolarAPI forced to 500 in test: 503. With cache past TTL: stale chip + warning string in DTO. |
 
 Total: ~1150 lines across 3 PRs. Matches the proposal forecast
 (§"Forecast"). The PRs are chained: 1 → 2 → 3; each PR opens to

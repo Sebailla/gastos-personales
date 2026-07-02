@@ -311,7 +311,7 @@ intencionales (el cache del orquestador bakeó estas):
             └─ error.tsx
 
             app/_components/ (Client Components específicos del dashboard)
-            └─ dashboard-{monthly-summary,category-breakdown,account-flow}.tsx
+            └─ dashboard-monthly-summary (or -category-breakdown, -account-flow).tsx
                 Server Component; props puros
 
 src/modules/api/ (solo cambios aditivos)

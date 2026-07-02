@@ -79,7 +79,7 @@ renders without learning the upstream `Transaction` details.
 - One Next.js App Router page under `app/dashboard/page.tsx`
   (Server Component shell that calls the three endpoints in
   parallel). Three presentational components under
-  `app/_components/dashboard-{monthly-summary,category-breakdown,account-flow}.tsx`.
+  `app/_components/dashboard-monthly-summary (or -category-breakdown, -account-flow).tsx`.
 - Tests: unit tests for the three domain entities and three
   pure aggregation services; action tests for empty state,
   multi-currency, and cross-user isolation; route tests for

@@ -82,9 +82,9 @@ recommendation.
   (`ui-bg`, `ui-bg-muted`, `ui-bg-subtle`, `ui-fg`,
   `ui-fg-muted`, `ui-border`, `ui-accent`, `ui-danger`,
   `ui-success`, `ui-warning`), radius scale (`ui-rounded-{sm,md,
-lg,full}`), elevation (`ui-shadow-{sm,md,lg}`), typography
-  scale (`ui-text-{xs,sm,base,lg,xl,2xl,3xl}` + matching
-  `ui-font-{normal,medium,semibold,bold}`). **No new color
+lg,full}`), elevation (`ui-shadow-sm (or -md, -lg)`), typography
+  scale (`ui-text-xs (or -sm, -base, -lg, -xl, -2xl, -3xl)` + matching
+  `ui-font-normal (or -medium, -semibold, -bold)`). **No new color
   palette** — the existing Tailwind v4 palette is consumed via
   CSS custom properties, not hard-coded.
 - **Base components** at `app/_ui/` (Server Component by default,
@@ -438,7 +438,7 @@ Scenarios.
 | `app/_components/transactions-list-table.tsx`                                                       | Modified        | Production table component.                                                                             |
 | `app/dashboard/page.tsx`                                                                            | Modified        | Production render with `?accountId=` and `?month=` search params. Auth gate + parallel fetch unchanged. |
 | `app/_components/dashboard-account-picker.tsx`, `dashboard-month-switcher.tsx`                      | New             | Client Components for dashboard query-param state.                                                      |
-| `app/_components/dashboard-{monthly-summary,category-breakdown,account-flow}.tsx`                   | Modified        | Render swap to Card + Table + Badge primitives. No data-shape change.                                   |
+| `app/_components/dashboard-monthly-summary (or -category-breakdown, -account-flow).tsx`             | Modified        | Render swap to Card + Table + Badge primitives. No data-shape change.                                   |
 | `app/error.tsx`, `app/dashboard/error.tsx`, etc.                                                    | New             | User-facing error boundaries per route segment. Replaces the default Next.js error page.                |
 | `openspec/specs/ui/spec.md`                                                                         | New (canonical) | Created by `sdd-archive` from the delta spec. Reserved in `openspec/config.yaml:15`.                    |
 | `openspec/specs/transactions/spec.md`                                                               | Modified        | REQ-TX-15 is REPLACED (not extended) by the production UI requirements.                                 |
