@@ -31,7 +31,28 @@ import { defaultLocale, locales, type AppLocale } from './i18n';
 const routing = {
   locales,
   defaultLocale,
+  // `localePrefix: 'as-needed'` keeps the URL structure unchanged for
+  // the default locale (`/auth/signin`) and prefixes non-default
+  // locales (`/es/auth/signin`). Together with `localeDetection:
+  // false` (see below), this disables next-intl's automatic locale
+  // detection from the `Accept-Language` header so the middleware
+  // never emits an HTTP-level redirect to a `/<locale>/...` URL.
+  //
+  // Why `localeDetection: false`: verified experimentally on
+  // 2026-07-02 that, without it, next-intl 4.13.1 still emits
+  // `<link rel="alternate" hreflang="es" href="/es/auth/signin">`
+  // in the HTML response, AND responds `307 Location: /auth/signin`
+  // to GETs on `/es/...`. Chrome's preload pipeline (in dev with
+  // Turbopack) follows those alternate links and triggers a
+  // `/auth/signin` → 307→ `/es/auth/signin` → 307→`/auth/signin`
+  // redirect loop. With detection off, the middleware trusts only
+  // the `NEXT_LOCALE` cookie and never redirects a URL; the
+  // alternate links still appear in HTML (for SEO) but the
+  // server stops redirecting on access. The language switcher
+  // (which writes `NEXT_LOCALE`) and the explicit `Accept-Language`
+  // user setting remain the two ways to change locale.
   localePrefix: 'as-needed' as const,
+  localeDetection: false,
 };
 
 const intlMiddleware = createMiddleware(routing);
@@ -115,6 +136,34 @@ export function isPublicPath(pathname: string): boolean {
 }
 
 /**
+ * Strip a locale prefix from a URL pathname when next-intl would
+ * otherwise 307-redirect to the unprefixed equivalent.
+ *
+ * next-intl's `localePrefix: 'as-needed'` middleware (from
+ * `createMiddleware(routing)`) responds to `GET /es/auth/signin`
+ * with `307 Location: /auth/signin` when `es` is a non-default
+ * locale — even with `localeDetection: false`. That 307 is
+ * structurally correct (SEO-wise) but it leaks alternate
+ * `<link rel="alternate" hreflang="es" href="/es/auth/signin">`
+ * URLs into every HTML response, and Chrome's preload pipeline
+ * follows those alternates, hitting 307→200→preload/redirect in
+ * a loop.
+ *
+ * Workaround: for `/{en,es}/...` paths where `[locale]/...` segments
+ * match either locale, rewrite the request URL to the unprefixed
+ * form BEFORE next-intl sees it. The App Router's `[locale]`
+ * segment catches both `en` and `es` and renders the same page
+ * either way (the segment does not care which value matched).
+ * Re-writing at the proxy preserves the locale cookie logic
+ * (`x-locale` is set by `withLocaleHeaders` from cookie/header
+ * precedence, not from the URL).
+ */
+const LOCALE_PREFIX_RE = /^\/(?:en|es)(?=\/|$)/;
+function stripLocalePrefix(pathname: string): string {
+  return pathname.replace(LOCALE_PREFIX_RE, '') || '/';
+}
+
+/**
  * The Next.js proxy entry point. Chains the locale middleware
  * (which writes `x-locale` and `x-pathname`) with the existing
  * auth gate. The `auth(...)` wrapper from NextAuth v5 first
@@ -125,6 +174,22 @@ export function isPublicPath(pathname: string): boolean {
  * reads it for its `<html lang>` and chrome decisions).
  */
 export default auth((request) => {
+  // (0) Strip locale prefix BEFORE the intl middleware sees the
+  //     request. Without this, next-intl 4.13.1 issues a
+  //     `307 Location: /auth/signin` redirect on `/es/auth/signin`
+  //     (and `/en/...` when `[locale]` is not the default), and
+  //     the alternate `<link rel="alternate" hreflang="es">` URLs
+  //     injected by next-intl cause Chrome's preload pipeline to
+  //     loop. Stripping at the proxy canonicalizes the URL to
+  //     the unprefixed form while preserving the locale-precedence
+  //     logic in `x-locale` (which `withLocaleHeaders` still
+  //     resolves from cookie + Accept-Language).
+  if (LOCALE_PREFIX_RE.test(request.nextUrl.pathname)) {
+    const rewritten = request.nextUrl.clone();
+    rewritten.pathname = stripLocalePrefix(request.nextUrl.pathname);
+    return NextResponse.redirect(rewritten);
+  }
+
   // (1) Locale headers — always run; do NOT early-return on
   //     unauthenticated requests because the auth signin page
   //     itself needs `x-locale` to render localized copy.
