@@ -23,8 +23,9 @@ Dos patrones que el scanner extrae pero NO son CSS válido en v4:
    `Unexpected token CurlyBracketBlock`.
 
 2. **Slash separator** (`a/b`): usado informalmente para significar
-   "a o b" (e.g. `--ui-glass-blur-sm/lg` para "blur pequeño o grande").
-   No válido dentro de `var(...)`. PostCSS falla con `Unexpected
+   "a o b" (e.g. `--ui-glass-blur-sm` seguido de `/lg` dentro de
+   un `var(...)` para significar "blur pequeño o grande"). No
+   válido dentro de `var(...)`. PostCSS falla con `Unexpected
 token Delim('/')`.
 
 El build sigue completando (warning, no error) y la ruta afectada
@@ -35,17 +36,13 @@ devuelve HTTP 500.
 **Nunca escribas tokens con forma de utility class que usen
 brace-expansion o slash separator en archivos fuente.**
 
-Usá prosa o dos nombres literales:
+Usá prosa o dos nombres literales. Ejemplos concretos de los
+incidentes que dispararon este guard:
 
-```diff
--`--ui-rounded-{sm,md,lg,full}`
-+`--ui-rounded-sm` (or `-md`, `-lg`, `-full`)
-```
-
-```diff
--`backdrop-blur-[var(--ui-glass-blur-sm/lg)]`
-+`backdrop-blur-[var(--ui-glass-blur-sm)]` (or `-[lg]`)
-```
+- `--ui-rounded-sm` (or `-md`, `-lg`, `-full`) — escrito así, no como
+  la forma insegura con brace-expansion.
+- `backdrop-blur-[var(--ui-glass-blur-sm)]` (or `-[lg]`) — escrito así,
+  no como la forma insegura con slash separator dentro de `var(...)`.
 
 Aplica a: comentarios JSDoc, documentación en prosa, regex literals,
 docs en Markdown, en cualquier lado donde un token con forma de
@@ -68,11 +65,20 @@ grep -rnE \
   app/ openspec/ Documents-es/
 ```
 
-Los tres patrones cubren:
+Los tres patrones cubren las dos variantes conocidas. La forma
+insegura se muestra en abstracto porque este doc debe pasar el mismo
+grep:
 
-- Patrón 1: CSS variable con brace-expansion (`--xxx-{a,b}`)
-- Patrón 2: token con forma de utility class con brace-expansion (`xxx-{a,b}`)
-- Patrón 3: `var(...)` con slash separator (`var(--xxx-yyy/zzz)`)
+- Patrón 1: CSS variable donde la forma insegura expande a múltiples
+  variantes dentro de llaves (e.g. el placeholder inseguro
+  `--xxx-a-or-b-or-c`). Forma segura: nombre literal + lista en prosa.
+- Patrón 2: token con forma de utility class con el mismo hazard de
+  brace-expansion (e.g. inseguro `xxx-a-or-b`). Forma segura: dos
+  nombres literales unidos por `(or ...)`.
+- Patrón 3: `var(...)` con la forma insegura que usa `/` entre los dos
+  últimos segmentos dentro de un `var(...)` (e.g. el placeholder
+  inseguro escrito como dos segmentos separados por una barra).
+  Forma segura: `var(--xxx-yyy)` seguido de `(or -zzz)`.
 
 Es un grep de una línea, sin script Node, sin allowlist, sin
 pre-commit hook. Corre solo en CI; los commits locales no se

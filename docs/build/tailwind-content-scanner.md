@@ -24,9 +24,9 @@ v4:
    `Unexpected token CurlyBracketBlock`.
 
 2. **Slash separator** (`a/b`): used informally to mean "either a or
-   b" (e.g. `--ui-glass-blur-sm/lg` for "small or large blur"). Not
-   valid inside `var(...)`. PostCSS fails with `Unexpected token
-Delim('/')`.
+   b" (e.g. `--ui-glass-blur-sm` followed by `/lg` inside a `var(...)`
+   to mean "small or large blur"). Not valid inside `var(...)`.
+   PostCSS fails with `Unexpected token Delim('/')`.
 
 The build still completes (warning, not error) and the affected
 route returns HTTP 500.
@@ -36,17 +36,13 @@ route returns HTTP 500.
 **Never write brace-expansion or slash-separated utility-class-shaped
 tokens in source files.**
 
-Use prose or two literal names instead:
+Use prose or two literal names instead. Concrete examples from the
+incidents that triggered this guard:
 
-```diff
--`--ui-rounded-{sm,md,lg,full}`
-+`--ui-rounded-sm` (or `-md`, `-lg`, `-full`)
-```
-
-```diff
--`backdrop-blur-[var(--ui-glass-blur-sm/lg)]`
-+`backdrop-blur-[var(--ui-glass-blur-sm)]` (or `-[lg]`)
-```
+- `--ui-rounded-sm` (or `-md`, `-lg`, `-full`) — written that way, not
+  as the unsafe brace-expansion form.
+- `backdrop-blur-[var(--ui-glass-blur-sm)]` (or `-[lg]`) — written that
+  way, not as the unsafe slash-separated form inside `var(...)`.
 
 Applies to: JSDoc comments, prose documentation, regex literals,
 Markdown docs, anywhere a utility-class-shaped token can be mistaken
@@ -69,11 +65,19 @@ grep -rnE \
   app/ openspec/ Documents-es/
 ```
 
-The three patterns cover:
+The three patterns cover the two known variants. The unsafe form is
+shown abstractly here because the doc itself must pass the same grep:
 
-- Pattern 1: CSS variable with brace-expansion (`--xxx-{a,b}`)
-- Pattern 2: utility-class-shaped token with brace-expansion (`xxx-{a,b}`)
-- Pattern 3: `var(...)` with slash separator (`var(--xxx-yyy/zzz)`)
+- Pattern 1: CSS variable where the unsafe form expands to multiple
+  variants inside braces (e.g. the unsafe `--xxx-a-or-b-or-c`
+  placeholder). Safe form: literal name plus a prose list of variants.
+- Pattern 2: utility-class-shaped token with the same brace-expansion
+  hazard (e.g. unsafe `xxx-a-or-b`). Safe form: two literal names
+  joined by `(or ...)`.
+- Pattern 3: `var(...)` with the unsafe form using `/` between the two
+  last segments inside a `var(...)` (e.g. the unsafe placeholder
+  written as two segments separated by a slash). Safe form:
+  `var(--xxx-yyy)` followed by `(or -zzz)`.
 
 This is a one-line grep — no Node script, no allowlist, no pre-commit
 hook. It runs only in CI; local commits don't get blocked by this
