@@ -51,7 +51,20 @@ export default [
   // TS recommended ruleset on top.
   tsConfig('recommended'),
   // Project custom rules.
+  // The @typescript-eslint plugin is registered here because flat
+  // config plugin scope is per-entry, not global. The plugin is
+  // also registered inside the `tsConfig()` helper above (lines
+  // 13-34) for its own return value, but that registration does
+  // NOT leak to this sibling rules block. Without this entry,
+  // eslint 9 flat-config rejects the three `@typescript-eslint/*`
+  // rules below with:
+  //   TypeError: Key "rules": Key "@typescript-eslint/no-unused-vars":
+  //     Could not find plugin "@typescript-eslint".
+  // This is what was masking `pnpm lint` from running locally.
   {
+    plugins: {
+      '@typescript-eslint': tsPlugin,
+    },
     rules: {
       '@typescript-eslint/no-unused-vars': [
         'error',
