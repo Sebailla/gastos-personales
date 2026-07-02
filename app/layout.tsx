@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import { headers } from 'next/headers';
+import { NextIntlClientProvider } from 'next-intl';
+import { getMessages } from 'next-intl/server';
 import type { ReactNode } from 'react';
 
 import { AppShell } from './_ui/layout/app-shell';
@@ -75,6 +77,16 @@ export default async function RootLayout({
   const xLocale = headerList.get('x-locale');
   const htmlLang: 'en' | 'es' = xLocale === 'es' ? 'es' : 'en';
 
+  // Load the message catalog for the active locale so the
+  // `<NextIntlClientProvider>` can hand it to Client Components
+  // that call `useTranslations()` / `useLocale()` (e.g.
+  // `LanguageSwitcher`, `Sidebar`). Without this provider the
+  // client-side hooks throw "No intl context found" at
+  // runtime — REQ-UI-17 (i18n scaffold, PR #110) wired the
+  // server config but the client provider was never wrapped
+  // in this layout.
+  const messages = await getMessages();
+
   return (
     <html lang={htmlLang} className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <head>
@@ -85,9 +97,11 @@ export default async function RootLayout({
             `<main id="main-content">` target is mounted by
             `<AppShell>` (T-PR3-06) below. */}
         <SkipLink label="Skip to main content" />
-        <ThemeProvider>
-          <AppShell>{children}</AppShell>
-        </ThemeProvider>
+        <NextIntlClientProvider messages={messages}>
+          <ThemeProvider>
+            <AppShell>{children}</AppShell>
+          </ThemeProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );
