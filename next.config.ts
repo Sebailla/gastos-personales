@@ -2,16 +2,37 @@ import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
 import createNextIntlPlugin from 'next-intl/plugin';
 
+// `script-src` is one of the directives inside the
+// `Content-Security-Policy` header (`next.config.ts` line ~52,
+// joined into a single comma-separated string with the other
+// directives).
+//
 // React in dev mode uses eval() for HMR and to reconstruct
 // callstacks from a different environment, which a strict CSP
 // blocks. We allow `'unsafe-eval'` only in non-production
 // environments; `process.env.NODE_ENV` is statically replaced
 // at build time by Next.js, so the prod bundle never sees
 // this directive and the 4R-R1 baseline stays intact.
+//
+// PREVIOUS BUG (fixed 2026-07-02): `scriptSrc` was emitted as a
+// bare value (`'self' 'unsafe-inline' ...`) and then joined into
+// the CSP header with `; ` between directives. That left the
+// browser parsing the value as a directive-name on its own,
+// because each `; ` boundary expects a directive-name first,
+// not a quoted value. Chrome rejected with:
+//
+//   "The Content-Security-Policy directive name ''self''
+//    contains one or more invalid characters."
+//
+// The list of permitted sources MUST include the directive name
+// (`script-src`) as a prefix; otherwise the browser treats the
+// next-token as a directive-name (not a directive-value) and
+// fails the parse. The literal `'self'` substring is what made
+// Chrome think the whole value was a malformed directive-name.
 const scriptSrc =
   process.env.NODE_ENV !== 'production'
-    ? "'self' 'unsafe-inline' 'unsafe-eval' https://*.sentry.io https://accounts.google.com"
-    : "'self' 'unsafe-inline' https://*.sentry.io https://accounts.google.com";
+    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.sentry.io https://accounts.google.com"
+    : "script-src 'self' 'unsafe-inline' https://*.sentry.io https://accounts.google.com";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
