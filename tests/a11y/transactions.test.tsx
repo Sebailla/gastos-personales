@@ -99,7 +99,7 @@ vi.mock('@/lib/server-hono', () => ({
 }));
 
 // Import AFTER the mocks are registered.
-import TransactionsPage from '../../app/transactions/page';
+import TransactionsPage from '../../app/[locale]/transactions/page';
 
 describe('/transactions — page-level axe-core integration (slice 5 T-UI-404)', () => {
   it('renders the full page with zero critical + serious axe-core violations', async () => {

@@ -64,7 +64,7 @@ vi.mock('next/navigation', () => ({
 import {
   CreateTransactionForm,
   type AccountOption,
-} from '../../app/transactions/new/create-transaction-form';
+} from '../../app/[locale]/transactions/new/create-transaction-form';
 
 const ACCOUNTS: ReadonlyArray<AccountOption> = [
   { id: 'acc-ars', name: 'Main ARS', currency: 'ARS' },

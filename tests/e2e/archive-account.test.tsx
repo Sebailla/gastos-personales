@@ -131,7 +131,7 @@ vi.mock('@/lib/server-hono', () => ({
   })),
 }));
 
-import AccountsPage from '../../app/accounts/page';
+import AccountsPage from '../../app/[locale]/accounts/page';
 
 describe('E2E happy path #2 \u2014 archive an account (slice 5 T-UI-416)', () => {
   it('archive flow: default hides archived; toggle reveals it', async () => {

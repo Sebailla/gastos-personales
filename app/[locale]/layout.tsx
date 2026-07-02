@@ -1,0 +1,114 @@
+import { NextIntlClientProvider } from 'next-intl';
+import { getMessages } from 'next-intl/server';
+import type { ReactNode } from 'react';
+import { Inter, JetBrains_Mono } from 'next/font/google';
+
+import { AppShell } from '../_ui/layout/app-shell';
+import { SkipLink } from '../_ui/layout/skip-link';
+import { ThemeProvider } from '../_ui/providers/theme-provider';
+import { defaultLocale } from '../../i18n';
+
+import '../globals.css';
+
+// Inter Variable (REQ-UI-18) — display + body text. `weight: 'variable'`
+// emits the variable-font subset; `display: 'swap'` keeps first
+// paint unblocked; `preload: true` is the LCP contribution.
+// The `variable` option writes the loader's CSS variable name onto
+// the consumer element so `--font-inter` becomes available in scope.
+const inter = Inter({
+  weight: 'variable',
+  display: 'swap',
+  preload: true,
+  variable: '--font-inter',
+  subsets: ['latin', 'latin-ext'],
+});
+
+// JetBrains Mono — monospace. Two weights (400 + 500) match the
+// existing form / table consumption in `app/_ui/primitives/`.
+const jetbrainsMono = JetBrains_Mono({
+  weight: ['400', '500'],
+  display: 'swap',
+  preload: true,
+  variable: '--font-jb-mono',
+  subsets: ['latin', 'latin-ext'],
+});
+
+export const metadata = {
+  title: 'gastos-personales',
+  description: 'Multi-user personal finance app',
+};
+
+/**
+ * Inline blocking FOUC script (T-PR2-07 of the `ui-redesign`
+ * change, REQ-UI-14).
+ *
+ * Runs before first paint (no `defer`, no `async`) with one
+ * job: read the active theme from the same precedence the
+ * `ThemeProvider` uses (`ui.theme` localStorage → OS
+ * `prefers-color-scheme` → default `light`) and add the
+ * `dark` class to `document.documentElement` so the dark-scope
+ * CSS in `app/_ui/tokens.css` (T-PR2-02) applies before the
+ * first frame. Without this script, a user with
+ * `mode === 'system'` and OS-level dark preference would see
+ * a flash of the light theme (FOUC) on every page load.
+ *
+ * The whole body is wrapped in `try/catch` so a
+ * `SecurityError` from `localStorage` (Safari private mode,
+ * third-party-cookie-blocking browsers) does not break the
+ * page. The script is plain JavaScript — no React, no
+ * hydration. CSP already permits inline scripts
+ * (`script-src 'self' 'unsafe-inline'` in `next.config.ts`).
+ */
+const themeBootstrapScript = `(function(){try{var s=localStorage.getItem('ui.theme');var d=s==='dark'||(s!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList[d?'add':'remove']('dark');}catch(e){}})();`;
+
+/**
+ * Locale-scoped root layout. Owns the `<html>` element,
+ * `NextIntlClientProvider`, font loaders, and the FOUC script.
+ *
+ * Why this exists at `app/[locale]/layout.tsx` and not at the
+ * project root: next-intl@4 emits `x-middleware-rewrite:
+ * /<locale>/<path>` on every request, and the rewrite target
+ * MUST resolve to a real segment for Next.js to render. The
+ * canonical pattern for next-intl is to keep all real pages
+ * under `app/[locale]/...` so the middleware rewrite target
+ * matches. The root `app/layout.tsx` is reduced to a
+ * `{children}` pass-through (Next.js requires a root layout
+ * but does not require it to render any markup beyond its
+ * children).
+ *
+ * The locale passed to `<NextIntlClientProvider>` is the
+ * dynamic segment value (`params.locale`), which next-intl
+ * reads from its request config (`src/i18n/request.ts`). The
+ * `<html lang>` attribute is set per the active locale so
+ * assistive tech and screen readers pick the right dictionary.
+ */
+export default async function LocaleLayout({
+  children,
+  params,
+}: {
+  children: ReactNode;
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  const htmlLang = locale === 'es' ? 'es' : defaultLocale;
+  const messages = await getMessages();
+
+  return (
+    <html lang={htmlLang} className={`${inter.variable} ${jetbrainsMono.variable}`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
+      </head>
+      <body>
+        {/* REQ-UI-22 — first focusable element on every page. The
+            `<main id="main-content">` target is mounted by
+            `<AppShell>` (T-PR3-06) below. */}
+        <SkipLink label="Skip to main content" />
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <ThemeProvider>
+            <AppShell>{children}</AppShell>
+          </ThemeProvider>
+        </NextIntlClientProvider>
+      </body>
+    </html>
+  );
+}

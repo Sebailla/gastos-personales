@@ -1,12 +1,12 @@
 /**
- * Tests for the next/font wiring in `app/layout.tsx`
+ * Tests for the next/font wiring in `app/[locale]/layout.tsx`
  * (REQ-UI-18 of the `transactions-ui` + `ui-redesign` changes).
  *
  * The full RootLayout render is no longer a viable
  * integration check (the layout is now async — it reads
- * `x-locale` from the request headers in PR 3 — and
- * wraps children in a `<ThemeProvider>` + `<AppShell>`
- * that suspends under synchronous `renderToStaticMarkup`).
+ * `params.locale` for next-intl — and wraps children in a
+ * `<ThemeProvider>` + `<AppShell>` that suspends under
+ * synchronous `renderToStaticMarkup`).
  *
  * PR 5's Playwright e2e covers the real-browser font
  * behavior. The assertions here focus on what
@@ -25,6 +25,12 @@
  * at the `app/globals.css` snapshot level (the file does
  * not contain `https://fonts.googleapis.com`) rather than
  * at the rendered-HTML level.
+ *
+ * Font wiring lives at `app/[locale]/layout.tsx` after the
+ * locale-segment move (fix/i18n-locale-segment). The root
+ * `app/layout.tsx` is reduced to a `{children}` pass-through
+ * because next-intl requires pages to live under
+ * `app/[locale]/...` for the rewrite target to resolve.
  */
 
 import { readFileSync } from 'node:fs';
@@ -33,14 +39,14 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const GLOBALS_CSS_PATH = resolve(process.cwd(), 'app/globals.css');
-const LAYOUT_PATH = resolve(process.cwd(), 'app/layout.tsx');
+const LAYOUT_PATH = resolve(process.cwd(), 'app/[locale]/layout.tsx');
 
 function readFile(path: string): string {
   return readFileSync(path, 'utf8');
 }
 
 describe('next/font wiring (REQ-UI-18)', () => {
-  it('does not include any Google Fonts CDN URL in app/layout.tsx', () => {
+  it('does not include any Google Fonts CDN URL in app/[locale]/layout.tsx', () => {
     // The next/font/google loader is used instead of a CDN
     // <link>; assert the layout source has no CDN reference.
     const layout = readFile(LAYOUT_PATH);

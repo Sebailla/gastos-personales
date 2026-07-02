@@ -149,7 +149,7 @@ vi.mock('@/lib/server-hono', () => ({
 }));
 
 // Import AFTER the mocks are registered.
-import DashboardPage from '../../app/dashboard/page';
+import DashboardPage from '../../app/[locale]/dashboard/page';
 
 describe('/dashboard — page-level axe-core integration with ?accountId + ?month (slice 5 T-UI-405)', () => {
   it('renders the populated dashboard with zero critical + serious axe-core violations', async () => {
