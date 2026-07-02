@@ -48,8 +48,8 @@ vi.mock('next/navigation', () => ({
   },
 }));
 
-import { AccountDetail } from '../../app/accounts/[id]/account-detail';
-import { BalanceWidget } from '../../app/accounts/[id]/balance-widget';
+import { AccountDetail } from '../../app/[locale]/accounts/[id]/account-detail';
+import { BalanceWidget } from '../../app/[locale]/accounts/[id]/balance-widget';
 import type { FinancialAccountWire } from '../../app/_lib/account-types';
 
 function makeAccount(overrides: Partial<FinancialAccountWire> = {}): FinancialAccountWire {

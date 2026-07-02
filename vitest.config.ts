@@ -28,10 +28,10 @@ export default defineConfig({
     // on the Node environment (faster, no jsdom bootstrap).
     environmentMatchGlobs: [
       ['app/_ui/**/*.{test,spec}.tsx', 'jsdom'],
-      ['app/accounts/**/*.{test,spec}.tsx', 'jsdom'],
-      ['app/transactions/**/*.{test,spec}.tsx', 'jsdom'],
+      ['app/[[]locale]/accounts/**/*.{test,spec}.tsx', 'jsdom'],
+      ['app/[[]locale]/transactions/**/*.{test,spec}.tsx', 'jsdom'],
       ['app/_components/**/*.{test,spec}.tsx', 'jsdom'],
-      ['app/dashboard/**/*.{test,spec}.tsx', 'jsdom'],
+      ['app/[[]locale]/dashboard/**/*.{test,spec}.tsx', 'jsdom'],
       // Slice 5 (`ui-integration-tests`): the page-level tests
       // render full Server Components (auth + Hono composition
       // root + Client Component children) through
@@ -78,9 +78,9 @@ export default defineConfig({
         // (`dashboard-ui-refactor`) adds `app/dashboard/**` (the
         // Client Components + co-located sub-components) + the
         // two new dashboard Client Components in `app/_components`.
-        'app/accounts/**',
-        'app/transactions/**',
-        'app/dashboard/**',
+        'app/[locale]/accounts/**',
+        'app/[locale]/transactions/**',
+        'app/[locale]/dashboard/**',
         'app/_components/transactions-list-table.tsx',
         'app/_components/dashboard-account-picker.tsx',
         'app/_components/dashboard-month-switcher.tsx',
@@ -116,21 +116,21 @@ export default defineConfig({
         // (`feat/ui-integration-tests`); excluding here keeps the
         // 80% gate on the testable units (the Client Components +
         // co-located sub-components).
-        'app/accounts/page.tsx',
-        'app/accounts/[[]id]/page.tsx',
-        'app/accounts/new/page.tsx',
+        'app/[locale]/accounts/page.tsx',
+        'app/[locale]/accounts/[[]id]/page.tsx',
+        'app/[locale]/accounts/new/page.tsx',
         // `BalanceWidget` is a Client Component with a complex fetch
         // state machine; it is pinned by the smoke StaleChip test
         // (12.6% covered). The full Client Component contract lives
         // in the integration suite (slice 5).
-        'app/accounts/[[]id]/balance-widget.tsx',
+        'app/[locale]/accounts/[[]id]/balance-widget.tsx',
         // Slice 3 (`transactions-ui`): mirror of slice 2's
         // exclusion — the three Server Component shells depend
         // on NextAuth + the Hono composition root and are covered
         // at the integration layer in slice 5.
-        'app/transactions/page.tsx',
-        'app/transactions/[[]id]/page.tsx',
-        'app/transactions/new/page.tsx',
+        'app/[locale]/transactions/page.tsx',
+        'app/[locale]/transactions/[[]id]/page.tsx',
+        'app/[locale]/transactions/new/page.tsx',
         // Slice 4 (`dashboard-ui-refactor`): the Server Component
         // page shell (`app/dashboard/page.tsx`) is covered by the
         // Server Component contract tests (the 5 tests in
@@ -138,7 +138,7 @@ export default defineConfig({
         // depends on NextAuth + the Hono composition root +
         // parallel Promise.all over optional flow fetch. The
         // exclude pattern matches the slice 2/3 precedent.
-        'app/dashboard/page.tsx',
+        'app/[locale]/dashboard/page.tsx',
       ],
       thresholds: {
         lines: 80,
