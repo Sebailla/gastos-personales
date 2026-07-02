@@ -234,7 +234,7 @@ Builds the navigation shell: `Topbar`, `Sidebar` (client; collapse state round-t
 
 **Why now:** the landing (PR 4) renders inside the chrome, and the not-found/error (PR 4) share the same Topbar. Without `<AppShell>` mounted, the landing would have to inline its own wrapper.
 
-- **T-PR3-01** — **Create `app/_ui/primitives/glass-card.tsx` (server component): polymorphic `<GlassCard as?: 'div' | 'article' | 'section' tone?: 'glass-1' | 'glass-2'>` that maps `tone` to `bg-ui-glass-1` or `bg-ui-glass-2` + `backdrop-blur-[var(--ui-glass-blur-sm/lg)]` + `shadow-glass`. Under reduced-transparency, the CSS override from PR 2 (T-PR2-05) replaces the blur with a solid.**
+- **T-PR3-01** — **Create `app/_ui/primitives/glass-card.tsx` (server component): polymorphic `<GlassCard as?: 'div' | 'article' | 'section' tone?: 'glass-1' | 'glass-2'>` that maps `tone` to `bg-ui-glass-1` or `bg-ui-glass-2` + `backdrop-blur-[var(--ui-glass-blur-sm)]` (or `-[lg]` for glass-2) + `shadow-glass`. Under reduced-transparency, the CSS override from PR 2 (T-PR2-05) replaces the blur with a solid.**
 
   - **Path**: `app/_ui/primitives/glass-card.tsx` (new)
   - **TDD state**: RED → GREEN
