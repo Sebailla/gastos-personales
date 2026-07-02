@@ -37,6 +37,28 @@ jobs:
       - run: pnpm install --ignore-scripts --frozen-lockfile
       - run: pnpm prisma generate
       - run: pnpm run lint
+      # Tailwind v4 content-scanner hazard check
+      # (PR #113 + PR #117 follow-up). Fails CI if any
+      # brace-expansion utility-class-shaped tokens
+      # (`--xxx-{a,b}`, `xxx-{a,b}`, or `var(--xxx-yyy/zzz)`)
+      # appear in source files. The previous Node-script
+      # approach (PR #115) was closed; a one-line grep is
+      # lighter and equally effective.
+      - name: Tailwind content-scanner hazard check
+        run: |
+          if grep -rnE \
+              -e "\-\-[a-z][a-z0-9-]+\{[a-z0-9, _-]+\}" \
+              -e "\b[a-z][a-z0-9-]+-\{[a-z0-9, _-]+\}" \
+              -e "var\(--[a-z][a-z0-9-]+/[a-z][a-z0-9-]+\)" \
+              --include="*.tsx" --include="*.ts" \
+              --include="*.md" --include="*.mdx" \
+              --exclude-dir=node_modules --exclude-dir=.next \
+              app/ openspec/ Documents-es/; then
+            echo "✗ Tailwind content-scanner hazard(s) found above."
+            echo "  Rewrite as prose: e.g. `--xxx-{a,b}` → `--xxx-a` (or `-b`)."
+            echo "  See https://github.com/Sebailla/gastos-personales/pull/118 for context."
+            exit 1
+          fi
 
   # ---------------------------------------------------------------------------
   # test — runs the unit + integration suite. Needs Postgres.
