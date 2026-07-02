@@ -13,3 +13,9 @@ git update-index --refresh >/dev/null 2>&1 || true
 # `pnpm dlx` so the locally installed lint-staged is reused and
 # the hook does not hit the network on every commit.
 pnpm exec lint-staged && gga run
+
+# Tailwind v4 content-scanner hazard check (docs/build/tailwind-content-scanner.md).
+# Runs AFTER lint-staged + gga so the more expensive gates fail first
+# when a commit has many issues; this script is fast (single grep
+# pass) and is the last line of defence before the commit lands.
+pnpm run check:tailwind-scanner

@@ -1,0 +1,55 @@
+# scripts/__fixtures__/tailwind-scanner-allowlist.txt
+#
+# Allowlist of Tailwind v4 content-scanner hazards that are
+# INTENTIONALLY present in the codebase and should NOT cause
+# `pnpm run check:tailwind-scanner` to fail.
+#
+# Format: one match string per line. Lines starting with `#` and
+# blank lines are ignored.
+#
+# When to add an entry:
+#   - The hazard is inside a regex literal (e.g. `/bg-ui-glass-{1,2}/`)
+#     that legitimately tests for the absence of that class.
+#   - The hazard is inside a code comment that documents the
+#     Tailwind scanner's behaviour for future contributors.
+#   - The hazard is a description of a historical branch name,
+#     archive path, or file-name glob inside docs/archive (these
+#     files are not in Tailwind's active content scan path for the
+#     current build, so they do not produce CSS output).
+#
+# When NOT to add an entry:
+#   - The hazard is a real CSS class that the scanner would emit.
+#     Fix it by rewriting the class as a literal name instead.
+#
+# Example:
+#   bg-ui-glass-{1,2}    # tests for the absence of this class in a .not.toMatch
+
+# ---------------------------------------------------------------------------
+# Design system token descriptions in app/_ui/README.md (documentation only,
+# not emitted as CSS classes by Tailwind because the actual classes are
+# written as literals everywhere they are used).
+# ---------------------------------------------------------------------------
+ui-rounded-{sm,md,lg,full}
+ui-shadow-{sm,md,lg}
+ui-text-{xs,sm,base,lg,xl,2xl,3xl}
+ui-font-{normal,medium,semibold,bold}
+
+# ---------------------------------------------------------------------------
+# Historical branch / file-name descriptions in docs/archive (these files
+# document SDD changes that shipped months ago; the branch names and
+# file-name globs they describe are not active code paths).
+# ---------------------------------------------------------------------------
+fx-cache-{1,2,3}
+dashboard-{monthly-summary,category-breakdown,account-flow}
+transaction-{create,update,list}
+transactions-{entity,fx-snapshot,actions,persistence,api}
+
+# ---------------------------------------------------------------------------
+# Example tokens used inside docs/build/tailwind-content-scanner.md
+# (the operational doc for this scanner). The doc shows what the hazard
+# looks like so contributors can recognise it; rewriting the examples
+# would defeat the documentation. The doc itself is not in Tailwind's
+# active CSS-emission path (no @import of it).
+# ---------------------------------------------------------------------------
+bg-ui-glass-{1,2}
+ui-glass-blur-{sm,lg}

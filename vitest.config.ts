@@ -21,6 +21,12 @@ export default defineConfig({
       // E2E happy paths (`tests/e2e/`) all live under
       // `tests/` and are picked up by Vitest here.
       'tests/**/*.{test,spec}.{ts,tsx}',
+      // Build-tooling scripts under `scripts/__tests__/` (the
+      // Tailwind content-scanner guard's unit tests live here).
+      // These tests run in the Node environment (the default;
+      // no jsdom needed) and are excluded from coverage via the
+      // `coverage.include` glob not matching `scripts/**`.
+      'scripts/__tests__/**/*.{test,spec}.ts',
     ],
     exclude: ['node_modules', 'dist', '.next'],
     // App-router React component tests need a DOM. Configure per-file

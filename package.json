@@ -24,7 +24,8 @@
     "db:reset": "docker compose down -v && docker compose up -d postgres",
     "db:logs": "docker compose logs -f postgres",
     "prepare": "husky",
-    "docs:obsidian": "tsx scripts/sync-obsidian.ts"
+    "docs:obsidian": "tsx scripts/sync-obsidian.ts",
+    "check:tailwind-scanner": "tsx scripts/check-tailwind-content-scanner.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "2.11.2",

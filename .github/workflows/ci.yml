@@ -37,6 +37,12 @@ jobs:
       - run: pnpm install --ignore-scripts --frozen-lockfile
       - run: pnpm prisma generate
       - run: pnpm run lint
+      # Tailwind v4 content-scanner hazard check
+      # (docs/build/tailwind-content-scanner.md, PR #113 follow-up).
+      # Fails the build if any brace-expansion utility-class tokens
+      # are present in source files outside the allowlist fixture.
+      # Defense in depth: also runs in pre-commit.
+      - run: pnpm run check:tailwind-scanner
 
   # ---------------------------------------------------------------------------
   # test — runs the unit + integration suite. Needs Postgres.
